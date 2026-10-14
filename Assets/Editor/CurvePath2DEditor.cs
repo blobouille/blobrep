@@ -29,8 +29,6 @@ public class CurvePath2DEditor : Editor
         Undo.RegisterCreatedObjectUndo(go, "Create Curve Path 2D");
         var path = go.AddComponent<CurvePath2D>();   // Reset() crée la ligne droite
         go.AddComponent<CurveCollider2D>();          // collider présent dès le spawn
-        go.GetComponent<MeshRenderer>().sharedMaterial =
-            AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
         var sv = SceneView.lastActiveSceneView;
         if (sv != null) { var pv = sv.pivot; go.transform.position = new Vector3(pv.x, pv.y, 0); }
         Selection.activeGameObject = go;
