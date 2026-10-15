@@ -35,8 +35,12 @@ public struct CollisionChain
 [ExecuteAlways]
 public class CurvePath2D : MonoBehaviour
 {
+    [Header("Forme")]
+    [Tooltip("Points de contrôle de la courbe (espace local). Éditables dans la Scene view quand l'objet est sélectionné.")]
     public List<CurvePoint> points = new List<CurvePoint>();
+    [Tooltip("Coché : le dernier point est relié au premier (courbe fermée).")]
     public bool closed;
+    [Tooltip("Épaisseur du mur/rail, en unités Unity (espace local : multipliée par l'échelle du Transform).")]
     [Min(0.01f)] public float thickness = 0.4f;
 
     [Header("Échantillonnage (partagé aperçu / collision)")]
@@ -66,17 +70,17 @@ public class CurvePath2D : MonoBehaviour
     [Range(1f, 6f)] public float miterLimit = 3f;
 
     [Header("Collision")]
+    [Tooltip("Utilisé seulement par le backend 'LowLevel' de CurveCollider2D (chaînes) : ligne centrale, bord gauche, bord droit ou contour.\n" +
+             "Le backend 'LowLevelQuads' remplit toujours toute l'épaisseur.")]
     public CollisionMode collisionMode = CollisionMode.LeftEdge;
     [Tooltip("Par défaut la collision est du côté GAUCHE du sens de la courbe (dessus si elle va de gauche à droite). Cocher pour inverser.")]
     public bool flipSide;
 
-    // Résultat de l'échantillonnage (espace local)
     [NonSerialized] public List<Vector2> center = new List<Vector2>();
     [NonSerialized] public List<Vector2> left = new List<Vector2>();
     [NonSerialized] public List<Vector2> right = new List<Vector2>();
     [NonSerialized] public bool leftSelfIntersects, rightSelfIntersects;
 
-    // ---- bornes de la résolution (interpolation exponentielle : le slider est "linéaire" à l'usage)
     const float CoarseTolerance = 0.2f;     // résolution 0 : écart max courbe/segment (unités)
     const float FineTolerance = 0.0003f;    // résolution 1
     const float CoarseAngle = 30f;          // résolution 0 : rotation max de la tangente entre 2 points (°)
@@ -85,7 +89,6 @@ public class CurvePath2D : MonoBehaviour
 
     float _tol, _angle;
 
-    // ------------------------------------------------------------------ cycle de vie
     void Reset()
     {
         points = new List<CurvePoint>
@@ -100,7 +103,6 @@ public class CurvePath2D : MonoBehaviour
     void OnEnable() { RecomputeHandles(); Rebuild(); }
     void OnValidate() { RecomputeHandles(); Rebuild(); }
 
-    // ------------------------------------------------------------------ segments
     public int SegmentCount => points.Count < 2 ? 0 : (closed ? points.Count : points.Count - 1);
 
     public void GetSegment(int i, out Vector2 a, out Vector2 b, out Vector2 c, out Vector2 d)
@@ -119,7 +121,6 @@ public class CurvePath2D : MonoBehaviour
         return u * u * u * a + 3f * u * u * t * b + 3f * u * t * t * c + t * t * t * d;
     }
 
-    // ------------------------------------------------------------------ handles auto / vector
     public void RecomputeHandles()
     {
         int n = points.Count;
@@ -138,7 +139,7 @@ public class CurvePath2D : MonoBehaviour
                 p.handleIn = toPrev / 3f;
                 p.handleOut = toNext / 3f;
             }
-            else // Auto
+            else
             {
                 Vector2 dir;
                 if (!hasPrev) dir = toNext;
@@ -158,20 +159,17 @@ public class CurvePath2D : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------ échantillonnage adaptatif
     public void Rebuild()
     {
         center.Clear(); left.Clear(); right.Clear();
         leftSelfIntersects = rightSelfIntersects = false;
 
-        // résolution -> tolérances internes (interpolation exponentielle)
         float t = Mathf.Clamp01(resolution);
         _tol = CoarseTolerance * Mathf.Pow(FineTolerance / CoarseTolerance, t);
         _angle = CoarseAngle * Mathf.Pow(FineAngle / CoarseAngle, t);
 
         if (points.Count >= 2)
         {
-            // 1) subdivision adaptative : plus de points là où la courbe tourne / s'écarte de sa corde
             center.Add(points[0].position);
             for (int s = 0; s < SegmentCount; s++)
             {
@@ -179,10 +177,9 @@ public class CurvePath2D : MonoBehaviour
                 Subdivide(a, b, c, d, 0, center);
             }
 
-            // 2) retire les points inutiles (surtout sur les parties droites) sans dépasser la tolérance
             if (straightTolerance > 0f) Simplify(center);
 
-            if (closed && center.Count > 1) center.RemoveAt(center.Count - 1); // doublon du 1er point
+            if (closed && center.Count > 1) center.RemoveAt(center.Count - 1);
             RemoveClosePoints(center);
             BuildOffsets();
         }
@@ -205,22 +202,14 @@ public class CurvePath2D : MonoBehaviour
         Subdivide(m, bcd, cd, d, depth + 1, o);
     }
 
-    /// <summary>
-    /// Fusionne les points quasi alignés : on garde un point seulement si le retirer
-    /// écarterait la polyligne de plus de la tolérance (ou ferait trop tourner la tangente).
-    /// Les coins francs et les virages serrés sont donc toujours conservés.
-    /// </summary>
+    // Garde un point seulement si le retirer écarte la polyligne de plus de straightTolerance
+    // ou fait trop tourner la tangente : coins francs et virages serrés sont conservés.
     void Simplify(List<Vector2> pts)
     {
         int m = pts.Count;
         if (m < 3) return;
 
-        // tol : écart max toléré quand on retire un point (réglable dans l'inspecteur : straightTolerance).
-        //       Plus il est grand, plus on supprime de points sur les parties quasi droites.
         float tol = straightTolerance;
-        // halfAngle : garde-fou pour les virages. Même si l'écart est minuscule, on ne fusionne pas
-        //       si la direction de chaque petit segment s'éloigne trop de la corde (dépend de la résolution).
-        //       C'est ce qui empêche d'aplatir une courbe douce échantillonnée très finement.
         float halfAngle = _angle * 0.5f;
         var res = new List<Vector2>(m) { pts[0] };
 
@@ -265,7 +254,7 @@ public class CurvePath2D : MonoBehaviour
     void RemoveClosePoints(List<Vector2> pts)
     {
         float sq = MinPointDistance * MinPointDistance;
-        for (int i = pts.Count - 2; i >= 1; i--)  // garde toujours le 1er et le dernier
+        for (int i = pts.Count - 2; i >= 1; i--)
             if ((pts[i] - pts[i - 1]).sqrMagnitude < sq) pts.RemoveAt(i);
         if (pts.Count > 2)
         {
@@ -275,7 +264,6 @@ public class CurvePath2D : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------ épaisseur uniforme (offset + miter)
     static Vector2 Normal(Vector2 v) { v = new Vector2(-v.y, v.x); return v.normalized; }
 
     void BuildOffsets()
@@ -302,7 +290,6 @@ public class CurvePath2D : MonoBehaviour
             right.Add(p - nrm * h);
         }
 
-        // Détection d'auto-intersection (rayon de courbure < épaisseur/2)
         int segs = closed ? n : n - 1;
         for (int i = 0; i < segs; i++)
         {
@@ -313,8 +300,6 @@ public class CurvePath2D : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------ géométrie de collision
-    /// <summary>Chaînes de collision en espace local. Mode, sens et densité propres.</summary>
     public List<CollisionChain> BuildCollisionChains()
     {
         var res = new List<CollisionChain>();
@@ -353,7 +338,6 @@ public class CurvePath2D : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    // Aperçu léger quand l'objet n'est pas sélectionné
     void OnDrawGizmos()
     {
         if (UnityEditor.Selection.activeGameObject == gameObject) return;

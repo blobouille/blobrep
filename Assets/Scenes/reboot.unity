@@ -256,6 +256,7 @@ MonoBehaviour:
   gravite: {x: 0, y: -9.81}
   simulationSubSteps: 5
   continuousAllowed: 1
+  drawOptions: 32
 --- !u!4 &482720862
 Transform:
   m_ObjectHideFlags: 0
@@ -725,6 +726,7 @@ MonoBehaviour:
   friction: 0.6
   rebond: 0.3
   resistanceRoulement: 0
+  previewColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!4 &758295838
 Transform:
   m_ObjectHideFlags: 0
@@ -740,6 +742,62 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &824097871
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 824097873}
+  - component: {fileID: 824097872}
+  m_Layer: 0
+  m_Name: PinballFlipper Right
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &824097872
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 824097871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91f230d1168349a458d025284a08f873, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PinballFlipper
+  size: 5.2
+  length: 1
+  baseRadius: 0.15
+  tipRadius: 0.07
+  key: 1
+  activeAngle: -45
+  motorSpeed: 1000
+  useTorque: 0
+  motorTorque: 400
+  previewColor: {r: 0.2, g: 0.9, b: 0.4, a: 1}
+  previewActiveColor: {r: 1, g: 0.6, b: 0.1, a: 0.6}
+  logCoords: 1
+--- !u!4 &824097873
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 824097871}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: -0.97377783, w: 0.22750112}
+  m_LocalPosition: {x: -21.2, y: -13.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -386.3}
 --- !u!1 &999771086
 GameObject:
   m_ObjectHideFlags: 0
@@ -773,9 +831,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CurveCollider2D
   backend: 0
+  minQuadArea: 0.00001
   friction: 0.4
   bounciness: 0
-  minQuadArea: 0.00001
 --- !u!114 &999771088
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -922,6 +980,7 @@ MonoBehaviour:
   friction: 0.6
   rebond: 0.3
   resistanceRoulement: 0
+  previewColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!4 &1568526762
 Transform:
   m_ObjectHideFlags: 0
@@ -970,9 +1029,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CurveCollider2D
   backend: 0
+  minQuadArea: 0.00001
   friction: 0.4
   bounciness: 0
-  minQuadArea: 0.00001
 --- !u!114 &1697017238
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1218,9 +1277,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CurveCollider2D
   backend: 0
+  minQuadArea: 0.00001
   friction: 0.4
   bounciness: 0
-  minQuadArea: 0.00001
 --- !u!1 &1954249045
 GameObject:
   m_ObjectHideFlags: 0
@@ -1355,3 +1414,4 @@ SceneRoots:
   - {fileID: 482720862}
   - {fileID: 1568526762}
   - {fileID: 758295838}
+  - {fileID: 824097873}

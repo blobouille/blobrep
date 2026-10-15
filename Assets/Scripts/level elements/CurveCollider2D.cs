@@ -2,17 +2,24 @@ using System.Collections.Generic;
 using Unity.U2D.Physics;
 using UnityEngine;
 
+[ExecuteAlways]
 [RequireComponent(typeof(CurvePath2D))]
 public class CurveCollider2D : MonoBehaviour
 {
     public enum Backend { LowLevel, LowLevelQuads }
 
+    [Header("Collision")]
+    [Tooltip("LowLevelQuads : un quad plein par segment, remplit toute l'épaisseur (recommandé).\n" +
+             "LowLevel : chaînes Box2D à sens unique, selon 'collisionMode' de CurvePath2D.")]
     public Backend backend = Backend.LowLevelQuads;
-    [Min(0)] public float friction = 0.4f;
-    [Min(0)] public float bounciness = 0f;
-
-    [Tooltip("Quads dont l'aire est inférieure à cette valeur sont ignorés (Box2D refuse les polygones dégénérés).")]
+    [Tooltip("Quads dont l'aire est inférieure à cette valeur (unités² monde) sont ignorés : Box2D refuse les polygones dégénérés.")]
     [Min(0)] public float minQuadArea = 1e-5f;
+
+    [Header("Matériau")]
+    [Tooltip("Friction de la surface (0 = glisse parfaitement).")]
+    [Min(0)] public float friction = 0.4f;
+    [Tooltip("Rebond de la surface : 0 = aucun rebond, 1 = rebond parfait.")]
+    [Min(0)] public float bounciness = 0f;
 
     PhysicsBody _body;
 
@@ -31,21 +38,26 @@ public class CurveCollider2D : MonoBehaviour
 
     void OnDisable() => Cleanup();
 
-    // ------------------------------------------------------------------ Box2D v3 : quads jointifs
-    void BuildLowLevelQuads(CurvePath2D path)
+    PhysicsShape.SurfaceMaterial Material(PhysicsShape.SurfaceMaterial m)
     {
-        var world = PhysicsWorld.defaultWorld;
+        m.friction = friction;
+        m.bounciness = bounciness;
+        return m;
+    }
 
+    PhysicsBody CreateStaticBody()
+    {
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bodyDef.type = PhysicsBody.BodyType.Static;
-        _body = world.CreateBody(bodyDef);
+        return PhysicsWorld.defaultWorld.CreateBody(bodyDef);
+    }
+
+    void BuildLowLevelQuads(CurvePath2D path)
+    {
+        _body = CreateStaticBody();
 
         var shapeDef = PhysicsShapeDefinition.defaultDefinition;
-        shapeDef.surfaceMaterial = new PhysicsShape.SurfaceMaterial
-        {
-            friction = friction,
-            bounciness = bounciness
-        };
+        shapeDef.surfaceMaterial = Material(shapeDef.surfaceMaterial);
 
         int n = path.center.Count;
         if (n < 2) return;
@@ -62,10 +74,8 @@ public class CurveCollider2D : MonoBehaviour
 
             if (Mathf.Abs(Area(quad)) < minQuadArea) continue;
 
-            // PolygonGeometry.Create calcule l'enveloppe convexe : un quad "tordu"
-            // (virage très serré où le miter se croise) reste donc valide.
-            var geometry = PolygonGeometry.Create(quad);
-            _body.CreateShape(geometry, shapeDef);
+            // Create calcule l'enveloppe convexe : un quad croisé (virage très serré) reste valide.
+            _body.CreateShape(PolygonGeometry.Create(quad), shapeDef);
         }
     }
 
@@ -80,21 +90,12 @@ public class CurveCollider2D : MonoBehaviour
         return a * 0.5f;
     }
 
-    // ------------------------------------------------------------------ Box2D v3 : chaînes
     void BuildLowLevel(List<CollisionChain> chains)
     {
-        var world = PhysicsWorld.defaultWorld;
-
-        var bodyDef = PhysicsBodyDefinition.defaultDefinition;
-        bodyDef.type = PhysicsBody.BodyType.Static;
-        _body = world.CreateBody(bodyDef);
+        _body = CreateStaticBody();
 
         var chainDef = PhysicsChainDefinition.defaultDefinition;
-        chainDef.surfaceMaterial = new PhysicsShape.SurfaceMaterial
-        {
-            friction = friction,
-            bounciness = bounciness
-        };
+        chainDef.surfaceMaterial = Material(chainDef.surfaceMaterial);
 
         foreach (var c in chains)
         {
@@ -107,11 +108,10 @@ public class CurveCollider2D : MonoBehaviour
             }
             else
             {
+                // Chaîne ouverte Box2D : le premier et le dernier point sont des "ghosts" sans collision.
                 int n = world2D.Count;
-                Vector2 ghost1 = world2D[0] + (world2D[0] - world2D[1]);
-                Vector2 ghost2 = world2D[n - 1] + (world2D[n - 1] - world2D[n - 2]);
-                world2D.Insert(0, ghost1);
-                world2D.Add(ghost2);
+                world2D.Insert(0, world2D[0] + (world2D[0] - world2D[1]));
+                world2D.Add(world2D[n] + (world2D[n] - world2D[n - 1]));
                 chainDef.isLoop = false;
             }
 

@@ -1,61 +1,53 @@
 using System.Collections.Generic;
-using Unity.Collections;
-using Unity.Mathematics;
 using UnityEngine;
 using Unity.U2D.Physics;
 
+[ExecuteAlways]
+[DisallowMultipleComponent]
 public class LevelShape : MonoBehaviour
 {
     public enum Preset { Cercle, Rectangle, Triangle, Personnalisee }
 
     [Header("Preset")]
+    [Tooltip("Forme des bordures. Personnalisee utilise 'customPoints'.")]
     public Preset preset = Preset.Rectangle;
 
     [Header("Dimensions")]
-    [Tooltip("Rayon du cercle")]
+    [Tooltip("Cercle : rayon, en unités Unity (multiplié par l'échelle du Transform).")]
     [Min(0.01f)] public float radius = 2f;
-
-    [Tooltip("Rectangle : largeur. Triangle : longueur d'un côté")]
+    [Tooltip("Rectangle : largeur. Triangle : longueur d'un côté. En unités Unity (multiplié par l'échelle du Transform).")]
     [Min(0.01f)] public float length = 4f;
-
-    [Tooltip("Rectangle : hauteur")]
+    [Tooltip("Rectangle : hauteur, en unités Unity (multiplié par l'échelle du Transform).")]
     [Min(0.01f)] public float height = 3f;
-
-    [Tooltip("Épaisseur des murs (diamètre des capsules)")]
+    [Tooltip("Épaisseur des murs (diamètre des capsules), en unités Unity (absolu).")]
     [Min(0.01f)] public float thickness = 0.2f;
-
-    [Tooltip("Nombre de segments pour approximer le cercle")]
+    [Tooltip("Cercle : nombre de segments utilisés pour l'approximer.")]
     [Range(3, 64)] public int circleSegments = 24;
-
-    [Tooltip("Points locaux utilisés par le preset Personnalisee")]
+    [Tooltip("Personnalisee : points en espace local.")]
     public Vector2[] customPoints = { new Vector2(-2f, -1f), new Vector2(2f, -1f), new Vector2(0f, 2f) };
-
-    [Tooltip("Personnalisee : coché = la forme se referme (dernier point relié au premier)")]
+    [Tooltip("Personnalisee : coché = le dernier point est relié au premier.")]
     public bool closed = true;
 
     [Header("Physique")]
-    public float friction = 0.3f;
-
-    [Range(0f, 1f)]
-    [Tooltip("Rebond du matériau : 0 = aucun rebond, 1 = rebond parfait")]
-    public float bounciness = 0f;
-
+    [Tooltip("Friction des murs (0 = glisse parfaitement).")]
+    [Min(0f)] public float friction = 0.3f;
+    [Tooltip("Rebond des murs : 0 = aucun rebond, 1 = rebond parfait.")]
+    [Range(0f, 1f)] public float bounciness = 0f;
+    [Tooltip("Couleur des murs dans le rendu debug de la physique.")]
     public Color debugColor = Color.gray;
 
     [Header("Preview (Scene view)")]
+    [Tooltip("Couleur de l'aperçu Scene view.")]
     public Color previewColor = Color.yellow;
 
-    private NativeList<PhysicsBody> m_Bodies;
+    PhysicsBody _body;
 
-    private void Start()
+    void OnEnable()
     {
-        var world = PhysicsWorld.defaultWorld;
-        world.drawOptions = PhysicsWorld.DrawOptions.AllShapes;
-
-        Build();
+        if (Application.isPlaying) Build();
     }
 
-    private void OnDestroy()
+    void OnDisable()
     {
         Clear();
     }
@@ -63,18 +55,13 @@ public class LevelShape : MonoBehaviour
     [ContextMenu("Rebuild Level Shape")]
     public void Rebuild()
     {
+        if (!Application.isPlaying) return;
         Clear();
         Build();
     }
 
-    // -------------------------------------------------------------
-    // GÉOMÉTRIE (utilisée à la fois par le preview et par le runtime)
-    // -------------------------------------------------------------
-
-    /// <summary>Retourne les points locaux de la forme et indique si elle est fermée.</summary>
-    private List<Vector2> GetLocalPoints(out bool isClosed)
+    void GetLocalPoints(List<Vector2> pts, out bool isClosed)
     {
-        var pts = new List<Vector2>();
         isClosed = true;
 
         switch (preset)
@@ -89,17 +76,14 @@ public class LevelShape : MonoBehaviour
                 pts.Add(new Vector2(-hl, hh));
                 break;
             }
-
             case Preset.Triangle:
             {
-                // Triangle équilatéral dont le côté vaut "length", centré sur son centre de gravité
                 float h = length * Mathf.Sqrt(3f) * 0.5f;
                 pts.Add(new Vector2(0f, 2f * h / 3f));
                 pts.Add(new Vector2(-length * 0.5f, -h / 3f));
                 pts.Add(new Vector2(length * 0.5f, -h / 3f));
                 break;
             }
-
             case Preset.Cercle:
             {
                 for (int i = 0; i < circleSegments; ++i)
@@ -109,7 +93,6 @@ public class LevelShape : MonoBehaviour
                 }
                 break;
             }
-
             case Preset.Personnalisee:
             {
                 if (customPoints != null) pts.AddRange(customPoints);
@@ -117,122 +100,66 @@ public class LevelShape : MonoBehaviour
                 break;
             }
         }
-
-        return pts;
     }
 
-    /// <summary>Liste des segments (a, b) de la forme, en coordonnées locales.</summary>
-    private List<(Vector2 a, Vector2 b)> GetEdges()
+    List<(Vector2 a, Vector2 b)> GetWorldEdges()
     {
-        var pts = GetLocalPoints(out bool isClosed);
-        var edges = new List<(Vector2, Vector2)>();
+        var pts = new List<Vector2>();
+        GetLocalPoints(pts, out bool isClosed);
+        for (int i = 0; i < pts.Count; ++i) pts[i] = transform.TransformPoint(pts[i]);
 
+        var edges = new List<(Vector2, Vector2)>();
         if (pts.Count < 2) return edges;
 
         for (int i = 0; i < pts.Count - 1; ++i)
             edges.Add((pts[i], pts[i + 1]));
-
         if (isClosed && pts.Count > 2)
             edges.Add((pts[pts.Count - 1], pts[0]));
 
         return edges;
     }
 
-    // -------------------------------------------------------------
-    // PREVIEW (Scene view)
-    // -------------------------------------------------------------
-
-    private void OnDrawGizmos()
+    void OnDrawGizmos()
     {
-        var edges = GetEdges();
-        if (edges.Count == 0) return;
+        if (Application.isPlaying) return;
 
-        Matrix4x4 previous = Gizmos.matrix;
-        Gizmos.matrix = transform.localToWorldMatrix;
         Gizmos.color = previewColor;
-
         float half = thickness * 0.5f;
 
-        foreach (var (a, b) in edges)
+        foreach (var (a, b) in GetWorldEdges())
         {
-            Vector2 dir = (b - a).normalized;
-            Vector2 n = new Vector2(-dir.y, dir.x) * half;
-
-            // Ligne centrale
+            Vector2 n = Vector2.Perpendicular((b - a).normalized) * half;
             Gizmos.DrawLine(a, b);
-
-            // Contours d'épaisseur de chaque côté
             Gizmos.DrawLine(a + n, b + n);
             Gizmos.DrawLine(a - n, b - n);
-
-            // Cercles aux extrémités pour visualiser les capsules
             Gizmos.DrawWireSphere(a, half);
         }
-
-        Gizmos.matrix = previous;
     }
 
-    // -------------------------------------------------------------
-    // RUNTIME (création des corps Box2D au Play)
-    // -------------------------------------------------------------
-
-    private void Build()
+    void Build()
     {
-        var world = PhysicsWorld.defaultWorld;
-        var edges = GetEdges();
-
-        m_Bodies = new NativeList<PhysicsBody>(1, Allocator.Persistent);
-
+        var edges = GetWorldEdges();
         if (edges.Count == 0) return;
 
-        var bodyDef = new PhysicsBodyDefinition
-        {
-            type = PhysicsBody.BodyType.Static,
-            position = (Vector2)transform.position,
-            rotation = PhysicsRotate.FromRadians(transform.eulerAngles.z * Mathf.Deg2Rad)
-        };
+        var bodyDef = PhysicsBodyDefinition.defaultDefinition;
+        bodyDef.type = PhysicsBody.BodyType.Static;
+        _body = PhysicsWorld.defaultWorld.CreateBody(bodyDef);
 
-        var shapeDef = new PhysicsShapeDefinition
-        {
-            surfaceMaterial = new PhysicsShape.SurfaceMaterial
-            {
-                friction = friction,
-                bounciness = bounciness,
-                customColor = debugColor
-            },
-            contactFilter = new PhysicsShape.ContactFilter
-            {
-                categories = 1,
-                contacts = PhysicsMask.All,
-                groupIndex = 0
-            }
-        };
-
-        // Un seul corps statique pour toute la forme
-        var body = world.CreateBody(bodyDef);
-        m_Bodies.Add(body);
+        var shapeDef = PhysicsShapeDefinition.defaultDefinition;
+        var material = shapeDef.surfaceMaterial;
+        material.friction = friction;
+        material.bounciness = bounciness;
+        material.customColor = debugColor;
+        shapeDef.surfaceMaterial = material;
 
         float half = thickness * 0.5f;
-
         foreach (var (a, b) in edges)
-        {
-            var capsule = new CapsuleGeometry
-            {
-                center1 = a,
-                center2 = b,
-                radius = half
-            };
-
-            body.CreateShape(capsule, shapeDef);
-        }
+            _body.CreateShape(new CapsuleGeometry { center1 = a, center2 = b, radius = half }, shapeDef);
     }
 
-    private void Clear()
+    void Clear()
     {
-        if (m_Bodies.IsCreated)
-        {
-            PhysicsBody.DestroyBatch(m_Bodies.AsArray());
-            m_Bodies.Dispose();
-        }
+        if (_body.isValid) _body.Destroy();
+        _body = default;
     }
 }
