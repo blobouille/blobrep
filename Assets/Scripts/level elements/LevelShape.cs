@@ -4,7 +4,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class LevelShape : MonoBehaviour
+public class LevelShape : MonoBehaviour, ILevelPhysics
 {
     public enum Preset { Cercle, Rectangle, Triangle, Personnalisee }
 

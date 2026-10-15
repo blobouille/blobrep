@@ -49,6 +49,10 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Ordre de création des corps/joints stable et explicite (ne pas dépendre de l'ordre
   d'exécution des scripts) ; ordre d'itération stable (pas de dépendance aux Dictionary/HashSet)
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
+- Recommencer = `LevelRestart.Restart()` (R, plus tard la mort) : détruit toute la physique, `PhysicsWorld.Reset()`
+  sur le monde vide (sinon l'historique interne de Box2D fait diverger les essais), puis recrée dans l'ordre de la hiérarchie.
+  Le départ du niveau passe aussi par là (au chargement de la scène) : chaque essai est identique au bit près (~1 ms)
+- Tout état à remettre à zéro hors physique (caméra, timer, musique…) s'abonne à `LevelRestart.Restarted`
 
 ## Level design
 - `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
@@ -59,7 +63,9 @@ Tout ce qui sert à créer un niveau suit le modèle existant (CurvePath2D / Pin
 - Composant `[ExecuteAlways]` entièrement paramétrable depuis l'inspecteur, rien en dur
 - Aperçu visible dans la Scene view AVANT de lancer le jeu : `OnDrawGizmos` (+ Editor custom
   avec handles si besoin), avec la même géométrie que celle envoyée à la physique
-- La physique n'est créée qu'en Play (`Application.isPlaying`), dans `OnEnable`, et détruite dans `OnDisable`
+- La physique n'est créée qu'en Play (`Application.isPlaying`), dans `OnEnable`, et détruite dans `OnDisable`.
+  Le composant implémente `ILevelPhysics` : `LevelRestart` le désactive / réactive pour recommencer le niveau
+  (tout corps créé hors d'un `ILevelPhysics` empêche la remise à zéro du monde)
 - Une seule source de vérité géométrique pour aperçu et collision
 
 Scripts existants :
@@ -72,17 +78,28 @@ Scripts existants :
   Le léger « accroc » des chaînes à très haute vitesse est accepté (atténué par le pas à 120 Hz).
   Pour un mur épais solide des deux côtés : `collisionMode = Outline`
 - `PinballFlipper` : flipper (2 cercles + quad), charnière à moteur (`useTorque`) ou kinematic piloté en vitesse
-- `BLOB` : la balle à amener à la fin du niveau (structure physique uniquement)
+- `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `FixedUpdate`,
+  ordre fixe capsules → contacts). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
+  un obstacle le lui signale (`OnCapsuleTouched`). Événements statiques `Broken` / `Respawned`
+- Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this`,
+  géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision
+  - `CircularSaw` : scie dentée kinematic en rotation (`rotationSpeed` en degrés/s, modifiable en Play)
+    (`CircularSawEditor` : poignées diamètre / dents)
+  - `SpikeRow` : rangée de piques (nombre, taille globale, taille par pique) ; les capsules qui la touchent s'empalent
+    (joint fixe souple vers un point enfoncé de `impaleDepth`) (`SpikeRowEditor` : poignée par pointe, taille globale, nombre)
+  - Nouvel obstacle = sous-classe de `BlobHazard` ; menu GameObject > 2D Object pour créer
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
-  Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`
+  Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
+  À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier`
 
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
 - `Ball2D` : balle rigide simple, pour comparer son comportement à celui du blob
 - `LevelShape` : bordures simples (rectangle, cercle…) pour les tests physiques ; ancien, à ne pas étendre
 - `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, collision continue, `drawOptions`) ;
-  seul endroit qui configure le `PhysicsWorld`
+  seul endroit qui configure le `PhysicsWorld` et `Time.timeScale` (ralenti : `SetTimeScaleMultiplier`, ne change pas la simulation)
 - `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement
-- `RespawnOnKey` : touche R = respawn de tous les BLOB puis Ball2D (ordre de hiérarchie, dans `FixedUpdate`)
+- `RespawnOnKey` : touche R = `LevelRestart.Restart()`, dans `FixedUpdate` avec un ordre d'exécution prioritaire
+  (le pas qui suit un redémarrage est identique au premier pas du niveau)
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)

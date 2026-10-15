@@ -4,7 +4,7 @@ using UnityEngine;
 
 [ExecuteAlways]
 [RequireComponent(typeof(CurvePath2D))]
-public class CurveCollider2D : MonoBehaviour
+public class CurveCollider2D : MonoBehaviour, ILevelPhysics
 {
     [Header("Matériau")]
     [Tooltip("Friction de la surface (0 = glisse parfaitement).")]

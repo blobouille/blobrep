@@ -5,7 +5,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BLOB : MonoBehaviour, ICameraTarget
+public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
 {
     [Header("Forme & Apparence")]
     [Tooltip("Nombre de capsules qui forment l'anneau du blob. Plus = plus rond et plus souple, mais plus coûteux.")]
@@ -44,7 +44,15 @@ public class BLOB : MonoBehaviour, ICameraTarget
              "dynamiques et kinematic (flippers), pas seulement contre les murs statiques. Plus coûteux.")]
     public bool fastCollisions = false;
 
+    public static event System.Action<BLOB, BlobHazard, Vector2> Broken;
+    public static event System.Action<BLOB> Respawned;
+
     NativeList<PhysicsBody> _bodies;
+    // _joints[i] relie la capsule i-1 à la capsule i.
+    NativeList<PhysicsJoint> _joints;
+    bool[] _attached;
+
+    public bool IsBroken { get; private set; }
 
     public Vector2 CameraPosition
     {
@@ -80,13 +88,57 @@ public class BLOB : MonoBehaviour, ICameraTarget
         if (!Application.isPlaying) return;
         DestroyBlob();
         SpawnBlob(transform.position);
+        Respawned?.Invoke(this);
     }
 
     void DestroyBlob()
     {
+        if (_joints.IsCreated) _joints.Dispose();
         if (!_bodies.IsCreated) return;
         PhysicsBody.DestroyBatch(_bodies.AsArray());
         _bodies.Dispose();
+    }
+
+    // Contacts de l'état issu du dernier pas, parcourus dans un ordre fixe (capsules puis contacts Box2D).
+    void FixedUpdate()
+    {
+        if (!Application.isPlaying || !_bodies.IsCreated) return;
+
+        for (int i = 0; i < _bodies.Length; i++)
+        {
+            if (_attached[i]) continue;
+            var contacts = _bodies[i].GetContacts(Allocator.Temp);
+            for (int k = 0; k < contacts.Length; k++)
+            {
+                var manifold = contacts[k].manifold;
+                if (manifold.pointCount == 0) continue;
+                var hazard = contacts[k].shapeA.userData.objectValue as BlobHazard;
+                if (hazard == null) hazard = contacts[k].shapeB.userData.objectValue as BlobHazard;
+                if (hazard == null) continue;
+                Hit(i, hazard, manifold[0].point);
+            }
+            contacts.Dispose();
+        }
+    }
+
+    void Hit(int capsule, BlobHazard hazard, Vector2 point)
+    {
+        if (!IsBroken)
+        {
+            for (int j = 0; j < _joints.Length; j++) BreakJoint(j);
+            IsBroken = true;
+            Broken?.Invoke(this, hazard, point);
+        }
+
+        if (!_attached[capsule] && hazard.OnCapsuleTouched(_bodies[capsule], point)) _attached[capsule] = true;
+    }
+
+    void BreakJoint(int j)
+    {
+        var joint = _joints[j];
+        if (!joint.isValid) return;
+        joint.Destroy();
+        _joints[j] = default;
     }
 
     void OnDestroy()
@@ -149,14 +201,17 @@ public class BLOB : MonoBehaviour, ICameraTarget
         jointDef.localAnchorA = new Vector2(0f, 0.5f * SegmentLength);
         jointDef.localAnchorB = new Vector2(0f, -0.5f * SegmentLength);
 
+        _joints = new NativeList<PhysicsJoint>(sides, Allocator.Persistent);
         var prev = _bodies[_bodies.Length - 1];
         for (int i = 0; i < sides; ++i)
         {
             jointDef.bodyA = prev;
             jointDef.bodyB = _bodies[i];
-            world.CreateJoint(jointDef);
+            _joints.Add(world.CreateJoint(jointDef));
             prev = _bodies[i];
         }
+        IsBroken = false;
+        _attached = new bool[sides];
     }
 
     void OnDrawGizmos()

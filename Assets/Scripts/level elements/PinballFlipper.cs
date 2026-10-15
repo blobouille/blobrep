@@ -13,7 +13,7 @@ public enum FlipperKey
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class PinballFlipper : MonoBehaviour
+public class PinballFlipper : MonoBehaviour, ILevelPhysics
 {
     [Header("Forme")]
     [Tooltip("Échelle globale du levier : multiplie la longueur et les deux rayons.")]

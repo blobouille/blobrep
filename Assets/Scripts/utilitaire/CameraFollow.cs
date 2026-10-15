@@ -24,12 +24,93 @@ public class CameraFollow : MonoBehaviour
              "peut bouger sans que la caméra ne la suive. (0, 0) = suivi permanent.")]
     public Vector2 deadZone = Vector2.zero;
 
+    [Header("Focus destruction")]
+    [Tooltip("Quand la cible (un BLOB) est déstructurée par un obstacle, la caméra se centre sur l'obstacle et zoome.\n" +
+             "Elle revient au suivi normal au respawn du blob.")]
+    public bool focusOnBreak = true;
+    [Tooltip("Taille orthographique de la caméra pendant le focus (demi-hauteur visible, en unités Unity). Plus petit = zoom plus fort.")]
+    [Min(0.1f)] public float focusSize = 2.5f;
+    [Tooltip("Temps (en secondes réelles, insensible au ralenti) pour faire environ 63 % du trajet et du zoom vers le focus.")]
+    [Min(0f)] public float focusSmoothTime = 0.12f;
+
+    [Header("Ralenti à la destruction")]
+    [Tooltip("Ralentit le temps au moment de la destruction (via monde_settings). La simulation reste identique : seul le nombre\n" +
+             "de pas physiques par seconde réelle diminue.")]
+    public bool slowMotion = true;
+    [Tooltip("Vitesse du temps pendant le ralenti, multipliée par 'gameSpeed' de monde_settings. 0,3 = 3× plus lent.")]
+    [Range(0.01f, 1f)] public float slowFactor = 0.3f;
+    [Tooltip("Durée du ralenti, en secondes réelles.")]
+    [Min(0f)] public float slowDuration = 0.5f;
+
     GameObject _cachedTarget;
     ICameraTarget _cameraTarget;
+    Camera _camera;
+    float _baseSize;
+    bool _focusing;
+    Vector2 _focusPoint;
+    float _slowEndTime = -1f;
+    monde_settings _settings;
 
     void Start()
     {
+        _camera = GetComponent<Camera>();
+        _baseSize = _camera.orthographicSize;
         SnapToTarget();
+    }
+
+    void OnEnable()
+    {
+        BLOB.Broken += OnBlobBroken;
+        BLOB.Respawned += OnBlobRespawned;
+        LevelRestart.Restarted += OnLevelRestarted;
+    }
+
+    void OnDisable()
+    {
+        BLOB.Broken -= OnBlobBroken;
+        BLOB.Respawned -= OnBlobRespawned;
+        LevelRestart.Restarted -= OnLevelRestarted;
+        EndSlowMotion();
+    }
+
+    void OnLevelRestarted()
+    {
+        _focusing = false;
+        EndSlowMotion();
+        if (_camera == null) return;
+        _camera.orthographicSize = _baseSize;
+        SnapToTarget();
+    }
+
+    void OnBlobBroken(BLOB blob, BlobHazard hazard, Vector2 contactPoint)
+    {
+        if (!focusOnBreak || target != blob.gameObject) return;
+        _focusing = true;
+        _focusPoint = hazard.FocusPoint(contactPoint);
+
+        if (!slowMotion) return;
+        if (_settings == null) _settings = FindFirstObjectByType<monde_settings>();
+        if (_settings == null)
+        {
+            Debug.LogWarning("CameraFollow : pas de monde_settings dans la scène, ralenti ignoré.", this);
+            return;
+        }
+        _settings.SetTimeScaleMultiplier(slowFactor);
+        _slowEndTime = Time.unscaledTime + slowDuration;
+    }
+
+    void OnBlobRespawned(BLOB blob)
+    {
+        if (target != blob.gameObject) return;
+        _focusing = false;
+        EndSlowMotion();
+    }
+
+    void EndSlowMotion()
+    {
+        if (_slowEndTime < 0f) return;
+        _slowEndTime = -1f;
+        if (_settings != null) _settings.SetTimeScaleMultiplier(1f);
     }
 
     [ContextMenu("Snap To Target")]
@@ -40,6 +121,17 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
+        if (_slowEndTime >= 0f && Time.unscaledTime >= _slowEndTime) EndSlowMotion();
+
+        float f = focusSmoothTime > 0f ? 1f - Mathf.Exp(-Time.unscaledDeltaTime / focusSmoothTime) : 1f;
+        _camera.orthographicSize = Mathf.Lerp(_camera.orthographicSize, _focusing ? focusSize : _baseSize, f);
+
+        if (_focusing)
+        {
+            MoveTo(Vector2.Lerp(transform.position, _focusPoint, f));
+            return;
+        }
+
         if (!TryGetTargetPosition(out var p)) return;
 
         Vector2 current = transform.position;

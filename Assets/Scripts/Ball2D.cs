@@ -3,7 +3,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class Ball2D : MonoBehaviour, ICameraTarget
+public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
 {
     [Header("Balle")]
     [Tooltip("Diamètre de la balle, en unités Unity (absolu). 1 = standard du projet (même taille qu'un BLOB de diamètre 1).")]
