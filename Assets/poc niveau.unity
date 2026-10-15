@@ -375,7 +375,7 @@ MonoBehaviour:
   straightTolerance: 0.002
   miterLimit: 3
   collisionMode: 3
-  flipSide: 0
+  flipSide: 1
 --- !u!4 &1760590450
 Transform:
   m_ObjectHideFlags: 0
@@ -385,7 +385,7 @@ Transform:
   m_GameObject: {fileID: 1760590447}
   serializedVersion: 2
   m_LocalRotation: {x: -0.4734119, y: 0.8808412, z: -0, w: 0}
-  m_LocalPosition: {x: 17.13, y: -1.83, z: 0}
+  m_LocalPosition: {x: 17.48, y: -1.83, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
