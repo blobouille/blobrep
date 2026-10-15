@@ -51,7 +51,6 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
 
 ## Level design
-- Règles d'un bon niveau : voir `LEVEL_DESIGN.md` (à suivre et à enrichir quand un test apprend quelque chose)
 - `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
   descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
 
