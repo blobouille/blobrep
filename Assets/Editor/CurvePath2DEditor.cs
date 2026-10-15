@@ -21,7 +21,6 @@ public class CurvePath2DEditor : Editor
     void OnDisable() { Undo.undoRedoPerformed -= OnUndo; }
     void OnUndo() { var p = (CurvePath2D)target; if (p) { p.Rebuild(); SceneView.RepaintAll(); } }
 
-    // ------------------------------------------------------------------ menu
     [MenuItem("GameObject/2D Object/Curve Path 2D", false, 10)]
     static void Create()
     {
@@ -34,7 +33,6 @@ public class CurvePath2DEditor : Editor
         Selection.activeGameObject = go;
     }
 
-    // ------------------------------------------------------------------ inspecteur
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
@@ -56,7 +54,6 @@ public class CurvePath2DEditor : Editor
         if (GUILayout.Button("Recalculer")) { path.RecomputeHandles(); path.Rebuild(); SceneView.RepaintAll(); }
     }
 
-    // ------------------------------------------------------------------ scene view
     void OnSceneGUI()
     {
         var path = (CurvePath2D)target;
@@ -120,20 +117,20 @@ public class CurvePath2DEditor : Editor
 
     void DrawPreview(CurvePath2D path)
     {
-        // contour de l'épaisseur
         Handles.color = new Color(0.4f, 0.8f, 1f);
         DrawLine(path.left, path.closed, 2f);
         DrawLine(path.right, path.closed, 2f);
         if (!path.closed && path.left.Count > 1)
-        {   // extrémités
+        {
             Handles.DrawAAPolyLine(2f, path.left[0], path.right[0]);
             Handles.DrawAAPolyLine(2f, path.left[path.left.Count - 1], path.right[path.right.Count - 1]);
         }
-        // axe
         Handles.color = new Color(1, 1, 1, 0.25f);
         DrawLine(path.center, path.closed, 1f);
 
-        // géométrie de collision exacte
+        // Les chaînes n'existent qu'avec le backend LowLevel ; LowLevelQuads remplit le contour ci-dessus.
+        var col = path.GetComponent<CurveCollider2D>();
+        if (col != null && col.backend != CurveCollider2D.Backend.LowLevel) return;
         Handles.color = new Color(0.2f, 1f, 0.3f);
         foreach (var ch in path.BuildCollisionChains())
         {
@@ -156,7 +153,6 @@ public class CurvePath2DEditor : Editor
         Handles.DrawAAPolyLine(w, a);
     }
 
-    // ------------------------------------------------------------------ entrées
     void HandleInput(CurvePath2D path, Event e)
     {
         if (e.type == EventType.MouseDown && e.button == 0 && !e.alt)
@@ -217,7 +213,6 @@ public class CurvePath2DEditor : Editor
         return seg >= 0;
     }
 
-    // ------------------------------------------------------------------ opérations
     void InsertPoint(CurvePath2D path, int seg, float t)
     {
         // De Casteljau : la forme de la courbe est strictement conservée
@@ -252,7 +247,6 @@ public class CurvePath2DEditor : Editor
         EditorUtility.SetDirty(path);
     }
 
-    // ------------------------------------------------------------------ handles interactifs
     void DrawHandles(CurvePath2D path)
     {
         int n = path.points.Count;
@@ -263,7 +257,6 @@ public class CurvePath2DEditor : Editor
             float size = HandleUtility.GetHandleSize(p.position);
             Color mc = ModeColors[(int)p.mode];
 
-            // tangentes
             for (int side = 0; side < 2; side++)
             {
                 bool isOut = side == 1;
@@ -287,7 +280,6 @@ public class CurvePath2DEditor : Editor
                 }
             }
 
-            // point
             Handles.color = i == selected ? Color.white : mc;
             EditorGUI.BeginChangeCheck();
             Vector3 np = Handles.FreeMoveHandle(p.position, size * (i == selected ? 0.09f : 0.07f),

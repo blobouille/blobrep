@@ -1,61 +1,76 @@
 using UnityEngine;
+using Unity.U2D.Physics;
 
-
+[ExecuteAlways]
+[DisallowMultipleComponent]
 public class Ball2D : MonoBehaviour
 {
     [Header("Balle")]
+    [Tooltip("Rayon de la balle, en unités Unity (absolu).")]
     [Min(0.01f)] public float rayon = 0.5f;
-    public Unity.U2D.Physics.PhysicsBody.BodyType typeCorps = Unity.U2D.Physics.PhysicsBody.BodyType.Kinematic;
+    [Tooltip("Type de corps : Dynamic = soumise à la gravité et aux chocs, Kinematic = suit sa vitesse sans être poussée, Static = immobile.")]
+    public PhysicsBody.BodyType typeCorps = PhysicsBody.BodyType.Kinematic;
 
     [Header("Mouvement")]
+    [Tooltip("Vitesse linéaire initiale, en unités Unity par seconde.")]
     public Vector2 vitesseLineaire = Vector2.zero;
-    public float vitesseAngulaire = 0f; // rad/s
+    [Tooltip("Vitesse angulaire initiale, en radians par seconde (positif = anti-horaire).")]
+    public float vitesseAngulaire = 0f;
 
     [Header("Collisions")]
-    [Tooltip("Mode 'bullet' de Box2D v3 (fastCollisionsAllowed). Décoché par défaut. " +
-             "Attention : même décoché, la balle reste en collision continue contre les formes STATIQUES (la courbe).")]
+    [Tooltip("Mode 'bullet' de Box2D v3 (fastCollisionsAllowed) : collision continue aussi contre les corps dynamiques.\n" +
+             "Même décoché, la balle reste en collision continue contre les formes statiques.")]
     public bool collisionsRapides = false;
 
     [Header("Matériau")]
+    [Tooltip("Densité : masse = densité × aire du disque.")]
     [Min(0.0001f)] public float densite = 1f;
+    [Tooltip("Friction de surface (0 = glisse parfaitement).")]
     [Range(0f, 2f)] public float friction = 0.6f;
+    [Tooltip("Rebond : 0 = aucun rebond, 1 = rebond parfait.")]
     [Range(0f, 1f)] public float rebond = 0.3f;
+    [Tooltip("Résistance au roulement : freine la rotation au contact (0 = aucune).")]
     [Min(0f)] public float resistanceRoulement = 0f;
 
-    private Unity.U2D.Physics.PhysicsBody _corps;
+    [Header("Debug")]
+    [Tooltip("Couleur de l'aperçu Scene view.")]
+    public Color previewColor = Color.white;
 
-    private void Start()
+    PhysicsBody _body;
+
+    void OnEnable()
     {
-        Unity.U2D.Physics.PhysicsWorld monde = Unity.U2D.Physics.PhysicsWorld.defaultWorld;
+        if (!Application.isPlaying) return;
 
-        // TEST (à décommenter) : coupe la collision continue pour tout le monde.
-        // Le nom exact peut varier selon ta version : tape "monde." et cherche "continuous" dans l'autocomplétion.
-        // monde.continuousAllowed = false;
+        var bodyDef = PhysicsBodyDefinition.defaultDefinition;
+        bodyDef.type = typeCorps;
+        bodyDef.position = (Vector2)transform.position;
+        bodyDef.linearVelocity = vitesseLineaire;
+        bodyDef.angularVelocity = vitesseAngulaire;
+        bodyDef.fastCollisionsAllowed = collisionsRapides;
+        _body = PhysicsWorld.defaultWorld.CreateBody(bodyDef);
 
-        Unity.U2D.Physics.PhysicsBodyDefinition defCorps = Unity.U2D.Physics.PhysicsBodyDefinition.defaultDefinition;
-        defCorps.type = typeCorps;
-        defCorps.position = (Vector2)transform.position;
-        defCorps.linearVelocity = vitesseLineaire;
-        defCorps.angularVelocity = vitesseAngulaire;
-        defCorps.fastCollisionsAllowed = collisionsRapides;
-        _corps = monde.CreateBody(defCorps);
+        var shapeDef = PhysicsShapeDefinition.defaultDefinition;
+        shapeDef.density = densite;
+        var material = shapeDef.surfaceMaterial;
+        material.friction = friction;
+        material.bounciness = rebond;
+        material.rollingResistance = resistanceRoulement;
+        shapeDef.surfaceMaterial = material;
 
-        Unity.U2D.Physics.PhysicsShapeDefinition defShape = Unity.U2D.Physics.PhysicsShapeDefinition.defaultDefinition;
-        defShape.density = densite;
-
-        Unity.U2D.Physics.PhysicsShape.SurfaceMaterial materiau = defShape.surfaceMaterial;
-        materiau.friction = friction;
-        materiau.bounciness = rebond;
-        materiau.rollingResistance = resistanceRoulement;
-        defShape.surfaceMaterial = materiau;
-
-        Unity.U2D.Physics.CircleGeometry geometrie = new Unity.U2D.Physics.CircleGeometry { center = Vector2.zero, radius = rayon };
-        _corps.CreateShape(geometrie, defShape);
+        _body.CreateShape(new CircleGeometry { center = Vector2.zero, radius = rayon }, shapeDef);
     }
 
-    private void OnDestroy()
+    void OnDisable()
     {
-        if (_corps.isValid)
-            _corps.Destroy();
+        if (_body.isValid) _body.Destroy();
+        _body = default;
+    }
+
+    void OnDrawGizmos()
+    {
+        if (Application.isPlaying) return;
+        Gizmos.color = previewColor;
+        Gizmos.DrawWireSphere(transform.position, rayon);
     }
 }

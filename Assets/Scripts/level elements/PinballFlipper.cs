@@ -1,27 +1,7 @@
-// PinballFlipper.cs
-// Levier de flipper paramétrable, basé sur l'API physique 2D bas niveau de Unity (Box2D v3).
-//
-// - Unity 6.6+ : namespace Unity.U2D.Physics. Pour 6.3 / 6.4, le using bascule
-//   automatiquement sur UnityEngine.LowLevelPhysics2D.
-// - Place le composant sur un GameObject vide : la POSITION du GameObject = l'axe de rotation,
-//   la ROTATION Z du GameObject = la direction du levier au repos.
-// - Le levier s'étend le long de l'axe X local du GameObject.
-// - Forme : un grand cercle (la base, centré sur l'axe) + un petit cercle plus loin (le bout),
-//   reliés par leurs tangentes extérieures.
-// - Plusieurs flippers avec la même touche se déclenchent ensemble.
-// - useTorque = true  : corps dynamique + charnière à moteur (couple limité, dépend de la masse).
-// - useTorque = false : corps kinematic piloté en vitesse angulaire (pas de couple, pas de masse).
-//   Le pilotage se fait dans FixedUpdate avec Time.fixedDeltaTime (= pas réel de la simulation).
-
 using UnityEngine;
+using Unity.U2D.Physics;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
-#endif
-
-#if UNITY_6000_6_OR_NEWER
-using Unity.U2D.Physics;
-#else
-using UnityEngine.LowLevelPhysics2D;
 #endif
 
 public enum FlipperKey
@@ -36,53 +16,46 @@ public enum FlipperKey
 public class PinballFlipper : MonoBehaviour
 {
     [Header("Forme")]
-    [Tooltip("Échelle globale du levier (multiplie longueur et rayons).")]
+    [Tooltip("Échelle globale du levier : multiplie la longueur et les deux rayons.")]
     [Min(0.01f)] public float size = 1f;
-    [Tooltip("Distance entre le centre du grand cercle (axe) et le centre du petit cercle (bout).")]
+    [Tooltip("Distance entre le centre du grand cercle (axe de rotation) et le centre du petit cercle (bout), en unités Unity, multipliée par 'size'.")]
     [Min(0.05f)] public float length = 1.0f;
-    [Tooltip("Rayon du grand cercle : la base, là où il y a la rotation.")]
+    [Tooltip("Rayon du grand cercle (base, centrée sur l'axe de rotation), en unités Unity, multiplié par 'size'.")]
     [Min(0.01f)] public float baseRadius = 0.15f;
-    [Tooltip("Rayon du petit cercle : le bout du levier.")]
+    [Tooltip("Rayon du petit cercle (bout du levier), en unités Unity, multiplié par 'size'.")]
     [Min(0.01f)] public float tipRadius = 0.07f;
 
     [Header("Commande")]
+    [Tooltip("Touche qui active le levier. Plusieurs flippers avec la même touche se déclenchent ensemble.")]
     public FlipperKey key = FlipperKey.LeftArrow;
-    [Tooltip("Angle de débattement en degrés, depuis la position de repos.\n" +
+    [Tooltip("Débattement en degrés depuis la position de repos (rotation Z du GameObject).\n" +
              "Positif = sens anti-horaire, négatif = sens horaire.")]
     public float activeAngle = 45f;
-    [Tooltip("Vitesse du moteur en degrés par seconde.")]
+    [Tooltip("Vitesse de rotation du levier, en degrés par seconde.")]
     [Min(1f)] public float motorSpeed = 1000F;
-
-    [Tooltip("Coché : corps dynamique + moteur à couple limité (comportement d'origine).\n" +
-             "Décoché : corps kinematic piloté en vitesse, sans aucun calcul de couple.")]
+    [Tooltip("Coché : corps dynamique + charnière à moteur à couple limité (dépend de la masse).\n" +
+             "Décoché : corps kinematic piloté en vitesse, sans calcul de couple.")]
     public bool useTorque = false;
     [Tooltip("Couple maximum du moteur (force du levier). Ignoré si 'useTorque' est décoché.")]
     [Min(0f)] public float motorTorque = 400F;
 
     [Header("Debug")]
+    [Tooltip("Couleur de l'aperçu Scene view en position de repos.")]
     public Color previewColor = new Color(0.2f, 0.9f, 0.4f, 1f);
+    [Tooltip("Couleur de l'aperçu Scene view en position active et de l'arc de débattement.")]
     public Color previewActiveColor = new Color(1f, 0.6f, 0.1f, 0.6f);
-
-    [Header("Debug coords")]
-    [Tooltip("Logge les coordonnées monde exactes (valeurs + bits) du centre de la base et du centre du bout.\n" +
-             "Logs : init, press, release, repos (une fois quand le levier s'immobilise).")]
+    [Tooltip("Logge les coordonnées monde exactes (valeurs + bits) des centres de la base et du bout.\n" +
+             "Logs : création, appui, relâchement, immobilisation.")]
     public bool logCoords = false;
 
-    // --- état runtime ---
     PhysicsBody _anchor;
     PhysicsBody _flipper;
     PhysicsHingeJoint _joint;
     bool _created;
-    bool _builtWithTorque; // mode utilisé à la création, pour recréer si on change la case en Play
-
-    // --- état debug coords ---
+    bool _builtWithTorque;
     bool _lastDown;
     bool _wasMoving;
 
-    // ------------------------------------------------------------------
-    // Géométrie : 2 cercles + 1 quadrilatère entre leurs tangentes extérieures.
-    // Coordonnées locales, axe de rotation en (0,0), bout vers +X.
-    // ------------------------------------------------------------------
     public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad)
     {
         r1 = baseRadius * size;
@@ -91,22 +64,18 @@ public class PinballFlipper : MonoBehaviour
         c1 = Vector2.zero;
         c2 = new Vector2(L, 0f);
 
-        // Tangente extérieure : normale n = (s, c) avec s = (r1 - r2) / L
         float s = (r1 - r2) / L;
         float c = Mathf.Sqrt(Mathf.Max(0f, 1f - s * s));
 
         quad = new[]
         {
-            c1 + r1 * new Vector2(s, -c),   // bas, côté base
-            c2 + r2 * new Vector2(s, -c),   // bas, côté bout
-            c2 + r2 * new Vector2(s,  c),   // haut, côté bout
-            c1 + r1 * new Vector2(s,  c)    // haut, côté base
+            c1 + r1 * new Vector2(s, -c),
+            c2 + r2 * new Vector2(s, -c),
+            c2 + r2 * new Vector2(s,  c),
+            c1 + r1 * new Vector2(s,  c)
         };
     }
 
-    // ------------------------------------------------------------------
-    // Création / destruction de la simulation
-    // ------------------------------------------------------------------
     void OnEnable()
     {
         if (Application.isPlaying) CreatePhysics();
@@ -133,7 +102,6 @@ public class PinballFlipper : MonoBehaviour
 
         if (_builtWithTorque)
         {
-            // --- MODE COUPLE : support statique + levier dynamique + charnière à moteur ---
             var anchorDef = PhysicsBodyDefinition.defaultDefinition;
             anchorDef.type = PhysicsBody.BodyType.Static;
             anchorDef.position = new Vector2(p.x, p.y);
@@ -142,14 +110,11 @@ public class PinballFlipper : MonoBehaviour
 
             flipperDef.type = PhysicsBody.BodyType.Dynamic;
             _flipper = world.CreateBody(flipperDef);
-            // Un levier piloté par moteur ne doit jamais s'endormir.
             _flipper.sleepingAllowed = false;
-            // Collision continue contre les corps dynamiques (la balle) : évite de la traverser à haute vitesse.
             _flipper.fastCollisionsAllowed = true;
         }
         else
         {
-            // --- MODE VITESSE : un seul corps kinematic, pas de joint, pas de support ---
             flipperDef.type = PhysicsBody.BodyType.Kinematic;
             _flipper = world.CreateBody(flipperDef);
             _flipper.sleepingAllowed = false;
@@ -162,7 +127,6 @@ public class PinballFlipper : MonoBehaviour
 
         if (_builtWithTorque)
         {
-            // Charnière : limites = [repos, repos + activeAngle] dans le sens choisi.
             var jd = PhysicsHingeJointDefinition.defaultDefinition;
             jd.bodyA = _anchor;
             jd.bodyB = _flipper;
@@ -176,8 +140,6 @@ public class PinballFlipper : MonoBehaviour
         }
 
         _created = true;
-
-        // Référence : état exact à la création (après _created = true, sinon LogCircles ne fait rien).
         _lastDown = false;
         _wasMoving = false;
         LogCircles("init");
@@ -186,67 +148,54 @@ public class PinballFlipper : MonoBehaviour
     void DestroyPhysics()
     {
         if (!_created) return;
-        if (_flipper.isValid) _flipper.Destroy();   // détruit aussi shapes + joint
+        if (_flipper.isValid) _flipper.Destroy();
         if (_anchor.isValid) _anchor.Destroy();
         _created = false;
     }
 
     float Dir() => activeAngle >= 0f ? 1f : -1f;
-    float RestSpeed() => -Dir() * motorSpeed;   // retour vers le repos
-    float ActiveSpeed() => Dir() * motorSpeed;  // montée vers l'angle actif
+    float RestSpeed() => -Dir() * motorSpeed;
+    float ActiveSpeed() => Dir() * motorSpeed;
 
-    void Update()
+    void FixedUpdate()
     {
         if (!Application.isPlaying || !_created) return;
 
-        // La case a changé en Play : on recrée le levier dans le bon mode.
         if (_builtWithTorque != useTorque)
         {
             DestroyPhysics();
             CreatePhysics();
         }
 
-        // Mode couple : on pilote le moteur de la charnière ici.
+        bool down = IsDown(key);
+        DebugCoords(down);
+
         if (_builtWithTorque)
         {
-            _joint.motorSpeed = IsDown(key) ? ActiveSpeed() : RestSpeed();
+            _joint.motorSpeed = down ? ActiveSpeed() : RestSpeed();
             _joint.maxMotorTorque = motorTorque;
+        }
+        else
+        {
+            DriveKinematic(down);
         }
     }
 
-    // Mode kinematic : piloté au pas réel de la simulation (Time.fixedDeltaTime).
-    void FixedUpdate()
-    {
-        if (!Application.isPlaying || !_created) return;
-
-        DebugCoords();
-
-        if (_builtWithTorque) return;
-
-        DriveKinematic(IsDown(key));
-    }
-
-    // Pilote le corps kinematic en vitesse angulaire (degrés/s), sans couple.
-    // Vitesse = reste à parcourir / pas de simulation, plafonnée à motorSpeed :
-    // vitesse constante pendant le trajet, et le dernier pas arrive exactement sur la cible (pas de dépassement).
+    // Vitesse = reste à parcourir / pas, plafonnée : le dernier pas tombe exactement sur la cible.
     void DriveKinematic(bool down)
     {
         float restDeg = transform.eulerAngles.z;
 
         var rot = _flipper.rotation;
         float currentDeg = Mathf.Atan2(rot.sin, rot.cos) * Mathf.Rad2Deg;
-        float relative = Mathf.DeltaAngle(restDeg, currentDeg); // angle depuis le repos, dans ]-180, 180]
+        float relative = Mathf.DeltaAngle(restDeg, currentDeg);
 
         float target = down ? activeAngle : 0f;
         float remaining = target - relative;
 
-        float velocity = Mathf.Clamp(remaining / Time.fixedDeltaTime, -motorSpeed, motorSpeed);
-        _flipper.angularVelocity = velocity;
+        _flipper.angularVelocity = Mathf.Clamp(remaining / Time.fixedDeltaTime, -motorSpeed, motorSpeed);
     }
 
-    // ------------------------------------------------------------------
-    // Debug : coordonnées exactes des deux cercles (base + bout) dans le monde
-    // ------------------------------------------------------------------
     static string Bits(float f) => System.BitConverter.SingleToInt32Bits(f).ToString("X8");
 
     void LogCircles(string tag)
@@ -266,17 +215,14 @@ public class PinballFlipper : MonoBehaviour
                   $" rot  : cos={rot.cos:R} sin={rot.sin:R}  angVel={_flipper.angularVelocity:R}");
     }
 
-    // Appelé à chaque FixedUpdate : logge sur changement d'état de la touche,
-    // et une seule fois quand le levier s'immobilise (pas de spam à chaque pas).
-    void DebugCoords()
+    void DebugCoords(bool down)
     {
         if (!logCoords) return;
 
-        bool d = IsDown(key);
-        if (d != _lastDown)
+        if (down != _lastDown)
         {
-            LogCircles(d ? "press" : "release");
-            _lastDown = d;
+            LogCircles(down ? "press" : "release");
+            _lastDown = down;
         }
 
         bool moving = !Mathf.Approximately(_flipper.angularVelocity, 0f);
@@ -284,9 +230,6 @@ public class PinballFlipper : MonoBehaviour
         _wasMoving = moving;
     }
 
-    // ------------------------------------------------------------------
-    // Entrées clavier (nouveau Input System si actif, sinon Input classique)
-    // ------------------------------------------------------------------
     public static bool IsDown(FlipperKey k)
     {
 #if ENABLE_INPUT_SYSTEM
@@ -345,10 +288,6 @@ public class PinballFlipper : MonoBehaviour
     }
 #endif
 
-    // ------------------------------------------------------------------
-    // Prévisualisation dans la Scene view (hors Play), avec la même géométrie
-    // que celle envoyée à Box2D. En Play, le debug drawing de Box2D prend le relais.
-    // ------------------------------------------------------------------
     void OnDrawGizmos()
     {
         if (Application.isPlaying) return;
@@ -360,7 +299,6 @@ public class PinballFlipper : MonoBehaviour
         DrawPose(pivot, rest, c1, r1, c2, r2, quad, previewColor);
         DrawPose(pivot, rest + activeAngle, c1, r1, c2, r2, quad, previewActiveColor);
 
-        // Arc de débattement du bout
         Gizmos.color = previewActiveColor;
         float reach = c2.x;
         int steps = Mathf.Max(2, Mathf.CeilToInt(Mathf.Abs(activeAngle) / 5f));
@@ -383,7 +321,6 @@ public class PinballFlipper : MonoBehaviour
         var q = Rot(angleDeg);
         DrawCircle(pivot, q, c1, r1);
         DrawCircle(pivot, q, c2, r2);
-        // Seules les tangentes sont utiles : bas (0→1) et haut (2→3)
         Gizmos.DrawLine(pivot + q * (Vector3)quad[0], pivot + q * (Vector3)quad[1]);
         Gizmos.DrawLine(pivot + q * (Vector3)quad[2], pivot + q * (Vector3)quad[3]);
     }
