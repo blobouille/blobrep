@@ -5,24 +5,28 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BLOB : MonoBehaviour
+public class BLOB : MonoBehaviour, ICameraTarget
 {
     [Header("Forme & Apparence")]
     [Tooltip("Nombre de capsules qui forment l'anneau du blob. Plus = plus rond et plus souple, mais plus coûteux.")]
     [Range(3, 32)] public int sides = 16;
-    [Tooltip("Rayon de l'anneau (distance du centre aux capsules), en unités Unity. Sert aussi d'échelle pour 'capsuleRadius'.")]
-    [Min(0.01f)] public float initialScale = 0.15f;
+    [Tooltip("Diamètre extérieur du blob au repos (bord extérieur des capsules), en unités Unity (absolu).\n" +
+             "1 = même taille qu'une Ball2D de diamètre 1 (standard du projet).")]
+    [Min(0.01f)] public float diameter = 1f;
     [Tooltip("Couleur des capsules dans le rendu debug de la physique et dans l'aperçu Scene view.")]
     public Color debugColor = Color.cyan;
 
     [Header("Paramètres des Capsules")]
-    [Tooltip("Rayon (épaisseur) de chaque capsule, RELATIF à 'initialScale' : rayon réel = capsuleRadius × initialScale.")]
+    [Tooltip("Rayon (épaisseur) de chaque capsule, RELATIF au rayon de l'anneau (centre → axe des capsules).\n" +
+             "Le diamètre extérieur reste égal à 'diameter' : plus les capsules sont épaisses, plus l'anneau est petit.")]
     [Min(0.001f)] public float capsuleRadius = 0.5f;
     [Tooltip("Espace vide entre deux capsules voisines, en unités Unity (absolu). 0 = capsules bout à bout.")]
     [Min(0f)] public float capsuleSpacing = 0f;
 
     [Header("Joints & Physique")]
-    [Tooltip("Densité de chaque capsule : plus elle est haute, plus le blob est lourd.")]
+    [Tooltip("Densité globale du blob, comme s'il était un disque plein de diamètre 'diameter' :\n" +
+             "masse totale = density × π × (diameter/2)², répartie entre les capsules.\n" +
+             "Même diamètre et même densité qu'une Ball2D = même masse.")]
     [Min(0.001f)] public float density = 1f;
     [Tooltip("Raideur angulaire des joints entre capsules, en Hz. Plus haut = blob plus rigide en flexion.")]
     [Min(0f)] public float jointFrequency = 64f;
@@ -36,13 +40,29 @@ public class BLOB : MonoBehaviour
     [Min(0f)] public float friction = 0.03f;
     [Tooltip("Rebond des capsules : 0 = aucun rebond, 1 = rebond parfait.")]
     [Min(0)] public float bounciness = 0.5f;
+    [Tooltip("Mode « bullet » (fastCollisionsAllowed) sur chaque capsule : collision continue aussi contre les corps\n" +
+             "dynamiques et kinematic (flippers), pas seulement contre les murs statiques. Plus coûteux.")]
+    public bool fastCollisions = false;
 
     NativeList<PhysicsBody> _bodies;
 
-    float RingRadius => initialScale;
+    public Vector2 CameraPosition
+    {
+        get
+        {
+            if (!_bodies.IsCreated || _bodies.Length == 0) return transform.position;
+            Vector2 sum = Vector2.zero;
+            for (int i = 0; i < _bodies.Length; i++) sum += _bodies[i].position;
+            return sum / _bodies.Length;
+        }
+    }
+
+    float RingRadius => 0.5f * diameter / (1f + capsuleRadius);
     float SegmentLength => PhysicsMath.TAU * RingRadius / sides;
     float CapsuleLength => math.max(0f, SegmentLength - capsuleSpacing);
-    float CapsuleWorldRadius => capsuleRadius * initialScale;
+    float CapsuleWorldRadius => capsuleRadius * RingRadius;
+    float CapsuleArea => math.PI * CapsuleWorldRadius * CapsuleWorldRadius + 2f * CapsuleWorldRadius * CapsuleLength;
+    float CapsuleDensity => density * math.PI * 0.25f * diameter * diameter / (sides * CapsuleArea);
 
     void OnEnable()
     {
@@ -94,9 +114,10 @@ public class BLOB : MonoBehaviour
 
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bodyDef.type = PhysicsBody.BodyType.Dynamic;
+        bodyDef.fastCollisionsAllowed = fastCollisions;
 
         var shapeDef = PhysicsShapeDefinition.defaultDefinition;
-        shapeDef.density = density;
+        shapeDef.density = CapsuleDensity;
         var material = shapeDef.surfaceMaterial;
         material.friction = friction;
         material.bounciness = bounciness;

@@ -47,11 +47,18 @@ public class CurvePath2DEditor : Editor
             "• Ctrl+clic sur la courbe : insère un point (forme conservée)\n" +
             "• Ctrl+clic ailleurs : prolonge la ligne\n" +
             "• Clic / glisser : sélectionner / déplacer points et tangentes\n" +
-            "• Suppr ou X : supprime le point sélectionné\n" +
+            "• Suppr (ou Retour arrière) : supprime le point sélectionné\n" +
             "• Barre d'outils : mode de tangente (Free / Aligned / Vector / Auto)",
             MessageType.Info);
 
         if (GUILayout.Button("Recalculer")) { path.RecomputeHandles(); path.Rebuild(); SceneView.RepaintAll(); }
+
+        using (new EditorGUI.DisabledScope(!CanDelete(path)))
+            if (GUILayout.Button(CanDelete(path) ? $"Supprimer le point {selected}" : "Supprimer le point sélectionné"))
+            {
+                DeleteSelected(path);
+                SceneView.RepaintAll();
+            }
     }
 
     void OnSceneGUI()
@@ -128,9 +135,6 @@ public class CurvePath2DEditor : Editor
         Handles.color = new Color(1, 1, 1, 0.25f);
         DrawLine(path.center, path.closed, 1f);
 
-        // Les chaînes n'existent qu'avec le backend LowLevel ; LowLevelQuads remplit le contour ci-dessus.
-        var col = path.GetComponent<CurveCollider2D>();
-        if (col != null && col.backend != CurveCollider2D.Backend.LowLevel) return;
         Handles.color = new Color(0.2f, 1f, 0.3f);
         foreach (var ch in path.BuildCollisionChains())
         {
@@ -174,18 +178,31 @@ public class CurvePath2DEditor : Editor
             if (best >= 0) { selected = best; Repaint(); }
         }
 
-        if (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Delete || e.keyCode == KeyCode.X)
-            && selected >= 0 && selected < path.points.Count && path.points.Count > 2)
+        // Suppr passe par la commande "SoftDelete" d'Unity (sinon c'est le GameObject qui est supprimé)
+        bool deleteCommand = (e.type == EventType.ValidateCommand || e.type == EventType.ExecuteCommand)
+                             && (e.commandName == "SoftDelete" || e.commandName == "Delete");
+        bool deleteKey = e.type == EventType.KeyDown && (e.keyCode == KeyCode.Delete || e.keyCode == KeyCode.Backspace);
+        if ((deleteCommand || deleteKey) && CanDelete(path))
         {
-            Undo.RecordObject(path, "Delete curve point");
-            path.points.RemoveAt(selected);
-            selected = Mathf.Min(selected, path.points.Count - 1);
-            Commit(path); e.Use();
+            if (e.type != EventType.ValidateCommand) DeleteSelected(path);
+            e.Use();
         }
     }
 
+    bool CanDelete(CurvePath2D path) => selected >= 0 && selected < path.points.Count && path.points.Count > 2;
+
+    void DeleteSelected(CurvePath2D path)
+    {
+        Undo.RecordObject(path, "Delete curve point");
+        path.points.RemoveAt(selected);
+        selected = Mathf.Min(selected, path.points.Count - 1);
+        Commit(path);
+        Repaint();
+    }
+
+    // Handles.matrix est déjà localToWorld pendant OnSceneGUI : WorldToGUIPoint l'applique lui-même
     static Vector2 GUIPoint(CurvePath2D path, Vector2 local) =>
-        HandleUtility.WorldToGUIPoint(path.transform.TransformPoint(local));
+        HandleUtility.WorldToGUIPoint(local);
 
     static Vector2 MouseToLocal(CurvePath2D path, Vector2 mouse)
     {

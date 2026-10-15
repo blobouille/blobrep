@@ -24,9 +24,23 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Unity 6000.6, physique 2D bas niveau `Unity.U2D.Physics` (Box2D v3 : PhysicsWorld,
   PhysicsBody, PhysicsShape, PhysicsChain, joints)
 - PAS de Physics2D / Rigidbody2D / Collider2D classiques 
-- Un seul monde : `PhysicsWorld.defaultWorld`
+- Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 120 Hz, `fixedDeltaTime` ≈ 0,0083)
 - Les `NativeList` doivent être détruits/libérés dans `OnDestroy` (sinon fuite mémoire)
 - Utiliser `XxxDefinition.defaultDefinition` pour les définitions (corps, formes, joints), puis modifier les champs
+
+## Échelle (standard du projet)
+- 1 unité Unity = 1 m pour Box2D (`lengthUnitsPerMeter = 1`). Ses tolérances sont en absolu
+  (`linearSlop` 0,005, `bounceThreshold` 1 m/s, `contactSpeed` 3 m/s…) : la taille n'est PAS relative
+- Référence : balle (Ball2D / BLOB) de **diamètre 1**. Objets mobiles entre 0,1 et 10
+- Tailles de balles toujours en diamètre : `BLOB.diameter` = diamètre extérieur, `Ball2D.diameter` = diamètre ; `BLOB.density` = densité d'un disque plein équivalent
+  (même diamètre + même densité qu'une Ball2D = même masse)
+- Échelle des Transform des éléments de niveau toujours à (1, 1, 1) : la taille se règle par les paramètres
+  (`size`, `thickness`, points…), sinon épaisseurs et cercles se déforment
+- Régler la sensation de vitesse par la gravité / vitesse du jeu, pas par la taille
+- Épaisseur des courbes : visuelle seulement (la collision est une chaîne fine)
+- Mobile : balle ≈ 1/12 à 1/10 de la hauteur d'écran (caméra ortho ≈ 5–6) ; à valider
+- Flipper kinematic : pas de collision continue contre la balle → si le bout avance de plus
+  d'un rayon de balle par pas, activer `fastCollisions` sur la balle / le blob
 
 ## Déterminisme
 - Pas de `Random` sans graine fixe explicite
@@ -35,6 +49,11 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Ordre de création des corps/joints stable et explicite (ne pas dépendre de l'ordre
   d'exécution des scripts) ; ordre d'itération stable (pas de dépendance aux Dictionary/HashSet)
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
+
+## Level design
+- Règles d'un bon niveau : voir `LEVEL_DESIGN.md` (à suivre et à enrichir quand un test apprend quelque chose)
+- `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
+  descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
 
 ## Construction des niveaux : modèle CurvePath
 Tout ce qui sert à créer un niveau suit le modèle existant (CurvePath2D / PinballFlipper) :
@@ -49,9 +68,14 @@ Scripts existants :
   échantillonnage adaptatif (`resolution`, `straightTolerance`, `miterLimit`),
   `BuildCollisionChains()` pour la collision
 - `CurvePath2DEditor` : édition dans la Scene view (points, tangentes, modes Free/Aligned/Vector/Auto, Undo)
-- `CurveCollider2D` : crée la collision statique du chemin (backend par défaut : `LowLevelQuads`)
+- `CurveCollider2D` : crée la collision statique du chemin, uniquement en chaînes Box2D (`PhysicsChain`).
+  Les quads (polygones jointifs) ont été abandonnés : collisions fantômes aux jointures → rebonds parasites.
+  Le léger « accroc » des chaînes à très haute vitesse est accepté (atténué par le pas à 120 Hz).
+  Pour un mur épais solide des deux côtés : `collisionMode = Outline`
 - `PinballFlipper` : flipper (2 cercles + quad), charnière à moteur (`useTorque`) ou kinematic piloté en vitesse
 - `BLOB` : la balle à amener à la fin du niveau (structure physique uniquement)
+- `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
+  Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`
 
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
 - `Ball2D` : balle rigide simple, pour comparer son comportement à celui du blob
@@ -59,6 +83,7 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 - `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, collision continue, `drawOptions`) ;
   seul endroit qui configure le `PhysicsWorld`
 - `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement
+- `RespawnOnKey` : touche R = respawn de tous les BLOB puis Ball2D (ordre de hiérarchie, dans `FixedUpdate`)
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)

@@ -3,11 +3,11 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class Ball2D : MonoBehaviour
+public class Ball2D : MonoBehaviour, ICameraTarget
 {
     [Header("Balle")]
-    [Tooltip("Rayon de la balle, en unités Unity (absolu).")]
-    [Min(0.01f)] public float rayon = 0.5f;
+    [Tooltip("Diamètre de la balle, en unités Unity (absolu). 1 = standard du projet (même taille qu'un BLOB de diamètre 1).")]
+    [Min(0.01f)] public float diameter = 1f;
     [Tooltip("Type de corps : Dynamic = soumise à la gravité et aux chocs, Kinematic = suit sa vitesse sans être poussée, Static = immobile.")]
     public PhysicsBody.BodyType typeCorps = PhysicsBody.BodyType.Kinematic;
 
@@ -38,10 +38,28 @@ public class Ball2D : MonoBehaviour
 
     PhysicsBody _body;
 
+    public Vector2 CameraPosition => _body.isValid ? _body.position : (Vector2)transform.position;
+
     void OnEnable()
     {
-        if (!Application.isPlaying) return;
+        if (Application.isPlaying) Spawn();
+    }
 
+    void OnDisable()
+    {
+        Despawn();
+    }
+
+    [ContextMenu("Respawn Ball")]
+    public void Respawn()
+    {
+        if (!Application.isPlaying) return;
+        Despawn();
+        Spawn();
+    }
+
+    void Spawn()
+    {
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bodyDef.type = typeCorps;
         bodyDef.position = (Vector2)transform.position;
@@ -58,10 +76,10 @@ public class Ball2D : MonoBehaviour
         material.rollingResistance = resistanceRoulement;
         shapeDef.surfaceMaterial = material;
 
-        _body.CreateShape(new CircleGeometry { center = Vector2.zero, radius = rayon }, shapeDef);
+        _body.CreateShape(new CircleGeometry { center = Vector2.zero, radius = 0.5f * diameter }, shapeDef);
     }
 
-    void OnDisable()
+    void Despawn()
     {
         if (_body.isValid) _body.Destroy();
         _body = default;
@@ -71,6 +89,6 @@ public class Ball2D : MonoBehaviour
     {
         if (Application.isPlaying) return;
         Gizmos.color = previewColor;
-        Gizmos.DrawWireSphere(transform.position, rayon);
+        Gizmos.DrawWireSphere(transform.position, 0.5f * diameter);
     }
 }

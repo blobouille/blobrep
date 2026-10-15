@@ -70,8 +70,9 @@ public class CurvePath2D : MonoBehaviour
     [Range(1f, 6f)] public float miterLimit = 3f;
 
     [Header("Collision")]
-    [Tooltip("Utilisé seulement par le backend 'LowLevel' de CurveCollider2D (chaînes) : ligne centrale, bord gauche, bord droit ou contour.\n" +
-             "Le backend 'LowLevelQuads' remplit toujours toute l'épaisseur.")]
+    [Tooltip("Ligne(s) utilisée(s) pour les chaînes de collision de CurveCollider2D :\n" +
+             "• Centerline / LeftEdge / RightEdge : une seule face solide (chaîne à sens unique, voir 'flipSide')\n" +
+             "• Outline : contour fermé, toute l'épaisseur est solide des deux côtés")]
     public CollisionMode collisionMode = CollisionMode.LeftEdge;
     [Tooltip("Par défaut la collision est du côté GAUCHE du sens de la courbe (dessus si elle va de gauche à droite). Cocher pour inverser.")]
     public bool flipSide;
