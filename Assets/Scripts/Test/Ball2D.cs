@@ -1,9 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
+public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics, ITrainingBody
 {
     [Header("Balle")]
     [Tooltip("Diamètre de la balle, en unités Unity (absolu). 1 = standard du projet (même taille qu'un BLOB de diamètre 1).")]
@@ -42,6 +43,24 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
 #endif
 
     public Vector2 CameraPosition => _body.isValid ? _body.position : (Vector2)transform.position;
+
+    public CapsuleGeometry GhostShape => new CapsuleGeometry { center1 = Vector2.zero, center2 = Vector2.zero, radius = 0.5f * diameter };
+    public bool IsBroken => false;
+
+    public void GetBodyStates(List<BodyState> states)
+    {
+        states.Clear();
+        if (!_body.isValid) return;
+        states.Add(new BodyState { position = _body.position, angle = _body.rotation.radians, velocity = _body.linearVelocity, angularVelocity = _body.angularVelocity });
+    }
+
+    public void RestoreBodyStates(IReadOnlyList<BodyState> states, bool broken)
+    {
+        if (!_body.isValid || states.Count != 1) return;
+        _body.transform = new PhysicsTransform(states[0].position, PhysicsRotate.FromRadians(states[0].angle));
+        _body.linearVelocity = states[0].velocity;
+        _body.angularVelocity = states[0].angularVelocity;
+    }
 
     void OnEnable()
     {

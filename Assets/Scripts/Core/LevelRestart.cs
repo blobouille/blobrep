@@ -13,6 +13,9 @@ public static class LevelRestart
     public static event System.Action Restarted;
 
     static readonly List<MonoBehaviour> _physics = new List<MonoBehaviour>();
+
+    // Composants ILevelPhysics de la scène, dans l'ordre de la hiérarchie (actifs ou non).
+    public static IReadOnlyList<MonoBehaviour> Physics => _physics;
     static Scene _cachedScene;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

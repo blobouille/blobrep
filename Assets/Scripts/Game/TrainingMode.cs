@@ -8,13 +8,16 @@ using UnityEngine.InputSystem;
 // ces entrées en accéléré. Tout le niveau (blob, flippers, obstacles, plus tard plateformes mobiles…) est donc
 // exactement dans l'état du moment de la sauvegarde. Coût du retour ≈ proportionnel au temps écoulé depuis le départ.
 // Dans l'éditeur, les points survivent aux sorties de Play (édition du niveau : on repart du point jaune). Si le niveau
-// a été modifié avant un point, le rejeu n'y retombe plus : le blob est alors replacé comme le fantôme.
+// a été modifié avant un point, le rejeu n'y retombe plus : la balle est alors replacée comme le fantôme.
 [ExecuteAlways]
 [DisallowMultipleComponent]
 public class TrainingMode : MonoBehaviour
 {
     [Header("Touches")]
-    [Tooltip("Crée un point de sauvegarde à l'instant présent (fantôme du blob affiché à cet endroit).")]
+    [Tooltip("Recommence tout le niveau à son état de départ (balles, flippers, obstacles, caméra), instantanément,\n" +
+             "et efface tous les points de sauvegarde.")]
+    public Key restartKey = Key.R;
+    [Tooltip("Crée un point de sauvegarde à l'instant présent (fantôme de chaque balle — blob, Ball2D — affiché à cet endroit).")]
     public Key saveKey = Key.S;
     [Tooltip("Revient au dernier point pratiqué. Réappuyer dans le délai 'previousChainDelay' : point précédent, et ainsi de suite.")]
     public Key previousKey = Key.Tab;
@@ -37,11 +40,11 @@ public class TrainingMode : MonoBehaviour
              "Choisir le point : clic sur un fantôme dans la Scene view, hors Play (re-clic sur le jaune = départ normal).")]
     public bool startAtCurrentOnPlay = true;
     [Tooltip("Écart de position, en unités Unity (absolu), entre le rejeu et le fantôme au-delà duquel le niveau est considéré\n" +
-             "comme modifié avant ce point : le blob est alors replacé exactement comme le fantôme (position, vitesse).")]
+             "comme modifié avant ce point : la balle (blob, Ball2D) est alors replacée exactement comme le fantôme (position, vitesse).")]
     [Min(0f)] public float divergenceTolerance = 0.001f;
 
     [Header("Fantômes")]
-    [Tooltip("Affiche le blob tel qu'il était à chaque point de sauvegarde (rendu debug de la physique, gizmos hors Play).")]
+    [Tooltip("Affiche chaque balle (blob, Ball2D) telle qu'elle était à chaque point de sauvegarde (rendu debug de la physique, gizmos hors Play).")]
     public bool showGhosts = true;
     [Tooltip("Couleur des fantômes des points de sauvegarde.")]
     public Color ghostColor = new Color(1f, 1f, 1f, 0.25f);
@@ -54,18 +57,19 @@ public class TrainingMode : MonoBehaviour
         public List<Ghost> ghosts = new List<Ghost>();
     }
 
-    // Un fantôme par blob, dans l'ordre de BLOB.Active.
+    // Un fantôme par balle (ITrainingBody : blob, Ball2D…), dans l'ordre de la hiérarchie.
     [System.Serializable]
     class Ghost
     {
         public Vector2 center1, center2;
         public float radius;
         public bool broken;
-        public List<BLOB.CapsuleState> capsules = new List<BLOB.CapsuleState>();
+        public List<BodyState> capsules = new List<BodyState>();
     }
 
     readonly List<Checkpoint> _checkpoints = new List<Checkpoint>();
-    readonly List<BLOB.CapsuleState> _states = new List<BLOB.CapsuleState>();
+    readonly List<BodyState> _states = new List<BodyState>();
+    readonly List<ITrainingBody> _bodies = new List<ITrainingBody>();
     int _cursor = -1;
     float _lastPreviousTime = float.NegativeInfinity;
     bool _restoring;
@@ -104,6 +108,7 @@ public class TrainingMode : MonoBehaviour
         if (!Application.isPlaying) return;
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
+        if (keyboard[restartKey].wasPressedThisFrame) LevelSimulation.RunBeforeNextStep(LevelRestart.Restart);
         if (keyboard[saveKey].wasPressedThisFrame) LevelSimulation.RunBeforeNextStep(Save);
         if (keyboard[previousKey].wasPressedThisFrame)
         {
@@ -119,17 +124,17 @@ public class TrainingMode : MonoBehaviour
         var log = LevelInput.Log;
         for (int i = 0; i < cp.inputs.Length; i++) cp.inputs[i] = log[i];
 
-        foreach (var blob in BLOB.Active)
+        foreach (var body in CollectBodies())
         {
-            blob.GetCapsuleStates(_states);
-            var shape = blob.CapsuleShape;
+            body.GetBodyStates(_states);
+            var shape = body.GhostShape;
             cp.ghosts.Add(new Ghost
             {
                 center1 = shape.center1,
                 center2 = shape.center2,
                 radius = shape.radius,
-                broken = blob.IsBroken,
-                capsules = new List<BLOB.CapsuleState>(_states)
+                broken = body.IsBroken,
+                capsules = new List<BodyState>(_states)
             });
         }
 
@@ -191,36 +196,44 @@ public class TrainingMode : MonoBehaviour
         Persist();
     }
 
-    // Rejeu exact si rien n'a changé avant le point. Sinon (niveau modifié) : blob replacé comme le fantôme.
+    // Rejeu exact si rien n'a changé avant le point. Sinon (niveau modifié) : balle replacée comme le fantôme.
     // Le reste du niveau garde l'état du rejeu. Toujours déterministe : même niveau + même point = même résultat.
     void MatchGhosts(Checkpoint cp, int index)
     {
-        var blobs = BLOB.Active;
-        for (int k = 0; k < cp.ghosts.Count && k < blobs.Count; k++)
+        var bodies = CollectBodies();
+        for (int k = 0; k < cp.ghosts.Count && k < bodies.Count; k++)
         {
             var ghost = cp.ghosts[k];
-            blobs[k].GetCapsuleStates(_states);
-            if (!Diverged(ghost, blobs[k])) continue;
+            bodies[k].GetBodyStates(_states);
+            if (!Diverged(ghost, bodies[k])) continue;
             if (_states.Count != ghost.capsules.Count)
             {
-                Debug.LogWarning($"TrainingMode : point {index + 1}, le blob n'a plus le même nombre de capsules, impossible de le replacer.");
+                Debug.LogWarning($"TrainingMode : point {index + 1}, la balle n'a plus le même nombre de corps, impossible de la replacer.");
                 continue;
             }
-            blobs[k].RestoreCapsules(ghost.capsules, ghost.broken);
-            Debug.Log($"TrainingMode : point {index + 1}, niveau modifié avant ce point : blob replacé comme le fantôme.");
+            bodies[k].RestoreBodyStates(ghost.capsules, ghost.broken);
+            Debug.Log($"TrainingMode : point {index + 1}, niveau modifié avant ce point : balle replacée comme le fantôme.");
         }
     }
 
-    bool Diverged(Ghost ghost, BLOB blob)
+    bool Diverged(Ghost ghost, ITrainingBody body)
     {
-        if (blob.IsBroken != ghost.broken || _states.Count != ghost.capsules.Count) return true;
+        if (body.IsBroken != ghost.broken || _states.Count != ghost.capsules.Count) return true;
         float tolerance = divergenceTolerance * divergenceTolerance;
         for (int i = 0; i < _states.Count; i++)
             if ((_states[i].position - ghost.capsules[i].position).sqrMagnitude > tolerance) return true;
         return false;
     }
 
-    // Fantôme touché au point 'world' (disque englobant le blob), le plus proche de son centre.
+    List<ITrainingBody> CollectBodies()
+    {
+        _bodies.Clear();
+        foreach (var c in LevelRestart.Physics)
+            if (c != null && c.isActiveAndEnabled && c is ITrainingBody b) _bodies.Add(b);
+        return _bodies;
+    }
+
+    // Fantôme touché au point 'world' (disque englobant la balle), le plus proche de son centre.
     public bool GhostAt(Vector2 world, out int index)
     {
         index = -1;
@@ -251,9 +264,14 @@ public class TrainingMode : MonoBehaviour
             foreach (var g in _checkpoints[c].ghosts)
             {
                 var capsule = new CapsuleGeometry { center1 = g.center1, center2 = g.center2, radius = g.radius };
+                var circle = new CircleGeometry { center = g.center1, radius = g.radius };
+                bool isCircle = (g.center2 - g.center1).sqrMagnitude < 1e-12f;
                 foreach (var s in g.capsules)
-                    world.DrawGeometry(capsule, new PhysicsTransform(s.position, PhysicsRotate.FromRadians(s.angle)), color, 0f,
-                        PhysicsWorld.DrawFillOptions.Outline);
+                {
+                    var pose = new PhysicsTransform(s.position, PhysicsRotate.FromRadians(s.angle));
+                    if (isCircle) world.DrawGeometry(circle, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
+                    else world.DrawGeometry(capsule, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
+                }
             }
         }
     }

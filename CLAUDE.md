@@ -79,7 +79,7 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
   `Neutral/` éléments neutres).
   C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
-- `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement, touche R)
+- `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement avec la touche R)
 - `Scripts/Test/` : outils de test, pas des éléments de jeu
 - `Editor/Level/` : inspecteurs et poignées Scene view des éléments de `Level/`. Le dossier `Editor` n'est PAS inclus
   dans le jeu : le futur éditeur en jeu devra réimplémenter ses poignées, en réutilisant la géométrie des composants
@@ -146,15 +146,17 @@ Scripts existants :
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
   À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
   après `slowDuration`, dézoom sur place (toujours centré sur l'impact) jusqu'au redémarrage
-- `TrainingMode` : S = point de sauvegarde (fantôme du blob), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
-  (0,5 s) = point précédent ; Shift = plus récent ; R efface tout. 100 points max (le plus ancien saute).
+- `TrainingMode` : S = point de sauvegarde (fantôme de chaque balle), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
+  (0,5 s) = point précédent ; Shift = plus récent ; R = `LevelRestart.Restart()` entre deux pas (recommence le niveau et efface tous les points ; plus de script `RespawnOnKey`). 100 points max (le plus ancien saute).
+  Balles suivies : tout `ITrainingBody` actif (`BLOB`, `Ball2D`), dans l'ordre de `LevelRestart.Physics` (hiérarchie) : fantôme
+  (`GhostShape`, cercle = capsule de longueur nulle) et état (`BodyState`) de chaque corps. : une Ball2D sert aussi aux tests
   `discardNewerOnSave` coché : sauvegarder après un retour efface les points suivants (ordre du niveau) ;
   décoché : tout est gardé, dans l'ordre de création.
   Édition du niveau (éditeur uniquement) : points gardés entre deux Play et à la fermeture de Unity
   (`UserSettings/TrainingCheckpoints/<scène>.json`, entrées compressées) ; fantômes visibles dans la Scene view hors Play,
   clic sur un fantôme = point jaune (`TrainingModeGhostPicker`, re-clic = départ normal) ; Play repart du point jaune
   (`startAtCurrentOnPlay`). Si le niveau a été modifié avant le point, le rejeu n'y retombe plus (écart > `divergenceTolerance`) :
-  le blob est replacé comme le fantôme (`BLOB.RestoreCapsules`), le reste du niveau garde l'état du rejeu. Pas identique à un
+  la balle est replacée comme le fantôme (`ITrainingBody.RestoreBodyStates`), le reste du niveau garde l'état du rejeu. Pas identique à un
   vrai passage (le niveau publié se fait d'une traite), mais déterministe : même niveau + même point = même résultat
 
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
@@ -163,7 +165,6 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 - `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, collision continue, `drawOptions`) ;
   seul endroit qui configure le `PhysicsWorld` (sauf `simulationType` : `LevelSimulation`) et `Time.timeScale` (ralenti : `SetTimeScaleMultiplier`, ne change pas la simulation)
 - `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement (non enregistré : casse le rejeu)
-- `RespawnOnKey` : touche R = `LevelRestart.Restart()` entre deux pas (efface aussi les points de sauvegarde)
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)

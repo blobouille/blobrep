@@ -6,7 +6,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
+public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITrainingBody
 {
     [Header("Forme & Apparence")]
     [Tooltip("Nombre de capsules qui forment l'anneau du blob. Plus = plus rond et plus souple, mais plus coûteux.")]
@@ -78,6 +78,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
     public int CapsuleCount => _bodies.IsCreated ? _bodies.Length : 0;
     public PhysicsBody Capsule(int i) => _bodies[i];
 
+    public CapsuleGeometry GhostShape => CapsuleShape;
     public CapsuleGeometry CapsuleShape => new CapsuleGeometry
     {
         center1 = new Vector2(0f, -0.5f * CapsuleLength),
@@ -92,30 +93,21 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
         for (int i = 0; i < _bodies.Length; i++) poses.Add(_bodies[i].transform);
     }
 
-    [System.Serializable]
-    public struct CapsuleState
-    {
-        public Vector2 position;
-        public float angle;
-        public Vector2 velocity;
-        public float angularVelocity;
-    }
-
-    public void GetCapsuleStates(List<CapsuleState> states)
+    public void GetBodyStates(List<BodyState> states)
     {
         states.Clear();
         if (!_bodies.IsCreated) return;
         for (int i = 0; i < _bodies.Length; i++)
         {
             var b = _bodies[i];
-            states.Add(new CapsuleState { position = b.position, angle = b.rotation.radians, velocity = b.linearVelocity, angularVelocity = b.angularVelocity });
+            states.Add(new BodyState { position = b.position, angle = b.rotation.radians, velocity = b.linearVelocity, angularVelocity = b.angularVelocity });
         }
     }
 
     // Replace le blob dans un état mémorisé (mode entraînement, quand le rejeu ne retombe plus au même endroit).
     // Blob recréé puis capsules posées : déterministe pour un même état, mais pas identique à un vrai passage.
     // Les capsules empalées ne le sont plus ; 'broken' casse les joints sans événement (pas de focus caméra).
-    public void RestoreCapsules(IReadOnlyList<CapsuleState> states, bool broken)
+    public void RestoreBodyStates(IReadOnlyList<BodyState> states, bool broken)
     {
         if (states.Count != sides) return;
         int order = _active.IndexOf(this);
