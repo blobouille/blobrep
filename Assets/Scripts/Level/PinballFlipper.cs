@@ -59,6 +59,9 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
     bool _builtWithTorque;
     bool _lastDown;
     bool _wasMoving;
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
 
     public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad)
     {
@@ -88,6 +91,10 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnDisable()
     {
         DestroyPhysics();
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
     }
 
     void CreatePhysics()
@@ -302,6 +309,15 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
 
         DrawPose(pivot, rest, c1, r1, c2, r2, quad, previewColor);
         DrawPose(pivot, rest + activeAngle, c1, r1, c2, r2, quad, previewActiveColor);
+
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddCircle(c1, r1);
+        _pickArea.AddCircle(c2, r2);
+        _pickArea.AddConvex(quad);
+        _pickArea.Draw(Matrix4x4.TRS(pivot, Rot(rest), Vector3.one));
+#endif
 
         Gizmos.color = previewActiveColor;
         float reach = c2.x;

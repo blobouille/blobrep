@@ -70,7 +70,8 @@ public static class LevelSimulation
     }
 
     // Rejoue 'count' pas avec les entrées enregistrées, le plus vite possible (à appeler juste après un redémarrage).
-    public static void FastForward(IReadOnlyList<uint> inputs, int count)
+    // 'beforeJumped' : corrections juste après le rejeu, avant que caméra etc. se recalent.
+    public static void FastForward(IReadOnlyList<uint> inputs, int count, System.Action beforeJumped = null)
     {
         FastForwarding = true;
         try
@@ -81,6 +82,7 @@ public static class LevelSimulation
         {
             FastForwarding = false;
         }
+        beforeJumped?.Invoke();
         Jumped?.Invoke();
     }
 }

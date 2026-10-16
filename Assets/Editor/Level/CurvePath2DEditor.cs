@@ -67,7 +67,9 @@ public class CurvePath2DEditor : Editor
         if (path.points.Count < 2) return;
         var e = Event.current;
 
-        if (e.type == EventType.Layout)
+        // Clics réservés seulement avec Ctrl (insertion de point) : sinon Unity garde la sélection normale
+        // (cliquer un autre objet le sélectionne, cliquer dans le vide désélectionne).
+        if (e.type == EventType.Layout && e.control)
             HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
 
         DrawToolbar(path);

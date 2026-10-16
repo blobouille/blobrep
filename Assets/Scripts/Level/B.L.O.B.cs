@@ -47,12 +47,22 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
 
     public static event System.Action<BLOB, BlobHazard, Vector2> Broken;
 
+    // Blobs dont la physique existe, dans l'ordre de création (ordre de la hiérarchie via LevelRestart).
+    static readonly List<BLOB> _active = new List<BLOB>();
+    public static IReadOnlyList<BLOB> Active => _active;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ClearActive() => _active.Clear();
+
     NativeList<PhysicsBody> _bodies;
     // _joints[i] relie la capsule i-1 à la capsule i.
     NativeList<PhysicsJoint> _joints;
     bool[] _attached;
 
     public bool IsBroken { get; private set; }
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
 
     public Vector2 CameraPosition
     {
@@ -64,6 +74,9 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
             return sum / _bodies.Length;
         }
     }
+
+    public int CapsuleCount => _bodies.IsCreated ? _bodies.Length : 0;
+    public PhysicsBody Capsule(int i) => _bodies[i];
 
     public CapsuleGeometry CapsuleShape => new CapsuleGeometry
     {
@@ -77,6 +90,51 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
         poses.Clear();
         if (!_bodies.IsCreated) return;
         for (int i = 0; i < _bodies.Length; i++) poses.Add(_bodies[i].transform);
+    }
+
+    [System.Serializable]
+    public struct CapsuleState
+    {
+        public Vector2 position;
+        public float angle;
+        public Vector2 velocity;
+        public float angularVelocity;
+    }
+
+    public void GetCapsuleStates(List<CapsuleState> states)
+    {
+        states.Clear();
+        if (!_bodies.IsCreated) return;
+        for (int i = 0; i < _bodies.Length; i++)
+        {
+            var b = _bodies[i];
+            states.Add(new CapsuleState { position = b.position, angle = b.rotation.radians, velocity = b.linearVelocity, angularVelocity = b.angularVelocity });
+        }
+    }
+
+    // Replace le blob dans un état mémorisé (mode entraînement, quand le rejeu ne retombe plus au même endroit).
+    // Blob recréé puis capsules posées : déterministe pour un même état, mais pas identique à un vrai passage.
+    // Les capsules empalées ne le sont plus ; 'broken' casse les joints sans événement (pas de focus caméra).
+    public void RestoreCapsules(IReadOnlyList<CapsuleState> states, bool broken)
+    {
+        if (states.Count != sides) return;
+        int order = _active.IndexOf(this);
+        DestroyBlob();
+        SpawnBlob(transform.position);
+        if (order >= 0) { _active.Remove(this); _active.Insert(order, this); }
+
+        for (int i = 0; i < sides; i++)
+        {
+            var body = _bodies[i];
+            body.transform = new PhysicsTransform(states[i].position, PhysicsRotate.FromRadians(states[i].angle));
+            body.linearVelocity = states[i].velocity;
+            body.angularVelocity = states[i].angularVelocity;
+        }
+        if (broken)
+        {
+            for (int j = 0; j < _joints.Length; j++) BreakJoint(j);
+            IsBroken = true;
+        }
     }
 
     float RingRadius => 0.5f * diameter / (1f + capsuleRadius);
@@ -94,10 +152,15 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
     void OnDisable()
     {
         DestroyBlob();
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
     }
 
     void DestroyBlob()
     {
+        _active.Remove(this);
         if (_joints.IsCreated) _joints.Dispose();
         if (!_bodies.IsCreated) return;
         PhysicsBody.DestroyBatch(_bodies.AsArray());
@@ -217,6 +280,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
         }
         IsBroken = false;
         _attached = new bool[sides];
+        _active.Add(this);
     }
 
     void OnDrawGizmos()
@@ -240,6 +304,13 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
             DrawCircle(a, r);
             DrawCircle(b, r);
         }
+
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddCircle(Vector2.zero, 0.5f * diameter);
+        _pickArea.Draw(Matrix4x4.Translate(transform.position));
+#endif
     }
 
     static void DrawCircle(Vector2 c, float r)

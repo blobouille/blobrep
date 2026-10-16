@@ -37,6 +37,9 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
     public Color previewColor = Color.white;
 
     PhysicsBody _body;
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
 
     public Vector2 CameraPosition => _body.isValid ? _body.position : (Vector2)transform.position;
 
@@ -48,6 +51,10 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
     void OnDisable()
     {
         Despawn();
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
     }
 
     void Spawn()
@@ -82,5 +89,11 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
         if (Application.isPlaying) return;
         Gizmos.color = previewColor;
         Gizmos.DrawWireSphere(transform.position, 0.5f * diameter);
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddCircle(Vector2.zero, 0.5f * diameter);
+        _pickArea.Draw(Matrix4x4.Translate(transform.position));
+#endif
     }
 }

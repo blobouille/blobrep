@@ -16,6 +16,9 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
     public Color previewColor = new Color(1f, 0.25f, 0.2f, 1f);
 
     PhysicsBody _body;
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
 
     protected PhysicsBody Body => _body;
     protected virtual PhysicsBody.BodyType BodyType => PhysicsBody.BodyType.Static;
@@ -41,6 +44,10 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
     {
         if (_body.isValid) _body.Destroy();
         _body = default;
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
     }
 
     void CreatePhysics()
@@ -88,6 +95,14 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
             for (int i = 0; i < p.Length; i++)
                 Gizmos.DrawLine(p[i], p[(i + 1) % p.Length]);
         Gizmos.matrix = Matrix4x4.identity;
+
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        foreach (var c in circles) _pickArea.AddCircle(new Vector2(c.x, c.y), c.z);
+        foreach (var p in polygons) _pickArea.AddConvex(p);
+        _pickArea.Draw(LocalToWorld);
+#endif
     }
 
     static void DrawCircle(Vector2 c, float r)

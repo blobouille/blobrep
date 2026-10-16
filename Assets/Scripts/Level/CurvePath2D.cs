@@ -73,7 +73,7 @@ public class CurvePath2D : MonoBehaviour
     [Tooltip("Ligne(s) utilisée(s) pour les chaînes de collision de CurveCollider2D :\n" +
              "• Centerline / LeftEdge / RightEdge : une seule face solide (chaîne à sens unique, voir 'flipSide')\n" +
              "• Outline : contour fermé, toute l'épaisseur est solide des deux côtés")]
-    public CollisionMode collisionMode = CollisionMode.LeftEdge;
+    public CollisionMode collisionMode = CollisionMode.Outline;
     [Tooltip("Par défaut la collision est du côté GAUCHE du sens de la courbe (dessus si elle va de gauche à droite). Cocher pour inverser.")]
     public bool flipSide;
 
@@ -339,12 +339,31 @@ public class CurvePath2D : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    [NonSerialized] GizmoPickArea _pickArea;
+
+    void OnDisable()
+    {
+        _pickArea?.Dispose();
+        _pickArea = null;
+    }
+
+    // Sélectionnée : l'aperçu est dessiné par CurvePath2DEditor.
     void OnDrawGizmos()
     {
         if (UnityEditor.Selection.activeGameObject == gameObject) return;
         Gizmos.matrix = transform.localToWorldMatrix;
         Gizmos.color = new Color(0.4f, 0.8f, 1f, 0.9f);
         DrawLoop(left); DrawLoop(right);
+        if (!closed && left.Count > 1)
+        {
+            Gizmos.DrawLine(left[0], right[0]);
+            Gizmos.DrawLine(left[left.Count - 1], right[right.Count - 1]);
+        }
+
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddStrip(left, right, closed);
+        _pickArea.Draw(transform.localToWorldMatrix);
     }
 
     void DrawLoop(List<Vector2> p)

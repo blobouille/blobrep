@@ -74,13 +74,15 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
   descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
 
 ## Organisation des scripts
-- `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles).
+- `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles,
+  `Neutral/` éléments neutres).
   C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
 - `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement, touche R)
 - `Scripts/Test/` : outils de test, pas des éléments de jeu
 - `Editor/Level/` : inspecteurs et poignées Scene view des éléments de `Level/`. Le dossier `Editor` n'est PAS inclus
   dans le jeu : le futur éditeur en jeu devra réimplémenter ses poignées, en réutilisant la géométrie des composants
+- `Editor/Game/` : outils éditeur des scripts de `Game/` (sélection des fantômes du mode entraînement)
 - Déplacer / renommer un script uniquement via Unity (`AssetDatabase.MoveAsset`) : le `.meta` suit, les scènes gardent leurs références
 
 ## Construction des niveaux : modèle CurvePath
@@ -92,9 +94,18 @@ Tout ce qui sert à créer un niveau suit le modèle existant (CurvePath2D / Pin
   Le composant implémente `ILevelPhysics` : `LevelRestart` le désactive / réactive pour recommencer le niveau
   (tout corps créé hors d'un `ILevelPhysics` empêche la remise à zéro du monde)
 - Une seule source de vérité géométrique pour aperçu et collision
+- Confort d'édition dans la Scene view (obligatoire pour tout nouvel élément) :
+  - Zone de clic pleine : dans `OnDrawGizmos`, remplir un `GizmoPickArea` avec la même géométrie (polygones, cercles,
+    bande d'une courbe) et appeler `Draw` ; le libérer (`Dispose`) dans `OnDisable`. Invisible, éditeur uniquement :
+    l'objet se sélectionne en cliquant n'importe où sur sa surface, pas seulement sur le trait
+  - Ne jamais réserver les clics en permanence dans `OnSceneGUI` : `HandleUtility.AddDefaultControl` seulement pendant
+    une action précise (ex. Ctrl enfoncé pour insérer un point), sinon on ne peut plus sélectionner un autre objet
+    ni désélectionner en cliquant dans le vide
+  - Aperçu non sélectionné complet (contour fermé, bouts compris) : même forme que l'aperçu sélectionné
 
 Scripts existants :
 - `CurvePath2D` : courbe de Bézier cubique par morceaux, épaisseur uniforme (center/left/right),
+  `collisionMode = Outline` par défaut (nouvelles courbes solides des deux côtés),
   échantillonnage adaptatif (`resolution`, `straightTolerance`, `miterLimit`),
   `BuildCollisionChains()` pour la collision
 - `CurvePath2DEditor` : édition dans la Scene view (points, tangentes, modes Free/Aligned/Vector/Auto, Undo)
@@ -115,6 +126,15 @@ Scripts existants :
     les capsules empalées tournent avec la scie (`CircularSawEditor` : poignées diamètre / dents)
   - `SpikeRow` : piques en rangée (nombre, taille globale, inclinaison) (`SpikeRowEditor` : taille globale, nombre)
   - Nouvel obstacle = sous-classe de `BlobHazard` ; menu GameObject > 2D Object pour créer
+- Éléments neutres (`Neutral/`) : ni bons ni mauvais, ils changent le mouvement du blob sans le casser.
+  Ils lisent les blobs via `BLOB.Active` (ordre de création) et agissent sur la vitesse des capsules dans `LevelTick`
+  - `BoostZone` : rectangle d'accélération (flèche = +X local), sans corps physique. Le blob en sort toujours pareil, quelle
+    que soit son entrée (côté, vitesse, rotation) : au milieu du bout de la zone, à `exitSpeed` dans l'axe, sans vitesse de
+    côté ni rotation. Sert de « remise à zéro » du momentum. Vitesse dans l'axe : accélération constante calculée à l'entrée
+    sur la distance restante ; recentrage : vitesse latérale = -2·écart/temps restant (écart et vitesse nuls à la sortie) ;
+    gravité annulée dans la zone. Toutes les capsules reçoivent la même vitesse (blob entier, puis chaque capsule une fois cassé).
+    Variantes prévues : même composant, autre `exitSpeed` / couleur. Idée : zone verticale = tube qui transporte le blob
+    (`BoostZoneEditor` : poignées longueur / hauteur)
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
   À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
@@ -122,7 +142,13 @@ Scripts existants :
 - `TrainingMode` : S = point de sauvegarde (fantôme du blob), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
   (0,5 s) = point précédent ; Shift = plus récent ; R efface tout. 100 points max (le plus ancien saute).
   `discardNewerOnSave` coché : sauvegarder après un retour efface les points suivants (ordre du niveau) ;
-  décoché : tout est gardé, dans l'ordre de création
+  décoché : tout est gardé, dans l'ordre de création.
+  Édition du niveau (éditeur uniquement) : points gardés entre deux Play et à la fermeture de Unity
+  (`UserSettings/TrainingCheckpoints/<scène>.json`, entrées compressées) ; fantômes visibles dans la Scene view hors Play,
+  clic sur un fantôme = point jaune (`TrainingModeGhostPicker`, re-clic = départ normal) ; Play repart du point jaune
+  (`startAtCurrentOnPlay`). Si le niveau a été modifié avant le point, le rejeu n'y retombe plus (écart > `divergenceTolerance`) :
+  le blob est replacé comme le fantôme (`BLOB.RestoreCapsules`), le reste du niveau garde l'état du rejeu. Pas identique à un
+  vrai passage (le niveau publié se fait d'une traite), mais déterministe : même niveau + même point = même résultat
 
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
 - `Ball2D` : balle rigide simple, pour comparer son comportement à celui du blob
@@ -134,7 +160,7 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)
-- AUCUN mesh, sprite 
+- AUCUN mesh, sprite (seule exception : maillage invisible `GizmoPickArea`, éditeur uniquement, pour la sélection)
 - Aucun son pour l'instant
 
 ## Conventions de code
