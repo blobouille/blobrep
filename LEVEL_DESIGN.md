@@ -1,0 +1,57 @@
+# Règles de level design
+
+Pour moi (rappel des bons principes) et surtout pour Claude, à lire avant de créer ou modifier un niveau.
+Référence actuelle : la scène `Assets/Scenes/poc niveau.unity`, courte mais riche en éléments et en variations.
+
+## Objectif
+Amener le blob au bout du niveau.
+
+## Sensations recherchées
+Le joueur doit éprouver de la satisfaction en voyant le blob prendre les rampes et faire des sauts. Il doit se sentir
+récompensé d'arriver au bout du niveau, d'autant plus que le niveau est difficile.
+
+- **Courbes** : conçues pour être prises de façon satisfaisante, le blob doit bien « plonger » dedans
+  (entrée tangente à sa trajectoire, pas de cassure).
+- **Flippers** :
+  - quand ils projettent le blob après qu'il a accumulé du momentum, ils prolongent le terrain (le levier au repos continue la pente) ;
+  - autre cas : un passage vertical, où le but est d'envoyer le blob en hauteur.
+
+## Cohérence des paramètres (dans tout le jeu)
+Un joueur qui progresse ne doit jamais être surpris par un changement de comportement. **Pour ces éléments, seul le
+placement change**. Leurs valeurs peuvent évoluer pendant le développement, mais toujours pour tous les exemplaires à la fois.
+
+- **Flippers** : même taille, même angle et même vitesse partout. Le mode torque n'est jamais utilisé.
+- **Blob** : toujours les paramètres par défaut de son script.
+- **Boost zones** : paramètres fixes. Les futures variantes (couleurs) auront chacune leur propre vitesse fixe.
+
+## Difficulté
+Progression : facile → moyen → difficile, puis éventuellement plus loin.
+
+Elle se dose par :
+- **la vitesse** : le temps qu'il reste pour réagir alors que le blob va vite ;
+- **la fréquence** : combien de fois il faut actionner les leviers ;
+- **la précision** : la fenêtre de timing pour actionner un levier et envoyer le blob au bon endroit.
+
+## Architecture
+- Plus proche de *Trackmania* que de *Geometry Dash* : **plusieurs chemins** peuvent mener au même endroit. Un chemin plus
+  difficile d'accès doit rapporter en conséquence (temps gagné, raccourci).
+- **Le chemin classique** doit être suivi naturellement et facile à comprendre, sans indication.
+- **Les raccourcis restent subtils** : le jeu ne prend pas le joueur par la main pour les trouver. Laisser de la place aux
+  tricks difficiles : les joueurs trouveront eux-mêmes des glitchs et des raccourcis auxquels on n'a pas pensé.
+- **Pas de piques partout** : les éléments qui détruisent le blob servent à limiter ses déplacements et à désigner l'objectif.
+- **Rythme** : après une série de passages durs, un moment plus calme (plusieurs courbes satisfaisantes à enchaîner,
+  éventuellement avec des accélérateurs) avant de repartir sur de nouveaux défis.
+
+## Méthode de construction (surtout pour Claude)
+1. **Partir du mouvement, pas des obstacles.** On ne pose pas des obstacles en cherchant ensuite comment les passer.
+   On donne d'abord du momentum au blob (une chute puis un boost, ou directement un coup de levier), on réalise le saut,
+   puis on place les obstacles autour en respectant les règles ci-dessus. Le saut donne la direction à suivre.
+2. **La difficulté = la marge autour du coup idéal.** Selon le niveau de difficulté, les obstacles sont plus ou moins
+   proches de la trajectoire du coup de levier idéal.
+3. **Varier les usages du levier.** Il y a plein de façons de s'en servir (prolonger une pente, renvoyer vers le haut,
+   rattraper, relancer…) : être créatif et changer régulièrement ce que le blob doit accomplir.
+4. **Tester par morceaux.** Utiliser les points de sauvegarde (`TrainingMode`) : modifier un passage puis le tester
+   directement depuis le point juste avant, sans refaire tout le niveau.
+
+## Objectif actuel
+Un nouveau niveau d'environ 30 secondes, inspiré de `poc niveau`.

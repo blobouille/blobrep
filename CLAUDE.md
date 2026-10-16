@@ -70,6 +70,7 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
   (exact au bit près, ≈ 0,06 ms par pas rejoué : 40 ms pour 6 s de niveau)
 
 ## Level design
+- Règles de conception des niveaux : `LEVEL_DESIGN.md`, à lire AVANT de créer ou modifier un niveau
 - `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
   descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
 
