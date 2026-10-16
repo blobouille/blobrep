@@ -13,7 +13,7 @@ public enum FlipperKey
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class PinballFlipper : MonoBehaviour, ILevelPhysics
+public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Forme")]
     [Tooltip("Échelle globale du levier : multiplie la longueur et les deux rayons.")]
@@ -161,9 +161,9 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics
     float RestSpeed() => -Dir() * motorSpeed;
     float ActiveSpeed() => Dir() * motorSpeed;
 
-    void FixedUpdate()
+    public void LevelTick()
     {
-        if (!Application.isPlaying || !_created) return;
+        if (!_created) return;
 
         if (_builtWithTorque != useTorque)
         {
@@ -171,7 +171,7 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics
             CreatePhysics();
         }
 
-        bool down = IsDown(key);
+        bool down = LevelInput.IsDown(key);
         DebugCoords(down);
 
         if (_builtWithTorque)

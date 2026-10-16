@@ -159,7 +159,7 @@ MonoBehaviour:
   tipRadius: 0.03
   key: 0
   activeAngle: 45
-  motorSpeed: 400
+  motorSpeed: 500
   useTorque: 0
   motorTorque: 400
   fastCollisions: 0
@@ -176,7 +176,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0.08421366, w: 0.9964477}
   m_LocalPosition: {x: 6.473, y: -5.57, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 3.5833, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -295,7 +295,7 @@ MonoBehaviour:
   tipRadius: 0.03
   key: 0
   activeAngle: 45
-  motorSpeed: 400
+  motorSpeed: 500
   useTorque: 0
   motorTorque: 400
   fastCollisions: 0
@@ -312,11 +312,64 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: 0.19874579, w: 0.9800511}
   m_LocalPosition: {x: 22.99, y: -16.22, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 3.5833, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 22.927}
+--- !u!1 &720575901
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 720575903}
+  - component: {fileID: 720575902}
+  m_Layer: 0
+  m_Name: TrainingMode
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &720575902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 720575901}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62f968305524cff4fad8a6cdbe7703ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrainingMode
+  saveKey: 33
+  previousKey: 3
+  nextKey: 51
+  maxCheckpoints: 100
+  discardNewerOnSave: 1
+  previousChainDelay: 0.5
+  showGhosts: 1
+  ghostColor: {r: 1, g: 1, b: 1, a: 0.25}
+  currentGhostColor: {r: 1, g: 0.85, b: 0.2, a: 0.7}
+--- !u!4 &720575903
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 720575901}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 21.79504, y: -10.55613, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1104841480
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -442,17 +495,18 @@ MonoBehaviour:
   friction: 0.4
   bounciness: 0
   previewColor: {r: 1, g: 0.25, b: 0.2, a: 1}
-  count: 1
-  spacing: 0
-  globalScale: 1.33
-  spikeWidth: 0.4
-  spikeHeight: 0.5
   sizes:
   - 1
   impale: 1
   impaleDepth: 0.12
   impaleFrequency: 6
   impaleDamping: 0.7
+  count: 1
+  spacing: 0
+  globalScale: 0.9381446
+  spikeWidth: 0.27
+  spikeHeight: 1
+  spikeLean: 0
 --- !u!4 &1163075357
 Transform:
   m_ObjectHideFlags: 0
@@ -661,7 +715,7 @@ MonoBehaviour:
   tipRadius: 0.03
   key: 0
   activeAngle: 45
-  motorSpeed: 400
+  motorSpeed: 500
   useTorque: 0
   motorTorque: 400
   fastCollisions: 0
@@ -678,7 +732,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0.013973142, w: 0.99990237}
   m_LocalPosition: {x: 33.34, y: -17.96, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 3.5833, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -715,11 +769,6 @@ MonoBehaviour:
   friction: 0.4
   bounciness: 0
   previewColor: {r: 1, g: 0.25, b: 0.2, a: 1}
-  count: 5
-  spacing: 0
-  globalScale: 1.1765685
-  spikeWidth: 0.4
-  spikeHeight: 0.5
   sizes:
   - 0.8708246
   - 0.645916
@@ -730,6 +779,12 @@ MonoBehaviour:
   impaleDepth: 0.12
   impaleFrequency: 6
   impaleDamping: 0.7
+  count: 5
+  spacing: 0
+  globalScale: 1.1765685
+  spikeWidth: 0.4
+  spikeHeight: 0.5
+  spikeLean: 0
 --- !u!4 &1629529179
 Transform:
   m_ObjectHideFlags: 0
@@ -916,7 +971,7 @@ MonoBehaviour:
   tipRadius: 0.03
   key: 0
   activeAngle: 45
-  motorSpeed: 400
+  motorSpeed: 500
   useTorque: 0
   motorTorque: 400
   fastCollisions: 0
@@ -933,7 +988,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0.71701354, w: 0.6970593}
   m_LocalPosition: {x: 33.7, y: -10.98, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 3.5833, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1049,6 +1104,26 @@ MonoBehaviour:
   friction: 0.4
   bounciness: 0
   previewColor: {r: 1, g: 0.25, b: 0.2, a: 1}
+  sizes:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  impale: 1
+  impaleDepth: 0.12
+  impaleFrequency: 6
+  impaleDamping: 0.7
   diameter: 2
   teethCount: 15
   toothDepth: 0.2
@@ -1101,17 +1176,18 @@ MonoBehaviour:
   friction: 0.4
   bounciness: 0
   previewColor: {r: 1, g: 0.25, b: 0.2, a: 1}
-  count: 1
-  spacing: 0
-  globalScale: 1.33
-  spikeWidth: 0.4
-  spikeHeight: 0.5
   sizes:
   - 1
   impale: 1
   impaleDepth: 0.12
   impaleFrequency: 6
   impaleDamping: 0.7
+  count: 1
+  spacing: 0
+  globalScale: 0.80752707
+  spikeWidth: 0.28
+  spikeHeight: 1.16
+  spikeLean: 0
 --- !u!4 &2020601703
 Transform:
   m_ObjectHideFlags: 0
@@ -1230,3 +1306,4 @@ SceneRoots:
   - {fileID: 1163075357}
   - {fileID: 1308389454}
   - {fileID: 1341346770}
+  - {fileID: 720575903}

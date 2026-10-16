@@ -23,7 +23,7 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
 
     // Appelé par le BLOB (ordre fixe) pour chaque capsule libre qui touche l'obstacle, une fois le blob cassé.
     // Retourne vrai si la capsule est désormais attachée à l'obstacle : elle n'est plus signalée ensuite.
-    public virtual bool OnCapsuleTouched(PhysicsBody capsule, Vector2 point) => false;
+    public virtual bool OnCapsuleTouched(PhysicsBody capsule, PhysicsShape hazardShape, Vector2 point) => false;
 
     // Géométrie locale (repère du Transform, échelle ignorée) : polygones convexes et cercles (x, y, rayon).
     public abstract void BuildGeometry(List<Vector2[]> polygons, List<Vector3> circles);
@@ -62,11 +62,13 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
         material.customColor = previewColor;
         shapeDef.surfaceMaterial = material;
 
-        var tag = new PhysicsUserData { objectValue = this };
+        // intValue : 1 + index du polygone dans BuildGeometry (0 pour les cercles).
         foreach (var c in circles)
-            _body.CreateShape(new CircleGeometry { center = new Vector2(c.x, c.y), radius = c.z }, shapeDef).userData = tag;
-        foreach (var p in polygons)
-            _body.CreateShape(PolygonGeometry.Create(p, 0f), shapeDef).userData = tag;
+            _body.CreateShape(new CircleGeometry { center = new Vector2(c.x, c.y), radius = c.z }, shapeDef).userData =
+                new PhysicsUserData { objectValue = this, intValue = 0 };
+        for (int i = 0; i < polygons.Count; i++)
+            _body.CreateShape(PolygonGeometry.Create(polygons[i], 0f), shapeDef).userData =
+                new PhysicsUserData { objectValue = this, intValue = i + 1 };
 
         OnBodyCreated();
     }

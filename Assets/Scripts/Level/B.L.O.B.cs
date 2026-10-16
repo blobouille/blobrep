@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -5,7 +6,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
+public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
 {
     [Header("Forme & Apparence")]
     [Tooltip("Nombre de capsules qui forment l'anneau du blob. Plus = plus rond et plus souple, mais plus coûteux.")]
@@ -45,7 +46,6 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
     public bool fastCollisions = false;
 
     public static event System.Action<BLOB, BlobHazard, Vector2> Broken;
-    public static event System.Action<BLOB> Respawned;
 
     NativeList<PhysicsBody> _bodies;
     // _joints[i] relie la capsule i-1 à la capsule i.
@@ -65,6 +65,20 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
         }
     }
 
+    public CapsuleGeometry CapsuleShape => new CapsuleGeometry
+    {
+        center1 = new Vector2(0f, -0.5f * CapsuleLength),
+        center2 = new Vector2(0f, 0.5f * CapsuleLength),
+        radius = CapsuleWorldRadius
+    };
+
+    public void GetCapsulePoses(List<PhysicsTransform> poses)
+    {
+        poses.Clear();
+        if (!_bodies.IsCreated) return;
+        for (int i = 0; i < _bodies.Length; i++) poses.Add(_bodies[i].transform);
+    }
+
     float RingRadius => 0.5f * diameter / (1f + capsuleRadius);
     float SegmentLength => PhysicsMath.TAU * RingRadius / sides;
     float CapsuleLength => math.max(0f, SegmentLength - capsuleSpacing);
@@ -82,15 +96,6 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
         DestroyBlob();
     }
 
-    [ContextMenu("Respawn Blob")]
-    public void Respawn()
-    {
-        if (!Application.isPlaying) return;
-        DestroyBlob();
-        SpawnBlob(transform.position);
-        Respawned?.Invoke(this);
-    }
-
     void DestroyBlob()
     {
         if (_joints.IsCreated) _joints.Dispose();
@@ -100,9 +105,9 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
     }
 
     // Contacts de l'état issu du dernier pas, parcourus dans un ordre fixe (capsules puis contacts Box2D).
-    void FixedUpdate()
+    public void LevelTick()
     {
-        if (!Application.isPlaying || !_bodies.IsCreated) return;
+        if (!_bodies.IsCreated) return;
 
         for (int i = 0; i < _bodies.Length; i++)
         {
@@ -112,16 +117,21 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
             {
                 var manifold = contacts[k].manifold;
                 if (manifold.pointCount == 0) continue;
-                var hazard = contacts[k].shapeA.userData.objectValue as BlobHazard;
-                if (hazard == null) hazard = contacts[k].shapeB.userData.objectValue as BlobHazard;
+                var hazardShape = contacts[k].shapeA;
+                var hazard = hazardShape.userData.objectValue as BlobHazard;
+                if (hazard == null)
+                {
+                    hazardShape = contacts[k].shapeB;
+                    hazard = hazardShape.userData.objectValue as BlobHazard;
+                }
                 if (hazard == null) continue;
-                Hit(i, hazard, manifold[0].point);
+                Hit(i, hazard, hazardShape, manifold[0].point);
             }
             contacts.Dispose();
         }
     }
 
-    void Hit(int capsule, BlobHazard hazard, Vector2 point)
+    void Hit(int capsule, BlobHazard hazard, PhysicsShape hazardShape, Vector2 point)
     {
         if (!IsBroken)
         {
@@ -130,7 +140,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
             Broken?.Invoke(this, hazard, point);
         }
 
-        if (!_attached[capsule] && hazard.OnCapsuleTouched(_bodies[capsule], point)) _attached[capsule] = true;
+        if (!_attached[capsule] && hazard.OnCapsuleTouched(_bodies[capsule], hazardShape, point)) _attached[capsule] = true;
     }
 
     void BreakJoint(int j)
@@ -157,12 +167,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics
         var world = PhysicsWorld.defaultWorld;
         _bodies = new NativeList<PhysicsBody>(sides, Allocator.Persistent);
 
-        var capsule = new CapsuleGeometry
-        {
-            center1 = new Vector2(0f, -0.5f * CapsuleLength),
-            center2 = new Vector2(0f, 0.5f * CapsuleLength),
-            radius = CapsuleWorldRadius
-        };
+        var capsule = CapsuleShape;
 
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bodyDef.type = PhysicsBody.BodyType.Dynamic;

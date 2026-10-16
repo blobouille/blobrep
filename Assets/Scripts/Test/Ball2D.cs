@@ -50,14 +50,6 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics
         Despawn();
     }
 
-    [ContextMenu("Respawn Ball")]
-    public void Respawn()
-    {
-        if (!Application.isPlaying) return;
-        Despawn();
-        Spawn();
-    }
-
     void Spawn()
     {
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;

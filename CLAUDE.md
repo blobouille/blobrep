@@ -14,7 +14,12 @@ avec des courbes de Bézier épaisses (murs/rails) et ces éléments. Plusieurs 
 
 ## Roadmap (étape actuelle en gras)
 1. **Éléments de level design** : outils/composants pour construire des niveaux (courbes, flippers, …)
-2. Boucle de jeu : départ, arrivée (fin de niveau), échec / recommencer
+2. Boucle de jeu : départ, arrivée (fin de niveau), échec / recommencer. But : finir le niveau d'une traite (comme Geometry Dash)
+   - Mode entraînement (`TrainingMode`) : points de sauvegarde exacts pour s'entraîner sur un passage.
+     Fait : S / Tab / Shift / R + fantômes + 2 modes de sauvegarde. À venir (mobile) : toucher un fantôme pour choisir
+     le point à pratiquer (`TrainingMode.GoTo`) ; Tab ramène ensuite toujours au dernier point pratiqué
+   - Replays et fantômes : un replay = identifiant + version du niveau + entrées de chaque pas (quelques Ko), rejoué par la
+     simulation (pas une vidéo). À vérifier avant : déterminisme entre machines différentes (PC / mobile)
 3. Plusieurs niveaux
 4. Esthétique, sons
 
@@ -44,8 +49,15 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 
 ## Déterminisme
 - Pas de `Random` sans graine fixe explicite
-- Logique de simulation et pilotage physique dans `FixedUpdate`, jamais dans `Update`
-  (dépendrait du framerate) ; utiliser `Time.fixedDeltaTime`
+- Logique de simulation et pilotage physique dans `ILevelTick.LevelTick()`, jamais dans `Update` ni `FixedUpdate`
+  (un pas doit pouvoir être rejoué en accéléré) ; utiliser `Time.fixedDeltaTime`
+- `LevelSimulation` est le seul moteur : à chaque pas fixe, entrées → `LevelTick` de chaque élément (ordre de la hiérarchie)
+  → `PhysicsWorld.Simulate` (monde en `SimulationType.Script`, réglé par lui seul). Actions entre deux pas
+  (redémarrage, retour à une sauvegarde) : `LevelSimulation.RunBeforeNextStep`
+  Pourquoi : avec chaque script dans son propre FixedUpdate, l'ordre dépendait de Unity et un pas ne pouvait pas être
+  rejoué hors du temps réel. Un seul moteur = ordre fixe + rejeu accéléré exact (sauvegardes, replays, fantômes)
+- Entrées du joueur : uniquement via `LevelInput` (un bit par `FlipperKey`, enregistré à chaque pas), jamais le clavier
+  directement dans la simulation. Toute action non enregistrée (ex. souris de debug) casse le rejeu
 - Ordre de création des corps/joints stable et explicite (ne pas dépendre de l'ordre
   d'exécution des scripts) ; ordre d'itération stable (pas de dépendance aux Dictionary/HashSet)
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
@@ -53,10 +65,23 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
   sur le monde vide (sinon l'historique interne de Box2D fait diverger les essais), puis recrée dans l'ordre de la hiérarchie.
   Le départ du niveau passe aussi par là (au chargement de la scène) : chaque essai est identique au bit près (~1 ms)
 - Tout état à remettre à zéro hors physique (caméra, timer, musique…) s'abonne à `LevelRestart.Restarted`
+  (et à `LevelSimulation.Jumped` pour un retour à une sauvegarde ; ignorer les événements pendant `LevelSimulation.FastForwarding`)
+- Point de sauvegarde = entrées de chaque pas depuis le départ ; y revenir = redémarrage + rejeu accéléré
+  (exact au bit près, ≈ 0,06 ms par pas rejoué : 40 ms pour 6 s de niveau)
 
 ## Level design
 - `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
   descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
+
+## Organisation des scripts
+- `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles).
+  C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
+- `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
+- `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement, touche R)
+- `Scripts/Test/` : outils de test, pas des éléments de jeu
+- `Editor/Level/` : inspecteurs et poignées Scene view des éléments de `Level/`. Le dossier `Editor` n'est PAS inclus
+  dans le jeu : le futur éditeur en jeu devra réimplémenter ses poignées, en réutilisant la géométrie des composants
+- Déplacer / renommer un script uniquement via Unity (`AssetDatabase.MoveAsset`) : le `.meta` suit, les scènes gardent leurs références
 
 ## Construction des niveaux : modèle CurvePath
 Tout ce qui sert à créer un niveau suit le modèle existant (CurvePath2D / PinballFlipper) :
@@ -78,28 +103,34 @@ Scripts existants :
   Le léger « accroc » des chaînes à très haute vitesse est accepté (atténué par le pas à 120 Hz).
   Pour un mur épais solide des deux côtés : `collisionMode = Outline`
 - `PinballFlipper` : flipper (2 cercles + quad), charnière à moteur (`useTorque`) ou kinematic piloté en vitesse
-- `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `FixedUpdate`,
+- `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `LevelTick`,
   ordre fixe capsules → contacts). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
-  un obstacle le lui signale (`OnCapsuleTouched`). Événements statiques `Broken` / `Respawned`
+  un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`
 - Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this`,
-  géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision
-  - `CircularSaw` : scie dentée kinematic en rotation (`rotationSpeed` en degrés/s, modifiable en Play)
-    (`CircularSawEditor` : poignées diamètre / dents)
-  - `SpikeRow` : rangée de piques (nombre, taille globale, taille par pique) ; les capsules qui la touchent s'empalent
-    (joint fixe souple vers un point enfoncé de `impaleDepth`) (`SpikeRowEditor` : poignée par pointe, taille globale, nombre)
+  géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision ; `userData.intValue` = 1 + index du polygone
+  - `SpikedHazard` (abstrait) : un pique est le même objet partout, seul son placement change (`SpikeFrame`).
+    Taille individuelle par pique (`sizes`), empalement des capsules qui touchent un pique (joint fixe souple vers un point
+    enfoncé de `impaleDepth`). Poignée par pointe dans la Scene view (`SpikeHandles`)
+  - `CircularSaw` : piques (dents) autour d'un disque, kinematic en rotation (`rotationSpeed` en degrés/s, modifiable en Play) ;
+    les capsules empalées tournent avec la scie (`CircularSawEditor` : poignées diamètre / dents)
+  - `SpikeRow` : piques en rangée (nombre, taille globale, inclinaison) (`SpikeRowEditor` : taille globale, nombre)
   - Nouvel obstacle = sous-classe de `BlobHazard` ; menu GameObject > 2D Object pour créer
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
-  À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier`
+  À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
+  après `slowDuration`, dézoom sur place (toujours centré sur l'impact) jusqu'au redémarrage
+- `TrainingMode` : S = point de sauvegarde (fantôme du blob), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
+  (0,5 s) = point précédent ; Shift = plus récent ; R efface tout. 100 points max (le plus ancien saute).
+  `discardNewerOnSave` coché : sauvegarder après un retour efface les points suivants (ordre du niveau) ;
+  décoché : tout est gardé, dans l'ordre de création
 
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
 - `Ball2D` : balle rigide simple, pour comparer son comportement à celui du blob
 - `LevelShape` : bordures simples (rectangle, cercle…) pour les tests physiques ; ancien, à ne pas étendre
 - `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, collision continue, `drawOptions`) ;
-  seul endroit qui configure le `PhysicsWorld` et `Time.timeScale` (ralenti : `SetTimeScaleMultiplier`, ne change pas la simulation)
-- `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement
-- `RespawnOnKey` : touche R = `LevelRestart.Restart()`, dans `FixedUpdate` avec un ordre d'exécution prioritaire
-  (le pas qui suit un redémarrage est identique au premier pas du niveau)
+  seul endroit qui configure le `PhysicsWorld` (sauf `simulationType` : `LevelSimulation`) et `Time.timeScale` (ralenti : `SetTimeScaleMultiplier`, ne change pas la simulation)
+- `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement (non enregistré : casse le rejeu)
+- `RespawnOnKey` : touche R = `LevelRestart.Restart()` entre deux pas (efface aussi les points de sauvegarde)
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)

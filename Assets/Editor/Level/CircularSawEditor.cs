@@ -21,7 +21,8 @@ public class CircularSawEditor : Editor
         EditorGUILayout.HelpBox(
             "Scene View :\n" +
             "• Poignée extérieure : diamètre\n" +
-            "• Poignée intérieure : profondeur des dents",
+            "• Poignée intérieure : profondeur des dents\n" +
+            "• Poignée sur la pointe d'une dent : sa taille individuelle",
             MessageType.Info);
     }
 
@@ -31,6 +32,8 @@ public class CircularSawEditor : Editor
 
         using (new Handles.DrawingScope(saw.previewColor, saw.LocalToWorld))
         {
+            SpikeHandles.Draw(saw);
+
             float hs = HandleUtility.GetHandleSize(saw.transform.position);
 
             Vector3 outer = new Vector3(saw.OuterRadius, 0f, 0f);

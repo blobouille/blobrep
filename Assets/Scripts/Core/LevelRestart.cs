@@ -25,14 +25,14 @@ public static class LevelRestart
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    // Appelé après les OnEnable de la scène et avant le premier FixedUpdate.
+    // Appelé après les OnEnable de la scène et avant le premier pas.
     static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         _cachedScene = default;
         Restart();
     }
 
-    // À appeler avant tout autre FixedUpdate du pas (voir RespawnOnKey, ordre d'exécution prioritaire).
+    // À appeler entre deux pas (LevelSimulation.RunBeforeNextStep), jamais au milieu d'un LevelTick.
     public static void Restart()
     {
         var active = SceneManager.GetActiveScene();
@@ -45,6 +45,7 @@ public static class LevelRestart
         for (int i = enabled.Count - 1; i >= 0; i--) enabled[i].enabled = false;
         ResetWorld();
         for (int i = 0; i < enabled.Count; i++) enabled[i].enabled = true;
+        LevelSimulation.OnRestarted(enabled);
 
         Restarted?.Invoke();
     }

@@ -29,22 +29,9 @@ public class SpikeRowEditor : Editor
     void OnSceneGUI()
     {
         var row = (SpikeRow)target;
-        row.SyncSizes();
-
         using (new Handles.DrawingScope(row.previewColor, row.LocalToWorld))
         {
-            for (int i = 0; i < row.count; i++)
-            {
-                Vector3 tip = row.TipOf(i);
-                float size = HandleUtility.GetHandleSize(row.LocalToWorld.MultiplyPoint3x4(tip)) * 0.06f;
-                EditorGUI.BeginChangeCheck();
-                Vector3 moved = Handles.Slider(tip, Vector3.up, size, Handles.DotHandleCap, 0f);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    Undo.RecordObject(row, "Spike size");
-                    row.sizes[i] = Mathf.Max(0.01f, moved.y / (row.spikeHeight * row.globalScale));
-                }
-            }
+            SpikeHandles.Draw(row);
 
             row.Layout(row.count - 1, out float left, out float width, out _);
             Vector3 right = new Vector3(left + width, 0f, 0f);

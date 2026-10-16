@@ -26,12 +26,15 @@ public class CameraFollow : MonoBehaviour
 
     [Header("Focus destruction")]
     [Tooltip("Quand la cible (un BLOB) est déstructurée par un obstacle, la caméra se centre sur l'obstacle et zoome.\n" +
-             "Elle revient au suivi normal au respawn du blob.")]
+             "Après 'slowDuration', elle dézoome en restant centrée sur l'impact ; suivi normal au redémarrage du niveau.")]
     public bool focusOnBreak = true;
     [Tooltip("Taille orthographique de la caméra pendant le focus (demi-hauteur visible, en unités Unity). Plus petit = zoom plus fort.")]
     [Min(0.1f)] public float focusSize = 2.5f;
     [Tooltip("Temps (en secondes réelles, insensible au ralenti) pour faire environ 63 % du trajet et du zoom vers le focus.")]
     [Min(0f)] public float focusSmoothTime = 0.12f;
+    [Tooltip("Temps (en secondes réelles) pour faire environ 63 % du dézoom vers la taille de départ, une fois la durée du ralenti\n" +
+             "écoulée. La caméra reste centrée sur le point d'impact.")]
+    [Min(0f)] public float dezoomSmoothTime = 0.35f;
 
     [Header("Ralenti à la destruction")]
     [Tooltip("Ralentit le temps au moment de la destruction (via monde_settings). La simulation reste identique : seul le nombre\n" +
@@ -39,7 +42,7 @@ public class CameraFollow : MonoBehaviour
     public bool slowMotion = true;
     [Tooltip("Vitesse du temps pendant le ralenti, multipliée par 'gameSpeed' de monde_settings. 0,3 = 3× plus lent.")]
     [Range(0.01f, 1f)] public float slowFactor = 0.3f;
-    [Tooltip("Durée du ralenti, en secondes réelles.")]
+    [Tooltip("Durée du ralenti, en secondes réelles. C'est aussi la durée du zoom avant le dézoom (même sans ralenti).")]
     [Min(0f)] public float slowDuration = 0.5f;
 
     GameObject _cachedTarget;
@@ -49,6 +52,7 @@ public class CameraFollow : MonoBehaviour
     bool _focusing;
     Vector2 _focusPoint;
     float _slowEndTime = -1f;
+    float _zoomEndTime = -1f;
     monde_settings _settings;
 
     void Start()
@@ -61,15 +65,15 @@ public class CameraFollow : MonoBehaviour
     void OnEnable()
     {
         BLOB.Broken += OnBlobBroken;
-        BLOB.Respawned += OnBlobRespawned;
         LevelRestart.Restarted += OnLevelRestarted;
+        LevelSimulation.Jumped += OnLevelRestarted;
     }
 
     void OnDisable()
     {
         BLOB.Broken -= OnBlobBroken;
-        BLOB.Respawned -= OnBlobRespawned;
         LevelRestart.Restarted -= OnLevelRestarted;
+        LevelSimulation.Jumped -= OnLevelRestarted;
         EndSlowMotion();
     }
 
@@ -84,9 +88,10 @@ public class CameraFollow : MonoBehaviour
 
     void OnBlobBroken(BLOB blob, BlobHazard hazard, Vector2 contactPoint)
     {
-        if (!focusOnBreak || target != blob.gameObject) return;
+        if (!focusOnBreak || target != blob.gameObject || LevelSimulation.FastForwarding) return;
         _focusing = true;
         _focusPoint = hazard.FocusPoint(contactPoint);
+        _zoomEndTime = Time.unscaledTime + slowDuration;
 
         if (!slowMotion) return;
         if (_settings == null) _settings = FindFirstObjectByType<monde_settings>();
@@ -97,13 +102,6 @@ public class CameraFollow : MonoBehaviour
         }
         _settings.SetTimeScaleMultiplier(slowFactor);
         _slowEndTime = Time.unscaledTime + slowDuration;
-    }
-
-    void OnBlobRespawned(BLOB blob)
-    {
-        if (target != blob.gameObject) return;
-        _focusing = false;
-        EndSlowMotion();
     }
 
     void EndSlowMotion()
@@ -123,8 +121,9 @@ public class CameraFollow : MonoBehaviour
     {
         if (_slowEndTime >= 0f && Time.unscaledTime >= _slowEndTime) EndSlowMotion();
 
-        float f = focusSmoothTime > 0f ? 1f - Mathf.Exp(-Time.unscaledDeltaTime / focusSmoothTime) : 1f;
-        _camera.orthographicSize = Mathf.Lerp(_camera.orthographicSize, _focusing ? focusSize : _baseSize, f);
+        float f = Smooth(focusSmoothTime);
+        bool zoomed = _focusing && Time.unscaledTime < _zoomEndTime;
+        _camera.orthographicSize = Mathf.Lerp(_camera.orthographicSize, zoomed ? focusSize : _baseSize, zoomed || !_focusing ? f : Smooth(dezoomSmoothTime));
 
         if (_focusing)
         {
@@ -139,6 +138,8 @@ public class CameraFollow : MonoBehaviour
         float t = smoothTime > 0f ? 1f - Mathf.Exp(-Time.deltaTime / smoothTime) : 1f;
         MoveTo(Vector2.Lerp(current, desired, t));
     }
+
+    static float Smooth(float time) => time > 0f ? 1f - Mathf.Exp(-Time.unscaledDeltaTime / time) : 1f;
 
     Vector2 Desired(Vector2 targetPos, Vector2 current, Vector2 dead)
     {
