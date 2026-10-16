@@ -117,6 +117,10 @@ Scripts existants :
   Le léger « accroc » des chaînes à très haute vitesse est accepté (atténué par le pas à 120 Hz).
   Pour un mur épais solide des deux côtés : `collisionMode = Outline`
 - `PinballFlipper` : flipper (2 cercles + quad), charnière à moteur (`useTorque`) ou kinematic piloté en vitesse
+- `PinballBumper` : levier bumper, capsule de la longueur d'un flipper (deux boules au rayon de la grosse boule du flipper,
+  première boule sur l'objet). À l'appui, translation perpendiculaire à la barre de `travel` (m, signe = côté), à `speed`
+  (défaut = vitesse du bout d'un flipper, ≈ 14,66 m/s), retour au relâchement. Kinematic piloté en vitesse, même touche
+  (`FlipperKey`) ; arrive pile sur la cible (`PinballBumperEditor` : poignée du déplacement)
 - `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `LevelTick`,
   ordre fixe capsules → contacts). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
   un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`

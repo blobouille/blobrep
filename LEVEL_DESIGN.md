@@ -27,6 +27,8 @@ le changer dans `poc niveau` ET dans la valeur par défaut du script.
 - **Flippers** : même taille, même angle (45°) et même vitesse (500 °/s) partout. Le mode torque n'est jamais utilisé.
   Une seule touche pour tous les flippers : seuls la position et l'orientation changent ; pour un flipper retourné,
   le signe de `activeAngle` donne le sens de la frappe (ex. -45).
+- **Bumpers** (`PinballBumper`) : même taille et même vitesse partout, même touche que les flippers. Le déplacement
+  (`travel`) est en cours de réglage : une fois fixé, il devient lui aussi une valeur officielle.
 - **Blob** : toujours les paramètres par défaut de son script.
 - **Boost zones** : paramètres fixes (`acceleration` 150 m/s², plafond `maxSpeed` 30 m/s, à régler). Les futures variantes (couleurs) auront chacune leurs valeurs fixes.
 - **Caméra** et réglages du monde : ceux de `poc niveau` (valeurs par défaut des scripts).
