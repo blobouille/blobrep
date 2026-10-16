@@ -9,12 +9,12 @@ public class CircularSaw : SpikedHazard, ILevelTick
     [Tooltip("Diamètre de la scie, pointes des dents comprises (dents de taille 1), en unités Unity (absolu). 1 = taille d'un blob standard.")]
     [Min(0.1f)] public float diameter = 2f;
     [Tooltip("Nombre de dents (piques) réparties sur le tour.")]
-    [Range(3, 64)] public int teethCount = 16;
+    [Range(3, 64)] public int teethCount = 15;
     [Tooltip("Profondeur des dents (du disque à la pointe), en unités Unity (absolu). Limitée à 90 % du rayon.")]
     [Min(0.01f)] public float toothDepth = 0.2f;
     [Tooltip("Inclinaison des dents : décalage latéral de la pointe, en fraction de la demi-largeur de la dent.\n" +
              "0 = dents symétriques, positif = penchées dans le sens anti-horaire.")]
-    [Range(-1f, 1f)] public float toothLean = 0.35f;
+    [Range(-1f, 1f)] public float toothLean = 0f;
 
     [Header("Rotation")]
     [Tooltip("Vitesse de rotation de la scie, en degrés par seconde. Positif = anti-horaire, 0 = immobile.\n" +

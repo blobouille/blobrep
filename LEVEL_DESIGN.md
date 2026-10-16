@@ -20,9 +20,17 @@ récompensé d'arriver au bout du niveau, d'autant plus que le niveau est diffic
 Un joueur qui progresse ne doit jamais être surpris par un changement de comportement. **Pour ces éléments, seul le
 placement change**. Leurs valeurs peuvent évoluer pendant le développement, mais toujours pour tous les exemplaires à la fois.
 
-- **Flippers** : même taille, même angle et même vitesse partout. Le mode torque n'est jamais utilisé.
+Hiérarchie des valeurs : **la scène `poc niveau` est le modèle** → ses réglages sont les valeurs par défaut des scripts
+→ tout nouveau niveau utilise les scripts tels quels, sans retoucher ces paramètres. Si un réglage officiel change,
+le changer dans `poc niveau` ET dans la valeur par défaut du script.
+
+- **Flippers** : même taille, même angle (45°) et même vitesse (500 °/s) partout. Le mode torque n'est jamais utilisé.
+  Une seule touche pour tous les flippers : seuls la position et l'orientation changent ; pour un flipper retourné,
+  le signe de `activeAngle` donne le sens de la frappe (ex. -45).
 - **Blob** : toujours les paramètres par défaut de son script.
-- **Boost zones** : paramètres fixes. Les futures variantes (couleurs) auront chacune leur propre vitesse fixe.
+- **Boost zones** : paramètres fixes (`exitSpeed` 30 m/s). Les futures variantes (couleurs) auront chacune leur propre vitesse fixe.
+- **Caméra** et réglages du monde : ceux de `poc niveau` (valeurs par défaut des scripts).
+- Libres selon le niveau : la forme des courbes, le nombre et la taille des piques, la taille et la vitesse des scies.
 
 ## Difficulté
 Progression : facile → moyen → difficile, puis éventuellement plus loin.
@@ -31,6 +39,9 @@ Elle se dose par :
 - **la vitesse** : le temps qu'il reste pour réagir alors que le blob va vite ;
 - **la fréquence** : combien de fois il faut actionner les leviers ;
 - **la précision** : la fenêtre de timing pour actionner un levier et envoyer le blob au bon endroit.
+
+Mesure objective (pour Claude) : pour chaque coup de levier, simuler des appuis plus tôt et plus tard que le coup idéal
+(rejeu déterministe) et mesurer la plage de timing qui réussit, en millisecondes. Large = facile, étroite = difficile.
 
 ## Architecture
 - Plus proche de *Trackmania* que de *Geometry Dash* : **plusieurs chemins** peuvent mener au même endroit. Un chemin plus
@@ -54,4 +65,5 @@ Elle se dose par :
    directement depuis le point juste avant, sans refaire tout le niveau.
 
 ## Objectif actuel
-Un nouveau niveau d'environ 30 secondes, inspiré de `poc niveau`.
+Un nouveau niveau d'environ 30 secondes (temps d'un passage réussi d'une traite, sans erreur), inspiré de `poc niveau`.
+Pas encore d'éléments de départ / arrivée : viendront plus tard (peut-être des checkpoints façon Trackmania, but = finir le plus vite).

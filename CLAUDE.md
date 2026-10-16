@@ -89,6 +89,8 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 ## Construction des niveaux : modèle CurvePath
 Tout ce qui sert à créer un niveau suit le modèle existant (CurvePath2D / PinballFlipper) :
 - Composant `[ExecuteAlways]` entièrement paramétrable depuis l'inspecteur, rien en dur
+- Valeurs par défaut des scripts = réglages officiels, ceux de la scène modèle `poc niveau` (voir `LEVEL_DESIGN.md`).
+  Un nouveau niveau utilise les scripts sans retoucher ces paramètres
 - Aperçu visible dans la Scene view AVANT de lancer le jeu : `OnDrawGizmos` (+ Editor custom
   avec handles si besoin), avec la même géométrie que celle envoyée à la physique
 - La physique n'est créée qu'en Play (`Application.isPlaying`), dans `OnEnable`, et détruite dans `OnDisable`.

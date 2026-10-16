@@ -19,7 +19,7 @@ public class CameraFollow : MonoBehaviour
 
     [Header("Lissage")]
     [Tooltip("Temps (en secondes) pour rattraper environ 63 % de l'écart avec la cible. 0 = caméra collée à la cible, sans retard.")]
-    [Min(0f)] public float smoothTime = 0.1f;
+    [Min(0f)] public float smoothTime = 0f;
     [Tooltip("Zone morte : demi-taille (en unités Unity, absolu) du rectangle centré sur la caméra dans lequel la cible\n" +
              "peut bouger sans que la caméra ne la suive. (0, 0) = suivi permanent.")]
     public Vector2 deadZone = Vector2.zero;
@@ -41,7 +41,7 @@ public class CameraFollow : MonoBehaviour
              "de pas physiques par seconde réelle diminue.")]
     public bool slowMotion = true;
     [Tooltip("Vitesse du temps pendant le ralenti, multipliée par 'gameSpeed' de monde_settings. 0,3 = 3× plus lent.")]
-    [Range(0.01f, 1f)] public float slowFactor = 0.3f;
+    [Range(0.01f, 1f)] public float slowFactor = 0.2f;
     [Tooltip("Durée du ralenti, en secondes réelles. C'est aussi la durée du zoom avant le dézoom (même sans ralenti).")]
     [Min(0f)] public float slowDuration = 0.5f;
 

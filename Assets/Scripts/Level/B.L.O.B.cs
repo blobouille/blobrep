@@ -30,11 +30,11 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick
              "Même diamètre et même densité qu'une Ball2D = même masse.")]
     [Min(0.001f)] public float density = 1f;
     [Tooltip("Raideur angulaire des joints entre capsules, en Hz. Plus haut = blob plus rigide en flexion.")]
-    [Min(0f)] public float jointFrequency = 64f;
+    [Min(0f)] public float jointFrequency = 48f;
     [Tooltip("Amortissement angulaire des joints (ratio, 1 = critique). Plus haut = moins d'oscillations en flexion.")]
     [Min(0f)] public float jointDamping = 1f;
     [Tooltip("Raideur linéaire des joints entre capsules, en Hz. Plus haut = l'anneau s'étire moins.")]
-    [Min(0f)] public float jointLinearFrequency = 64f;
+    [Min(0f)] public float jointLinearFrequency = 48f;
     [Tooltip("Amortissement linéaire des joints (ratio, 1 = critique). Plus haut = moins d'oscillations en étirement.")]
     [Min(0f)] public float jointLinearDamping = 1f;
     [Tooltip("Friction des capsules (0 = glisse parfaitement).")]

@@ -13,14 +13,14 @@ public class BoostZone : MonoBehaviour, ILevelPhysics, ILevelTick
     [Header("Zone")]
     [Tooltip("Longueur de la zone dans le sens de la flèche (+X local), en unités Unity (absolu). Zone centrée sur l'objet.\n" +
              "Tourner le GameObject pour orienter la flèche.")]
-    [Min(0.1f)] public float length = 4f;
+    [Min(0.1f)] public float length = 2.24f;
     [Tooltip("Hauteur de la zone, perpendiculaire à la flèche, en unités Unity (absolu). 1 = diamètre du blob standard.")]
-    [Min(0.1f)] public float height = 1f;
+    [Min(0.1f)] public float height = 1.06f;
 
     [Header("Vitesse")]
     [Tooltip("Vitesse dans le sens de la flèche à la sortie de la zone, en m/s (absolu). Atteinte à la sortie quelle que soit\n" +
              "la vitesse d'entrée : accélération (ou freinage) constante sur la distance restant à parcourir.")]
-    [Min(0f)] public float exitSpeed = 12f;
+    [Min(0f)] public float exitSpeed = 30f;
 
     [Header("Debug")]
     [Tooltip("Couleur de l'aperçu Scene view.")]

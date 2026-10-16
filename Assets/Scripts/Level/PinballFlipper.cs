@@ -32,7 +32,7 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
              "Positif = sens anti-horaire, négatif = sens horaire.")]
     public float activeAngle = 45f;
     [Tooltip("Vitesse de rotation du levier, en degrés par seconde.")]
-    [Min(1f)] public float motorSpeed = 400F;
+    [Min(1f)] public float motorSpeed = 500f;
     [Tooltip("Coché : corps dynamique + charnière à moteur à couple limité (dépend de la masse).\n" +
              "Décoché : corps kinematic piloté en vitesse, sans calcul de couple.")]
     public bool useTorque = false;
