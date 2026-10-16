@@ -131,12 +131,12 @@ Scripts existants :
   - Nouvel obstacle = sous-classe de `BlobHazard` ; menu GameObject > 2D Object pour créer
 - Éléments neutres (`Neutral/`) : ni bons ni mauvais, ils changent le mouvement du blob sans le casser.
   Ils lisent les blobs via `BLOB.Active` (ordre de création) et agissent sur la vitesse des capsules dans `LevelTick`
-  - `BoostZone` : rectangle d'accélération (flèche = +X local), sans corps physique. Le blob en sort toujours pareil, quelle
-    que soit son entrée (côté, vitesse, rotation) : au milieu du bout de la zone, à `exitSpeed` dans l'axe, sans vitesse de
-    côté ni rotation. Sert de « remise à zéro » du momentum. Vitesse dans l'axe : accélération constante calculée à l'entrée
-    sur la distance restante ; recentrage : vitesse latérale = -2·écart/temps restant (écart et vitesse nuls à la sortie) ;
-    gravité annulée dans la zone. Toutes les capsules reçoivent la même vitesse (blob entier, puis chaque capsule une fois cassé).
-    Variantes prévues : même composant, autre `exitSpeed` / couleur. Idée : zone verticale = tube qui transporte le blob
+  - `BoostZone` : rectangle d'accélération (flèche = +X local), sans corps physique, à la Trackmania : chaque capsule dont
+    le centre est dans la zone reçoit `acceleration` (m/s²) dans l'axe, jusqu'au plafond `maxSpeed` ; jamais de freinage,
+    le reste du mouvement est conservé. Même entrée = même sortie au bit près ; entrée différente = sortie différente.
+    Abandonné : la zone « remise à zéro » (sortie identique quelle que soit l'entrée) ; même avec le blob recréé à la sortie,
+    l'historique interne de Box2D (numéros des contacts) faisait diverger la suite au premier contact.
+    Variantes prévues : même composant, autres valeurs / couleur. Idée : zone verticale = tube qui transporte le blob
     (`BoostZoneEditor` : poignées longueur / hauteur)
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.

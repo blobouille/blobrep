@@ -28,7 +28,7 @@ le changer dans `poc niveau` ET dans la valeur par défaut du script.
   Une seule touche pour tous les flippers : seuls la position et l'orientation changent ; pour un flipper retourné,
   le signe de `activeAngle` donne le sens de la frappe (ex. -45).
 - **Blob** : toujours les paramètres par défaut de son script.
-- **Boost zones** : paramètres fixes (`exitSpeed` 30 m/s). Les futures variantes (couleurs) auront chacune leur propre vitesse fixe.
+- **Boost zones** : paramètres fixes (`acceleration` 150 m/s², plafond `maxSpeed` 30 m/s, à régler). Les futures variantes (couleurs) auront chacune leurs valeurs fixes.
 - **Caméra** et réglages du monde : ceux de `poc niveau` (valeurs par défaut des scripts).
 - Libres selon le niveau : la forme des courbes, le nombre et la taille des piques, la taille et la vitesse des scies.
 
