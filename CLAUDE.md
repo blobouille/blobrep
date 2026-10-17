@@ -11,6 +11,8 @@ avec des courbes de Bézier épaisses (murs/rails) et ces éléments. Plusieurs 
 - Résultat TOUJOURS déterministe : mêmes entrées = même simulation à chaque lancement
   (indispensable pour un jeu de niveaux à rejouer / mémoriser)
 - Le joueur agit sur le niveau, jamais directement sur le blob
+- Performance cruciale, mobile compris : le jeu doit rester fluide et le retour à une sauvegarde (Tab) quasi instantané
+  (voir « Performance »)
 
 ## Roadmap (étape actuelle en gras)
 1. **Éléments de level design** : outils/composants pour construire des niveaux (courbes, flippers, …)
@@ -67,7 +69,44 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Tout état à remettre à zéro hors physique (caméra, timer, musique…) s'abonne à `LevelRestart.Restarted`
   (et à `LevelSimulation.Jumped` pour un retour à une sauvegarde ; ignorer les événements pendant `LevelSimulation.FastForwarding`)
 - Point de sauvegarde = entrées de chaque pas depuis le départ ; y revenir = redémarrage + rejeu accéléré
-  (exact au bit près, ≈ 0,06 ms par pas rejoué : 40 ms pour 6 s de niveau)
+  (exact au bit près, ≈ 0,05 ms par pas rejoué sur `poc niveau 1` : ≈ 180 ms pour 30 s de niveau ; voir « Performance »)
+
+## Performance
+Pourquoi c'est central : revenir à une sauvegarde rejoue TOUS les pas depuis le départ (120 par seconde de jeu). Le coût d'un
+pas est donc multiplié par des milliers à chaque Tab, et un point loin dans le niveau coûte plus cher qu'un point proche du départ.
+Une microseconde gagnée par pas = 3,6 ms de moins pour un retour à 30 s. Sur mobile, compter 2 à 4× plus lent que sur PC.
+
+Philosophie (tout nouveau script, en particulier tout `LevelTick`) :
+- **Ne jamais changer la simulation pour gagner du temps.** Une optimisation doit donner un résultat identique au bit près
+  (sinon les sauvegardes, replays et fantômes existants ne retombent plus au même endroit). Changer le comportement physique
+  (sous-pas, `aabbMargin`, ordre de création…) est une décision de jeu, pas une optimisation : la proposer, ne pas l'imposer
+- **Mesurer avant d'optimiser**, puis après. Pas d'optimisation à l'aveugle : trouver d'abord ce qui coûte (chronométrer chaque
+  `LevelTick`, `Simulate`, profil du monde `PhysicsWorld.profile`)
+- **Préparer au départ, pas à chaque pas** : tout ce qui ne change pas pendant un essai (géométrie, listes d'enfants, composants,
+  décalages, angles) se calcule dans `OnEnable` (chaque redémarrage, donc chaque Tab), pas dans `LevelTick`.
+  Une modification d'inspecteur en Play s'applique au redémarrage suivant : c'est accepté
+- **Un appel au moteur physique ou à Unity coûte cher** (lire `body.position`, `GetContacts`, `userData`, écrire un `Transform`,
+  `GetComponents` : 0,05 à 0,5 µs chacun). Les éviter dans les boucles par pas : écarter d'abord par un test bon marché
+  (ex. `BoostZone` : une capsule du blob avant les 32), lire une fois puis réutiliser, ne pas écrire un Transform dont personne
+  n'a besoin en jeu (obstacles sur trajectoire : le corps fait foi)
+- **Se faire prévenir plutôt que demander à chaque pas** : événements de Box2D (début / fin de contact via `contactEvents`, comme
+  le `BLOB` avec les obstacles) au lieu d'interroger chaque corps à chaque pas
+- **Aucune allocation par pas** (pas de `new`, de LINQ, de `List` créée dans `LevelTick`) : listes réutilisées ou tableaux préparés au départ
+- **Réglages du monde qui ne changent pas le résultat** : `simulationWorkers` = 1 (Box2D sur 12 threads passait plus de temps à
+  coordonner les cœurs qu'à calculer : −33 %, et encore plus utile sur mobile). Résultat identique quel que soit ce nombre
+- Le visuel (`LateUpdate`, `Cosmetics/`, dessin debug) ne tourne qu'une fois par image, jamais pendant le rejeu accéléré : il compte
+  moins que la simulation, mais reste léger pour le mobile
+
+Repères mesurés (`poc niveau 1`, PC, 1 thread) : ≈ 50 µs par pas, dont ≈ 40 µs pour Box2D (`Simulate` : recherche des paires de
+contacts ≈ 15, résolution ≈ 25) et ≈ 10 µs pour tous les scripts. Avant optimisation : ≈ 130 µs. Le blob seul : 11 → 0,2 µs.
+
+Vérifier une optimisation (méthode utilisée) :
+1. Avec l'ancien code, en Play : redémarrer, rejouer N pas (`LevelSimulation.FastForward` avec des entrées fixes, flippers compris,
+   et un scénario où le blob se casse sur un obstacle), enregistrer les bits des positions / vitesses de toutes les capsules et
+   corps (`BitConverter.SingleToInt32Bits`) dans `Temp/`, et chronométrer (meilleur de plusieurs essais : la machine varie de ±10 %)
+2. Recompiler, refaire exactement pareil : « identique au bit près » obligatoire, puis comparer les temps
+3. Pendant ces tests, `LevelRestart.Restart()` efface les points du `TrainingMode` de l'utilisateur : mettre son `_restoring` à vrai
+   (réflexion) pendant le test, et sauvegarder d'abord `UserSettings/TrainingCheckpoints/<scène>.json`
 
 ## Level design
 - Règles de conception des niveaux : `LEVEL_DESIGN.md`, à lire AVANT de créer ou modifier un niveau
@@ -129,7 +168,9 @@ Scripts existants :
   (`FlipperKey`) ; arrive pile sur la cible (`PinballBumperEditor` : poignée du déplacement)
 - `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `LevelTick`,
   ordre fixe capsules → contacts). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
-  un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`
+  un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`. Seules les capsules qui touchent un obstacle
+  relisent leurs contacts : les formes d'obstacle ont `contactEvents` (début / fin de contact touchant, sans effet sur la
+  simulation) et le blob compte par capsule les contacts en cours (55× moins cher qu'interroger les 32 capsules à chaque pas)
 - Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this`,
   géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision ; `userData.intValue` = 1 + index du polygone
   - `SpikedHazard` (abstrait) : un pique est le même objet partout, seul son placement change (`SpikeFrame`).
@@ -139,6 +180,16 @@ Scripts existants :
     les capsules empalées tournent avec la scie (`CircularSawEditor` : poignées diamètre / dents)
   - `SpikeRow` : piques en rangée (nombre, taille globale, inclinaison) (`SpikeRowEditor` : taille globale, nombre)
   - Nouvel obstacle = sous-classe de `BlobHazard` ; menu GameObject > 2D Object pour créer
+- `MovingPath` : trajectoire. Sur le même objet qu'un `CurvePath2D` (forme éditée comme une courbe, sans `CurveCollider2D`) ;
+  chaque enfant actif = un élément (scies, piques, boosts… mélangés), tous à la même `speed` (m/s), `reverse` pour le sens.
+  Fermée = boucle ; ouverte = aller-retour (`PingPong`) ou `Teleport`. `alignToPath` (décoché par défaut) : orientation selon la courbe.
+  `evenSpacing` + `phase`, sinon `positions` (fraction d'un cycle). Position = distance cumulée remise à zéro dans `OnEnable`
+  (restart / rejeu exacts). Au départ elle pose le Transform des enfants (avant que leur `OnEnable` crée leur corps : ordre de la
+  hiérarchie) ; ensuite un enfant avec corps implémente `IPathRider` (`BlobHazard` : corps kinematic piloté en vitesse vers la pose
+  du pas suivant, Transform laissé au départ en jeu), les autres suivent par leur Transform (`BoostZone`).
+  Hors Play, enfants posés à leur position de départ ; un enfant déplacé à la main est ramené sur la trajectoire (sa position suit).
+  `PathShapes` (build) : cercle, triangle, carré, polygone régulier, échelle, rotation. `MovingPathEditor` : nombre d'enfants
+  (duplique / retire le dernier), boutons + Scie / + Piques / + Boost, formes
 - Éléments neutres (`Neutral/`) : ni bons ni mauvais, ils changent le mouvement du blob sans le casser.
   Ils lisent les blobs via `BLOB.Active` (ordre de création) et agissent sur la vitesse des capsules dans `LevelTick`
   - `BoostZone` : rectangle d'accélération (flèche = +X local), sans corps physique, à la Trackmania : chaque capsule dont
@@ -179,7 +230,8 @@ Scripts existants :
 Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) :
 - `Ball2D` : balle rigide simple, pour comparer son comportement à celui du blob
 - `LevelShape` : bordures simples (rectangle, cercle…) pour les tests physiques ; ancien, à ne pas étendre
-- `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, collision continue, `drawOptions`) ;
+- `monde_settings` : réglages globaux du monde (vitesse, gravité, sous-pas, `simulationWorkers` = 1 : le plus rapide pour un niveau,
+  identique au bit près quel que soit le nombre, collision continue, `drawOptions`) ;
   seul endroit qui configure le `PhysicsWorld` (sauf `simulationType` : `LevelSimulation`) et `Time.timeScale` (ralenti : `SetTimeScaleMultiplier`, ne change pas la simulation)
 - `LowLevelRaycastGrabber` (`mouse.cs`) : attraper un corps à la souris, debug uniquement (non enregistré : casse le rejeu)
 

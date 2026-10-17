@@ -58,6 +58,8 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
     // _joints[i] relie la capsule i-1 à la capsule i.
     NativeList<PhysicsJoint> _joints;
     bool[] _attached;
+    PhysicsShape[] _shapes;
+    int[] _hazardTouches; // contacts touchants (avec points) entre chaque capsule et une forme d'obstacle
 
     public bool IsBroken { get; private set; }
 #if UNITY_EDITOR
@@ -199,13 +201,15 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
     }
 
     // Contacts de l'état issu du dernier pas, parcourus dans un ordre fixe (capsules puis contacts Box2D).
+    // Seules les capsules qui touchent un obstacle relisent leurs contacts (rejeu accéléré des sauvegardes plus rapide).
     public void LevelTick()
     {
         if (!_bodies.IsCreated) return;
+        if (LevelSimulation.Step > 0) CountHazardTouches();
 
         for (int i = 0; i < _bodies.Length; i++)
         {
-            if (_attached[i]) continue;
+            if (_attached[i] || _hazardTouches[i] == 0) continue;
             var contacts = _bodies[i].GetContacts(Allocator.Temp);
             for (int k = 0; k < contacts.Length; k++)
             {
@@ -223,6 +227,26 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
             }
             contacts.Dispose();
         }
+    }
+
+    // Les formes d'obstacle signalent leurs contacts (BlobHazard : contactEvents) : Box2D émet un début quand un contact
+    // obtient des points (manifold.pointCount > 0, même condition que LevelTick) et une fin quand il les perd ou disparaît.
+    // Événements du dernier pas ; au pas 0 (redémarrage), ceux d'avant concernent des formes détruites : ignorés.
+    void CountHazardTouches()
+    {
+        var world = PhysicsWorld.defaultWorld;
+        foreach (var e in world.contactBeginEvents) Touch(e.shapeA, e.shapeB, 1);
+        foreach (var e in world.contactEndEvents) Touch(e.shapeA, e.shapeB, -1);
+    }
+
+    void Touch(PhysicsShape a, PhysicsShape b, int delta)
+    {
+        for (int i = 0; i < _shapes.Length; i++)
+            if (_shapes[i] == a || _shapes[i] == b)
+            {
+                _hazardTouches[i] = Mathf.Max(0, _hazardTouches[i] + delta);
+                return;
+            }
     }
 
     void Hit(int capsule, BlobHazard hazard, PhysicsShape hazardShape, Vector2 point)
@@ -280,6 +304,8 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         filter.groupIndex = -1; // négatif : les capsules d'un même blob ne collisionnent pas entre elles
         shapeDef.contactFilter = filter;
 
+        _shapes = new PhysicsShape[sides];
+        _hazardTouches = new int[sides];
         for (int i = 0; i < sides; ++i)
         {
             SegmentPose(i, center, out var pos, out var angle);
@@ -287,7 +313,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
             bodyDef.rotation = PhysicsRotate.FromRadians(angle);
 
             var body = world.CreateBody(bodyDef);
-            body.CreateShape(capsule, shapeDef);
+            _shapes[i] = body.CreateShape(capsule, shapeDef);
             _bodies.Add(body);
         }
 

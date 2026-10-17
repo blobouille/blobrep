@@ -62,9 +62,21 @@ public class BoostZone : MonoBehaviour, ILevelPhysics, ILevelTick
 
         var blobs = BLOB.Active;
         for (int b = 0; b < blobs.Count; b++)
-            for (int i = 0; i < blobs[b].CapsuleCount; i++)
+        {
+            var blob = blobs[b];
+            if (blob.CapsuleCount == 0) continue;
+            // Blob intact : toutes ses capsules sont à moins de 2 diamètres de la première (marge pour l'étirement des joints).
+            // Loin de la zone, on ne lit pas les autres capsules (le rejeu accéléré enchaîne des milliers de pas).
+            if (!blob.IsBroken)
             {
-                var body = blobs[b].Capsule(i);
+                Vector2 d0 = blob.Capsule(0).position - origin;
+                float margin = 2f * blob.diameter;
+                if (Mathf.Abs(Vector2.Dot(d0, axis)) > halfLength + margin || Mathf.Abs(Vector2.Dot(d0, normal)) > halfHeight + margin)
+                    continue;
+            }
+            for (int i = 0; i < blob.CapsuleCount; i++)
+            {
+                var body = blob.Capsule(i);
                 Vector2 d = body.position - origin;
                 if (Mathf.Abs(Vector2.Dot(d, axis)) > halfLength || Mathf.Abs(Vector2.Dot(d, normal)) > halfHeight) continue;
 
@@ -73,6 +85,7 @@ public class BoostZone : MonoBehaviour, ILevelPhysics, ILevelTick
                 if (along >= maxSpeed) continue;
                 body.linearVelocity = v + axis * (Mathf.Min(along + gain, maxSpeed) - along);
             }
+        }
     }
 
     // Rectangle local (centré, flèche vers +X).

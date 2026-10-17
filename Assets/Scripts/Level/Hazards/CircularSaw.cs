@@ -28,7 +28,7 @@ public class CircularSaw : SpikedHazard, ILevelTick
     protected override float SpikeLean => -toothLean;
     protected override PhysicsBody.BodyType BodyType => PhysicsBody.BodyType.Kinematic;
 
-    public override Vector2 FocusPoint(Vector2 contactPoint) => transform.position;
+    public override Vector2 FocusPoint(Vector2 contactPoint) => Body.isValid ? Body.position : (Vector2)transform.position;
 
     protected override void OnBodyCreated()
     {

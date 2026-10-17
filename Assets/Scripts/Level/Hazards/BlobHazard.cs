@@ -3,7 +3,7 @@ using Unity.U2D.Physics;
 using UnityEngine;
 
 [ExecuteAlways]
-public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
+public abstract class BlobHazard : MonoBehaviour, ILevelPhysics, IPathRider
 {
     [Header("Matériau")]
     [Tooltip("Friction de la surface de l'obstacle (0 = glisse parfaitement).")]
@@ -33,6 +33,19 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
 
     public virtual Vector2 FocusPoint(Vector2 contactPoint) => contactPoint;
 
+    // Enfant d'une trajectoire (MovingPath) : corps kinematic piloté par elle.
+    bool OnPath => transform.parent != null && transform.parent.TryGetComponent(out MovingPath path) && path.enabled;
+
+    public void PathTick(PathPose now, PathPose next, bool rotate, bool teleport)
+    {
+        if (!_body.isValid) return;
+        if (teleport)
+            _body.transform = new PhysicsTransform(now.position, rotate ? PhysicsRotate.FromDegrees(now.angle) : _body.rotation);
+        float dt = Time.fixedDeltaTime;
+        _body.linearVelocity = (next.position - _body.position) / dt;
+        if (rotate) _body.angularVelocity = Mathf.DeltaAngle(_body.rotation.degrees, next.angle) / dt;
+    }
+
     public Matrix4x4 LocalToWorld => Matrix4x4.TRS(transform.position, Quaternion.Euler(0f, 0f, transform.eulerAngles.z), Vector3.one);
 
     void OnEnable()
@@ -57,10 +70,12 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
         BuildGeometry(polygons, circles);
 
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
-        bodyDef.type = BodyType;
+        bool onPath = OnPath;
+        bodyDef.type = onPath ? PhysicsBody.BodyType.Kinematic : BodyType;
         bodyDef.position = (Vector2)transform.position;
         bodyDef.rotation = PhysicsRotate.FromRadians(transform.eulerAngles.z * Mathf.Deg2Rad);
         _body = PhysicsWorld.defaultWorld.CreateBody(bodyDef);
+        if (onPath) _body.sleepingAllowed = false;
 
         var shapeDef = PhysicsShapeDefinition.defaultDefinition;
         var material = shapeDef.surfaceMaterial;
@@ -68,6 +83,7 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics
         material.bounciness = bounciness;
         material.customColor = previewColor;
         shapeDef.surfaceMaterial = material;
+        shapeDef.contactEvents = true; // le BLOB ne relit que les capsules qui touchent un obstacle (sans effet sur la simulation)
 
         // intValue : 1 + index du polygone dans BuildGeometry (0 pour les cercles).
         foreach (var c in circles)
