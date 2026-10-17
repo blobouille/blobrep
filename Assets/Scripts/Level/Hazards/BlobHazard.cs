@@ -15,6 +15,10 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics, IPathRider
     [Tooltip("Couleur de l'aperçu Scene view.")]
     public Color previewColor = new Color(1f, 0.25f, 0.2f, 1f);
 
+    // Catégorie ajoutée aux formes d'obstacle pour les requêtes (corde du grappin). Les masques de contact restant « tout »,
+    // les contacts sont inchangés.
+    public const int CategoryBit = 30;
+
     PhysicsBody _body;
 #if UNITY_EDITOR
     GizmoPickArea _pickArea;
@@ -84,6 +88,9 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics, IPathRider
         material.customColor = previewColor;
         shapeDef.surfaceMaterial = material;
         shapeDef.contactEvents = true; // le BLOB ne relit que les capsules qui touchent un obstacle (sans effet sur la simulation)
+        var filter = shapeDef.contactFilter;
+        filter.categories = new PhysicsMask { bitMask = filter.categories.bitMask | (1UL << CategoryBit) };
+        shapeDef.contactFilter = filter;
 
         // intValue : 1 + index du polygone dans BuildGeometry (0 pour les cercles).
         foreach (var c in circles)

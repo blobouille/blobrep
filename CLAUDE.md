@@ -10,7 +10,7 @@ avec des courbes de Bézier épaisses (murs/rails) et ces éléments. Plusieurs 
 - Gameplay d'abord : esthétique et sons viendront plus tard
 - Résultat TOUJOURS déterministe : mêmes entrées = même simulation à chaque lancement
   (indispensable pour un jeu de niveaux à rejouer / mémoriser)
-- Le joueur agit sur le niveau, jamais directement sur le blob
+- Le joueur agit sur le niveau, jamais directement sur le blob (exception : les gadgets que le niveau lui donne, ex. grappin)
 - Performance cruciale, mobile compris : le jeu doit rester fluide et le retour à une sauvegarde (Tab) quasi instantané
   (voir « Performance »)
 
@@ -119,7 +119,7 @@ Vérifier une optimisation (méthode utilisée) :
 
 ## Organisation des scripts
 - `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles,
-  `Neutral/` éléments neutres).
+  `Neutral/` éléments neutres, `Gadgets/` gadgets du blob et leurs zones / points).
   C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
 - `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement avec la touche R)
@@ -171,7 +171,8 @@ Scripts existants :
   un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`. Seules les capsules qui touchent un obstacle
   relisent leurs contacts : les formes d'obstacle ont `contactEvents` (début / fin de contact touchant, sans effet sur la
   simulation) et le blob compte par capsule les contacts en cours (55× moins cher qu'interroger les 32 capsules à chaque pas)
-- Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this`,
+- Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this` et par la
+  catégorie `CategoryBit` (requêtes ciblées, ex. coupe de la corde du grappin ; contacts inchangés, vérifié au bit près),
   géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision ; `userData.intValue` = 1 + index du polygone
   - `SpikedHazard` (abstrait) : un pique est le même objet partout, seul son placement change (`SpikeFrame`).
     Taille individuelle par pique (`sizes`), empalement des capsules qui touchent un pique (joint fixe souple vers un point
@@ -199,6 +200,38 @@ Scripts existants :
     l'historique interne de Box2D (numéros des contacts) faisait diverger la suite au premier contact.
     Variantes prévues : même composant, autres valeurs / couleur. Idée : zone verticale = tube qui transporte le blob
     (`BoostZoneEditor` : poignées longueur / hauteur)
+- Gadgets (`Gadgets/`) : capacités actives que le niveau donne au blob, déclenchées par une touche (`FlipperKey`, donc enregistrée
+  par `LevelInput`). Réglages sur un composant `BlobGadget` posé sur l'objet du BLOB (défauts du script = valeurs officielles) ;
+  `GadgetHolder` (ajouté avec) gère les emplacements (`maxGadgets` = 1 : un nouveau gadget remplace le plus ancien), remis à zéro
+  à chaque redémarrage. `equippedAtStart` pour tester sans zone. Aucun corps créé tant qu'un gadget ne sert pas : un blob qui
+  le porte sans s'en servir simule au bit près comme sans
+  - `GadgetZone` : cercle sans corps (contour, + = don, × = retrait), test géométrique dans `LevelTick` comme `BoostZone`
+  - `GrapplePoint` : rond rouge sans collision, `GrapplePoint.Active` ; position lue au départ (pas encore sur `MovingPath`)
+  - `GrappleGadget` (grappin) : à l'appui, vise le point le plus proche dans la portée (`range`), en vue (`CastRay` : tout corps
+    non dynamique cache), dans le cadre de l'écran (`screenOnly`, `screenHalfSize` : cadre FIXE centré sur le blob, jamais lu
+    sur la caméra, sinon la simulation dépendrait du format d'écran) et dans `viewAngle` autour de la vitesse ; vérifié au tir
+    seulement. Filament qui voyage (`shotSpeed`), accroché tant que la touche est tenue. Options à tester : `attach` (capsule la
+    plus proche via joint de distance Box2D vers un corps statique d'ancrage / centre = correction de vitesse répartie sur les
+    capsules), `ropeMode` (rigide = limite max, retenu / élastique = ressort qui ne pousse jamais, pas aimé), `reelInSpeed`,
+    `wrap` (pivots par lancer de rayon, coin affiné par dichotomie, déroulement au changement de côté), `returnMode`
+    (PassThrough = particules Verlet du script / Collide = chaîne de petits corps Box2D, bout tiré en kinematic).
+    Corde accrochée de longueur fixe, simulée à chaque pas (dans la simulation : elle sert à la coupe et au retour) : Verlet +
+    passes FABRIK à maillons de longueur exacte (`ropeSegmentLength`, `ropeIterations`), l'excédent ploie et pend dès que le
+    blob se rapproche ; tendue = ligne droite sans calcul, plus une vibration amortie quand elle se tend (forme de la corde
+    au moment de se tendre, plafonnée à `twangAmplitude`, oscillateur en additions/multiplications : `twangFrequency`,
+    `twangDamping`). Elle ne heurte pas le décor (seul le segment droit ancre → blob s'enroule). Dessin lissé (Chaikin) et
+    recalé sur la capsule (la corde est calculée avant le pas, le blob bouge pendant). `ropeVisual` : Soft (corde simulée)
+    / Straight (trait droit) = rendu seulement, même physique ; la physique du blob ne dépend pas de la forme de la corde
+    (joint seul), mais la coupe et le départ du retour la suivent. Joints du grappin sans dessin debug (`worldDrawing`).
+    `spikesCut` : un `SpikedHazard` (pique, scie) qui touche la corde la tranche (formes d'obstacle marquées par la catégorie
+    `BlobHazard.CategoryBit`, sans effet sur les contacts : test de boîte puis lancer de rayon par maillon) ; le bout côté point
+    reste pendu (décor, part immobile, animé dans `LateUpdate` par relaxation des deux bouts de chaque maillon : un simple
+    « suivi du premier » ajoutait de l'énergie et le faisait tournoyer ; effacé si on se raccroche au point), le reste revient. Pas d'enroulement
+    sur les piques quand ils tranchent. Retour = rembobinage qui accélère (`reelSpeed`, `reelAcceleration`), parti de la forme
+    de la corde, maillons avalés au centre ; nouveau tir possible une fois rentré. Coût mesuré du `LevelTick` : ≈ 0 rentré,
+    3,4 µs accroché (capsule, corde molle), +2 µs avec `wrap`, +3 µs en mode centre. Restart et retour de sauvegarde exacts
+    au bit près dans tous les modes, coupe comprise
+    (`GadgetZoneEditor`, `GrapplePointEditor` : poignée du rayon ; menu GameObject > 2D Object)
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
   À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
