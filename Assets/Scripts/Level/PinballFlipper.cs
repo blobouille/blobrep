@@ -13,17 +13,17 @@ public enum FlipperKey
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class PinballFlipper : MonoBehaviour
+public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Forme")]
     [Tooltip("Échelle globale du levier : multiplie la longueur et les deux rayons.")]
-    [Min(0.01f)] public float size = 1f;
+    [Min(0.01f)] public float size = 1.68f;
     [Tooltip("Distance entre le centre du grand cercle (axe de rotation) et le centre du petit cercle (bout), en unités Unity, multipliée par 'size'.")]
     [Min(0.05f)] public float length = 1.0f;
     [Tooltip("Rayon du grand cercle (base, centrée sur l'axe de rotation), en unités Unity, multiplié par 'size'.")]
     [Min(0.01f)] public float baseRadius = 0.15f;
     [Tooltip("Rayon du petit cercle (bout du levier), en unités Unity, multiplié par 'size'.")]
-    [Min(0.01f)] public float tipRadius = 0.07f;
+    [Min(0.01f)] public float tipRadius = 0.03f;
 
     [Header("Commande")]
     [Tooltip("Touche qui active le levier. Plusieurs flippers avec la même touche se déclenchent ensemble.")]
@@ -32,12 +32,16 @@ public class PinballFlipper : MonoBehaviour
              "Positif = sens anti-horaire, négatif = sens horaire.")]
     public float activeAngle = 45f;
     [Tooltip("Vitesse de rotation du levier, en degrés par seconde.")]
-    [Min(1f)] public float motorSpeed = 1000F;
+    [Min(1f)] public float motorSpeed = 500f;
     [Tooltip("Coché : corps dynamique + charnière à moteur à couple limité (dépend de la masse).\n" +
              "Décoché : corps kinematic piloté en vitesse, sans calcul de couple.")]
     public bool useTorque = false;
     [Tooltip("Couple maximum du moteur (force du levier). Ignoré si 'useTorque' est décoché.")]
     [Min(0f)] public float motorTorque = 400F;
+    [Tooltip("Mode « bullet » (fastCollisionsAllowed) du levier : collision continue contre les corps dynamiques.\n" +
+             "Box2D ne l'applique qu'aux corps dynamiques (mode 'useTorque') ; en kinematic, activer plutôt\n" +
+             "'fastCollisions' sur la balle / le blob.")]
+    public bool fastCollisions = false;
 
     [Header("Debug")]
     [Tooltip("Couleur de l'aperçu Scene view en position de repos.")]
@@ -55,6 +59,9 @@ public class PinballFlipper : MonoBehaviour
     bool _builtWithTorque;
     bool _lastDown;
     bool _wasMoving;
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
 
     public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad)
     {
@@ -84,6 +91,10 @@ public class PinballFlipper : MonoBehaviour
     void OnDisable()
     {
         DestroyPhysics();
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
     }
 
     void CreatePhysics()
@@ -98,6 +109,7 @@ public class PinballFlipper : MonoBehaviour
 
         var flipperDef = PhysicsBodyDefinition.defaultDefinition;
         flipperDef.position = new Vector2(p.x, p.y);
+        flipperDef.fastCollisionsAllowed = fastCollisions;
         flipperDef.rotation = PhysicsRotate.FromRadians(restRad);
 
         if (_builtWithTorque)
@@ -111,7 +123,6 @@ public class PinballFlipper : MonoBehaviour
             flipperDef.type = PhysicsBody.BodyType.Dynamic;
             _flipper = world.CreateBody(flipperDef);
             _flipper.sleepingAllowed = false;
-            _flipper.fastCollisionsAllowed = true;
         }
         else
         {
@@ -157,9 +168,9 @@ public class PinballFlipper : MonoBehaviour
     float RestSpeed() => -Dir() * motorSpeed;
     float ActiveSpeed() => Dir() * motorSpeed;
 
-    void FixedUpdate()
+    public void LevelTick()
     {
-        if (!Application.isPlaying || !_created) return;
+        if (!_created) return;
 
         if (_builtWithTorque != useTorque)
         {
@@ -167,7 +178,7 @@ public class PinballFlipper : MonoBehaviour
             CreatePhysics();
         }
 
-        bool down = IsDown(key);
+        bool down = LevelInput.IsDown(key);
         DebugCoords(down);
 
         if (_builtWithTorque)
@@ -298,6 +309,15 @@ public class PinballFlipper : MonoBehaviour
 
         DrawPose(pivot, rest, c1, r1, c2, r2, quad, previewColor);
         DrawPose(pivot, rest + activeAngle, c1, r1, c2, r2, quad, previewActiveColor);
+
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddCircle(c1, r1);
+        _pickArea.AddCircle(c2, r2);
+        _pickArea.AddConvex(quad);
+        _pickArea.Draw(Matrix4x4.TRS(pivot, Rot(rest), Vector3.one));
+#endif
 
         Gizmos.color = previewActiveColor;
         float reach = c2.x;

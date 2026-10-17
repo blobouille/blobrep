@@ -24,7 +24,16 @@ public class monde_settings : MonoBehaviour
     [Tooltip("Éléments du monde physique dessinés en Play (rendu debug, seul rendu du jeu pour l'instant).")]
     public PhysicsWorld.DrawOptions drawOptions = PhysicsWorld.DrawOptions.AllShapes;
 
+    float _timeScaleMultiplier = 1f;
+
     void OnEnable() => Apply();
+
+    // Ralenti temporaire (ex. caméra) : multiplie 'gameSpeed' sans le modifier. Le pas physique ne change pas.
+    public void SetTimeScaleMultiplier(float multiplier)
+    {
+        _timeScaleMultiplier = Mathf.Max(0f, multiplier);
+        Time.timeScale = gameSpeed * _timeScaleMultiplier;
+    }
 
     void OnValidate()
     {
@@ -33,7 +42,7 @@ public class monde_settings : MonoBehaviour
 
     void Apply()
     {
-        Time.timeScale = gameSpeed;
+        Time.timeScale = gameSpeed * _timeScaleMultiplier;
 
         var world = PhysicsWorld.defaultWorld;
         world.gravity = gravite;

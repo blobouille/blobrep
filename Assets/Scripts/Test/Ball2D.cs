@@ -1,13 +1,14 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class Ball2D : MonoBehaviour
+public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics, ITrainingBody
 {
     [Header("Balle")]
-    [Tooltip("Rayon de la balle, en unités Unity (absolu).")]
-    [Min(0.01f)] public float rayon = 0.5f;
+    [Tooltip("Diamètre de la balle, en unités Unity (absolu). 1 = standard du projet (même taille qu'un BLOB de diamètre 1).")]
+    [Min(0.01f)] public float diameter = 1f;
     [Tooltip("Type de corps : Dynamic = soumise à la gravité et aux chocs, Kinematic = suit sa vitesse sans être poussée, Static = immobile.")]
     public PhysicsBody.BodyType typeCorps = PhysicsBody.BodyType.Kinematic;
 
@@ -37,11 +38,46 @@ public class Ball2D : MonoBehaviour
     public Color previewColor = Color.white;
 
     PhysicsBody _body;
+#if UNITY_EDITOR
+    GizmoPickArea _pickArea;
+#endif
+
+    public Vector2 CameraPosition => _body.isValid ? _body.position : (Vector2)transform.position;
+
+    public CapsuleGeometry GhostShape => new CapsuleGeometry { center1 = Vector2.zero, center2 = Vector2.zero, radius = 0.5f * diameter };
+    public bool IsBroken => false;
+
+    public void GetBodyStates(List<BodyState> states)
+    {
+        states.Clear();
+        if (!_body.isValid) return;
+        states.Add(new BodyState { position = _body.position, angle = _body.rotation.radians, velocity = _body.linearVelocity, angularVelocity = _body.angularVelocity });
+    }
+
+    public void RestoreBodyStates(IReadOnlyList<BodyState> states, bool broken)
+    {
+        if (!_body.isValid || states.Count != 1) return;
+        _body.transform = new PhysicsTransform(states[0].position, PhysicsRotate.FromRadians(states[0].angle));
+        _body.linearVelocity = states[0].velocity;
+        _body.angularVelocity = states[0].angularVelocity;
+    }
 
     void OnEnable()
     {
-        if (!Application.isPlaying) return;
+        if (Application.isPlaying) Spawn();
+    }
 
+    void OnDisable()
+    {
+        Despawn();
+#if UNITY_EDITOR
+        _pickArea?.Dispose();
+        _pickArea = null;
+#endif
+    }
+
+    void Spawn()
+    {
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bodyDef.type = typeCorps;
         bodyDef.position = (Vector2)transform.position;
@@ -58,10 +94,10 @@ public class Ball2D : MonoBehaviour
         material.rollingResistance = resistanceRoulement;
         shapeDef.surfaceMaterial = material;
 
-        _body.CreateShape(new CircleGeometry { center = Vector2.zero, radius = rayon }, shapeDef);
+        _body.CreateShape(new CircleGeometry { center = Vector2.zero, radius = 0.5f * diameter }, shapeDef);
     }
 
-    void OnDisable()
+    void Despawn()
     {
         if (_body.isValid) _body.Destroy();
         _body = default;
@@ -71,6 +107,12 @@ public class Ball2D : MonoBehaviour
     {
         if (Application.isPlaying) return;
         Gizmos.color = previewColor;
-        Gizmos.DrawWireSphere(transform.position, rayon);
+        Gizmos.DrawWireSphere(transform.position, 0.5f * diameter);
+#if UNITY_EDITOR
+        _pickArea ??= new GizmoPickArea();
+        _pickArea.Clear();
+        _pickArea.AddCircle(Vector2.zero, 0.5f * diameter);
+        _pickArea.Draw(Matrix4x4.Translate(transform.position));
+#endif
     }
 }
