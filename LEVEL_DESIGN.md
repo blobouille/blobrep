@@ -66,6 +66,26 @@ Mesure objective (pour Claude) : pour chaque coup de levier, simuler des appuis 
 4. **Tester par morceaux.** Utiliser les points de sauvegarde (`TrainingMode`) : modifier un passage puis le tester
    directement depuis le point juste avant, sans refaire tout le niveau.
 
+## Repères mesurés (`level2 by claude`, réglages de `poc niveau 1`)
+Mesurés en simulant les appuis pas à pas (1 pas = 8,3 ms). À revérifier si les réglages officiels changent.
+- **Flipper au bout d'une pente** (blob à 9–13 m/s) : fenêtre utile de 90 à 160 ms, mais l'arc change beaucoup selon le moment
+  (de 2 à 13 m de haut). Réception : une longue pente raide, façon tremplin de saut à ski, qui accepte tous les arcs de la fenêtre,
+  avec une fosse à piques dessous pour un échec lisible. Les appuis tardifs donnent des arcs plus plats, donc plus rapides.
+- **Bumper au sol** : saut de 7 à 10 m de haut quelle que soit la vitesse, fenêtre ≈ 120 ms à 15 m/s. Appuyé trop tôt, il fait mur
+  et arrête le blob.
+- **Flipper tenu levé** = tremplin : geste facile (tenir pendant le passage), mais il coûte beaucoup de vitesse (≈ 21 → 8 m/s).
+- **Berceau contre un mur** (flipper au fond d'un V, le blob s'écrase contre le mur) : le lancer part du repos, donc presque
+  identique quelle que soit l'arrivée. Remet à zéro les écarts de vitesse accumulés, et fait un moment calme.
+- **Catapulte sur une paroi à grande vitesse** : fenêtre de 2 à 4 pas, injouable au-dessus de ~8 m/s.
+- **Sommet à passer sans appui** : garder de la marge (≥ 5 m/s au sommet). Toute modification du niveau, même loin, change l'ordre
+  interne de Box2D, donc la vitesse après les chocs (tremplin, réception dure) : un sommet trop juste finit par bloquer le blob.
+- **Bosses et vagues** : chaque bosse coûte beaucoup d'énergie (≈ 12 m de hauteur pour une vague de 55 m à 20 m/s), plus encore si
+  le blob décolle à la crête. Une longue pente douce (−3 à −6°) garde la vitesse (≈ 23 m/s sur 100 m).
+- **Accélérateur** (200 m/s², plafond 45) : une zone fait passer de 10 à ≈ 32 m/s. Trop fort avant un flipper ; à réserver
+  aux lignes droites (ici le raccourci).
+- **Géométrie** : une seule courbe continue sur le trajet (deux courbes jointes bout à bout laissent passer le blob entre elles),
+  coins vifs = poignées nulles. Une scie posée au sol s'enfonce dedans, sinon le blob peut être poussé à travers le sol.
+
 ## Objectif actuel
 Un nouveau niveau d'environ 30 secondes (temps d'un passage réussi d'une traite, sans erreur), inspiré de `poc niveau`.
 Pas encore d'éléments de départ / arrivée : viendront plus tard (peut-être des checkpoints façon Trackmania, but = finir le plus vite).
