@@ -6,7 +6,7 @@ using Unity.U2D.Physics;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITrainingBody
+public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITrainingBody, IContactFxSource
 {
     [Header("Forme & Apparence")]
     [Tooltip("Nombre de capsules qui forment l'anneau du blob. Plus = plus rond et plus souple, mais plus coûteux.")]
@@ -101,6 +101,45 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         {
             var b = _bodies[i];
             states.Add(new BodyState { position = b.position, angle = b.rotation.radians, velocity = b.linearVelocity, angularVelocity = b.angularVelocity });
+        }
+    }
+
+    public void GetSurfaceContacts(List<SurfaceContact> result)
+    {
+        result.Clear();
+        if (!_bodies.IsCreated || _bodies.Length == 0) return;
+        Vector2 center = Vector2.zero;
+        for (int i = 0; i < _bodies.Length; i++) center += _bodies[i].linearVelocity;
+        center /= _bodies.Length;
+
+        for (int i = 0; i < _bodies.Length; i++)
+        {
+            if (_attached[i]) continue;
+            var body = _bodies[i];
+            Vector2 velocity = IsBroken ? body.linearVelocity : center;
+            var contacts = body.GetContacts(Allocator.Temp);
+            for (int k = 0; k < contacts.Length; k++)
+            {
+                var manifold = contacts[k].manifold;
+                if (manifold.pointCount == 0) continue;
+                bool isA = contacts[k].shapeA.body == body;
+                var other = isA ? contacts[k].shapeB.body : contacts[k].shapeA.body;
+                Vector2 normal = isA ? -manifold.normal : manifold.normal;
+                for (int p = 0; p < manifold.pointCount; p++)
+                {
+                    var mp = manifold[p];
+                    result.Add(new SurfaceContact
+                    {
+                        point = mp.point,
+                        normal = normal,
+                        relativeVelocity = velocity - other.GetWorldPointVelocity(mp.point),
+                        normalImpulse = mp.normalImpulse,
+                        approachSpeed = -mp.normalVelocity,
+                        isNew = !mp.persisted
+                    });
+                }
+            }
+            contacts.Dispose();
         }
     }
 

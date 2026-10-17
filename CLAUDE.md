@@ -73,6 +73,10 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Règles de conception des niveaux : `LEVEL_DESIGN.md`, à lire AVANT de créer ou modifier un niveau
 - `level1` : premier niveau prototype, sous l'objet `Level` (sections A–F : tuto gauche, tuto droit, combinaison,
   descente, relais gauche→droite, tube final + bassin d'arrivée). Départ du blob en (-1.2, 2.3)
+- `level2 by claude` : niveau moyen (≈ 42 s jusqu'au bassin), réglages de la scène `poc niveau 1`, sous `Level` :
+  A flipper au bout de la pente, B bumper au-dessus des scies, C mur + berceau-flipper + cheminée, D flipper puis
+  flipper-tremplin à tenir, E bosse + longue descente, F flipper final + bassin d'arrivée ; R raccourci (bumper sur la montée
+  de E → rail + accélérateur → bassin, ≈ 5 s gagnées). Départ du blob en (-0.6, 1.75)
 
 ## Organisation des scripts
 - `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles,
@@ -81,6 +85,8 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
 - `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement avec la touche R)
 - `Scripts/Test/` : outils de test, pas des éléments de jeu
+- `Scripts/Cosmetics/` : effets purement visuels posés sur une balle ; ils LISENT son état (jamais d'écriture, jamais dans
+  `LevelTick`), dans `LateUpdate`. Coupables par balle (case du composant), prévus aussi pour un blob fantôme / d'un ami
 - `Editor/Level/` : inspecteurs et poignées Scene view des éléments de `Level/`. Le dossier `Editor` n'est PAS inclus
   dans le jeu : le futur éditeur en jeu devra réimplémenter ses poignées, en réutilisant la géométrie des composants
 - `Editor/Game/` : outils éditeur des scripts de `Game/` (sélection des fantômes du mode entraînement)
@@ -146,6 +152,17 @@ Scripts existants :
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
   À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
   après `slowDuration`, dézoom sur place (toujours centré sur l'impact) jusqu'au redémarrage
+- `SpeedMeter` : compteur de vitesse (km/h, case `useMph` pour les mph), coin haut droit. Vitesse = norme de la moyenne
+  des vitesses des corps (`ITrainingBody.GetBodyStates`, rotation du blob ignorée) ; cible vide = cible de la `CameraFollow`
+  principale, sinon premier BLOB. Affiché en IMGUI (`OnGUI`) : seule UI du projet pour l'instant, aucun asset ni Canvas
+- `ContactParticles` (`Cosmetics/`) : étincelles aux contacts de la balle, sur le même objet qu'un `IContactFxSource` (`BLOB`).
+  Roulement : débit ∝ vitesse le long de la surface × force d'appui ; choc (nouveau contact) : gerbe ∝ vitesse d'impact.
+  Un `ParticleSystem` par balle créé au lancement, alimenté par `Emit` (pas d'émission auto), `maxParticles` = plafond du coût ;
+  matériau par défaut = `Sprites/Default` + disque flou généré (aucun asset, présent dans toute build). Émission selon les pas
+  écoulés (`LevelSimulation.Step`) : rien sans nouveau pas, rien sur un saut (> 8 pas, rejeu accéléré) ; purge sur
+  `Restarted` / `Jumped`. Aléa visuel à graine propre. Les particules ne collisionnent pas (traversent les murs)
+- `IContactFxSource.GetSurfaceContacts` : contacts de la balle pour les effets (point, normale vers la balle, vitesse du
+  centre relative à la surface, impulsion normale, vitesse d'impact). `BLOB` l'implémente en lecture seule (capsules libres)
 - `TrainingMode` : S = point de sauvegarde (fantôme de chaque balle), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
   (0,5 s) = point précédent ; Shift = plus récent ; R = `LevelRestart.Restart()` entre deux pas (recommence le niveau et efface tous les points ; plus de script `RespawnOnKey`). 100 points max (le plus ancien saute).
   Balles suivies : tout `ITrainingBody` actif (`BLOB`, `Ball2D`), dans l'ordre de `LevelRestart.Physics` (hiérarchie) : fantôme
@@ -168,7 +185,8 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 
 ## Rendu
 - Rendu debug de la physique uniquement (`drawOptions`, gizmos)
-- AUCUN mesh, sprite (seule exception : maillage invisible `GizmoPickArea`, éditeur uniquement, pour la sélection)
+- AUCUN mesh, sprite (exceptions : maillage invisible `GizmoPickArea`, éditeur uniquement, pour la sélection ;
+  `ParticleSystem` des effets de `Cosmetics/`, choisi comme le moins coûteux sur toutes les machines)
 - Aucun son pour l'instant
 
 ## Conventions de code
