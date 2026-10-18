@@ -16,6 +16,10 @@ avec des courbes de Bézier épaisses (murs/rails) et ces éléments. Plusieurs 
 
 ## Roadmap (étape actuelle en gras)
 1. **Éléments de level design** : outils/composants pour construire des niveaux (courbes, flippers, …)
+   - Fait : éléments destructibles (vitre `GlassPane`)
+   - À venir : éléments physiques / obstacles neutres activés par des déclencheurs (triggers) du niveau. Idée de mise en scène :
+     le blob longe une vitre très vite à l'horizontale (trop rasant pour la casser), un marteau au coin de la vitre s'abat
+     et la brise, le blob passe dans la gerbe (la vitre gère déjà un choc au bout et la propagation des fissures)
 2. Boucle de jeu : départ, arrivée (fin de niveau), échec / recommencer. But : finir le niveau d'une traite (comme Geometry Dash)
    - Mode entraînement (`TrainingMode`) : points de sauvegarde exacts pour s'entraîner sur un passage.
      Fait : S / Tab / Shift / R + fantômes + 2 modes de sauvegarde. À venir (mobile) : toucher un fantôme pour choisir
@@ -62,6 +66,19 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
   directement dans la simulation. Toute action non enregistrée (ex. souris de debug) casse le rejeu
 - Ordre de création des corps/joints stable et explicite (ne pas dépendre de l'ordre
   d'exécution des scripts) ; ordre d'itération stable (pas de dépendance aux Dictionary/HashSet)
+- Ne jamais dépendre de l'ordre des événements ni des contacts renvoyés par Box2D (`triggerBeginEvents`, `contactBeginEvents`,
+  `GetContacts`, `GetBodies`) : il suit ses identifiants internes, qui changent d'un essai à l'autre (alternés à chaque
+  redémarrage, mesuré). La simulation Box2D reste identique, mais un script qui traite « le premier » diverge. Trier par une
+  clé stable (ordre de création, index de capsule), ou rendre le calcul indépendant de l'ordre (somme en entiers, maximum
+  départagé par la position). `GlassPane` et `BLOB` le font. Mesuré (audit du 2026-10-18) : `GetBodies` change bien d'ordre,
+  mais le `GetContacts` d'une capsule est resté stable sur tous les essais ; le tri du `BLOB` est une protection gratuite
+- Audit du 2026-10-18 (`poc niveau 1`), pour ne pas le refaire : une divergence signalée avec la touche des flippers appuyée
+  n'a PAS été reproduite (bits 0/1/2/3/16, appui dès 0 à 90 pas, 400 à 3000 pas, pas à pas ou d'un bloc, images entre les
+  essais ou non, Play frais, deux blobs différents : toujours identique sur 6 essais) ; probablement un artefact du test
+  d'origine (vitre créée par eval, blob téléporté). Chute du blob sur chacun des 25 obstacles : identique sur 6 essais.
+  Banc de test réutilisable (`unity command eval_file`, hors dépôt) : `Temp/det/multi.cs` (entrées fixes, hash par pas des bits
+  de tous les corps triés), `hazards.cs` (blob posé au-dessus de chaque obstacle), `restart.cs` (temps d'un redémarrage).
+  Le Transform du blob se déplace en Play pour un test (annulé à la sortie de Play) ; ne pas oublier `TrainingMode._restoring`
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
 - Recommencer = `LevelRestart.Restart()` (R, plus tard la mort) : détruit toute la physique, `PhysicsWorld.Reset()`
   sur le monde vide (sinon l'historique interne de Box2D fait diverger les essais), puis recrée dans l'ordre de la hiérarchie.
@@ -119,7 +136,7 @@ Vérifier une optimisation (méthode utilisée) :
 
 ## Organisation des scripts
 - `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles,
-  `Neutral/` éléments neutres, `Gadgets/` gadgets du blob et leurs zones / points).
+  `Neutral/` éléments neutres, `Gadgets/` gadgets du blob et leurs zones / points, `Destructibles/` éléments à briser).
   C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
 - `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement avec la touche R)
@@ -167,13 +184,16 @@ Scripts existants :
   (défaut = vitesse du bout d'un flipper, ≈ 14,66 m/s), retour au relâchement. Kinematic piloté en vitesse, même touche
   (`FlipperKey`) ; arrive pile sur la cible (`PinballBumperEditor` : poignée du déplacement)
 - `BLOB` : la balle à amener à la fin du niveau. Détecte seul les obstacles (contacts de ses capsules, dans `LevelTick`,
-  ordre fixe capsules → contacts). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
+  ordre fixe : capsules, puis contacts d'obstacle triés par point x, y, index de forme, ordre des obstacles). Tout obstacle touché casse TOUS ses joints ; ensuite chaque capsule libre qui touche
   un obstacle le lui signale (`OnCapsuleTouched`). Événement statique `Broken`. Seules les capsules qui touchent un obstacle
   relisent leurs contacts : les formes d'obstacle ont `contactEvents` (début / fin de contact touchant, sans effet sur la
   simulation) et le blob compte par capsule les contacts en cours (55× moins cher qu'interroger les 32 capsules à chaque pas)
 - Obstacles (`BlobHazard`, abstrait) : corps statique par défaut, formes marquées par `userData.objectValue = this` et par la
   catégorie `CategoryBit` (requêtes ciblées, ex. coupe de la corde du grappin ; contacts inchangés, vérifié au bit près),
-  géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision ; `userData.intValue` = 1 + index du polygone
+  géométrie unique `BuildGeometry` (polygones convexes + cercles) pour aperçu et collision ; `userData.intValue` = 1 + index du polygone.
+  Polygone que Box2D refuserait (soudure < 0,02 m, sommet à ≤ 0,01 m de la droite de ses voisins, ex. pique minuscule) : écarté
+  avant `PolygonGeometry.Create` (`Box2DAcceptsHull`). Chaque refus coûtait 3 avertissements (≈ 0,2 ms chacun) à chaque
+  redémarrage : `poc niveau 1` 6 → 3 ms par redémarrage, simulation identique au bit près (le polygone n'existait pas)
   - `SpikedHazard` (abstrait) : un pique est le même objet partout, seul son placement change (`SpikeFrame`).
     Taille individuelle par pique (`sizes`), empalement des capsules qui touchent un pique (joint fixe souple vers un point
     enfoncé de `impaleDepth`). Poignée par pointe dans la Scene view (`SpikeHandles`)
@@ -232,6 +252,45 @@ Scripts existants :
     3,4 µs accroché (capsule, corde molle), +2 µs avec `wrap`, +3 µs en mode centre. Restart et retour de sauvegarde exacts
     au bit près dans tous les modes, coupe comprise
     (`GadgetZoneEditor`, `GrapplePointEditor` : poignée du rayon ; menu GameObject > 2D Object)
+- Destructibles (`Destructibles/`) : éléments que le blob (ou d'autres corps) peuvent briser
+  - `GlassPane` : vitre (rectangle vu de profil, `length` × `thickness`, défaut 9,25 × 0,36), un seul corps tant qu'elle est intacte :
+    fixe (statique) ou libre (`freeBody` : dynamique, elle tombe, se cogne et se brise par son propre élan et sa masse).
+    TOUT corps peut la casser. Énergie du choc = ½ × masse réduite × (vitesse relative dans l'axe du choc)² × fragilité au point
+    (profil de flexion, milieu = 1, bouts = `edgeFragility`) ; contre un corps fixe, masse réduite = masse de celui qui bouge.
+    - Blob : prévu AVANT le contact dans `LevelTick` (masse totale, vitesse moyenne ; une capsule lue par pas pour toutes les
+      vitres, toutes ses capsules seulement à moins de `detectionMargin`) : la vitre casse avant qu'il la touche.
+    - Autres corps (balle, morceaux, sol sous une vitre libre…) : lus sur les contacts du dernier pas (seulement quand la vitre
+      est touchée : `contactEvents`). Un point est un choc si sa vitesse d'approche d'avant le pas (`normalVelocity`) ≥ 0,5 m/s,
+      sinon un appui (Box2D crée parfois le contact un pas avant : « nouveau / installé » ne suffit pas). Points spéculatifs
+      (pas encore au contact) ignorés. Si la vitre cède, ce qu'elle a fait pendant ce pas est repris : vitesse normale d'approche
+      rendue au corps en choc, impulsion reprise pour un appui, vitre libre remise à sa vitesse et rotation d'avant le pas
+      (mémorisées à chaque pas ; `totalNormalImpulse` ne convient pas sur un contact qui dure : il injectait des rotations folles).
+    Casse : l'impacteur paie l'énergie de rupture (`energyAbsorbed`) et une part `momentumCost` de l'élan des éclats emportés
+    (ceux sur sa trajectoire, largeur + `burstRadius`). 1 = conservation exacte : une vitre épaisse et lourde l'arrête presque.
+    En dessous du seuil : rebond, fissures dessinées et affaiblissement (`crackThreshold`, `fatigue` ; un même choc du blob souple
+    compte une fois). Charge (posé, roulement) : force d'appui, `loadStrength` + fluage (`creepRate`) ; vitre libre : le sol qui la
+    porte ne compte pas.
+    Motif (`GlassFracture`, instance partagée, pur et sans allocation) : radiales ondulées (`waviness`) qui se ramifient quand
+    elles s'écartent (`branching`), anneaux courbes (`curvature`) et discontinus en quinconce (`ringContinuity`), écart plafonné
+    (`maxRingGap`) ; plus fins et plus nombreux quand l'énergie double. Chaque morceau est un polygone quelconque, découpé en
+    parties convexes ≤ 8 sommets (oreilles + fusion de Hertel-Mehlhorn) puis par le rectangle : un corps à plusieurs formes.
+    Dessin par la vitre dans `LateUpdate` (contour du morceau sans les coutures internes, remplissage `fillAlpha` ; les formes
+    n'ont pas de dessin natif). Parties trop fines pour Box2D (enveloppe refusée : soudure 0,02 m, épaisseur 0,012 m) écartées
+    AVANT `PolygonGeometry.Create` : chaque refus = un avertissement Unity de ≈ 0,2 ms. Éclats sous `minFragmentSize` = poussière.
+    `crackSpeed` > 0 : propagation visible, `supportedEnds` (vitre fixe) : grands morceaux tenus par le cadre (`crackedStrength`).
+    Morceaux = corps dynamiques (`maxFragments`) qui dorment ; `blobInteraction` Collide / Ignore / Pulverize (catégorie
+    `LooseFragmentBit`, exclue par le `BLOB` via son `CategoryBit`) ; un morceau peut casser une autre vitre.
+    `removeBelow` (30 m sous la vitre) : morceaux tombés dans le vide retirés ; `cleanupDelay` (0 = jamais).
+    Préréglages (`ApplyPreset`, bouton de l'inspecteur) : Window (défauts), Tempered, Sugar, Armored, Cinematic.
+    Ordre indépendant de Box2D : points de contact triés par position, choix départagés (voir Déterminisme).
+    Événements statiques `Dust` (poussière) et `Shattered` pour les effets.
+    Mesuré (PC) : vitre intacte ≈ 0,15 µs par pas (fixe), ≈ 0,2 µs (libre endormie) ; casse ≈ 0,5 à 1 ms (un pas) ; ensuite
+    +30 à 50 µs par pas pendant 1 à 3 s, jusqu'à ce que les morceaux dorment. Restart et rejeu (d'un bloc, pas à pas, par paquets)
+    exacts au bit près, vitres libres qui tombent l'une sur l'autre comprises. Repères (blob standard, vitre 9,25 × 0,36,
+    gravité de `poc niveau 1`) : couchée, chute de 0,5 à 1,5 m = fissures, ≥ 2,5 m = traverse ; debout, de face : 6 m/s fissure,
+    9 m/s traverse, 15 → 8,8 m/s, 30 → 19 m/s. Vitre libre 4 m posée à plat : intacte jusqu'à 0,6 m de chute, fissurée à 1,5 m,
+    brisée à 4 m ; en biais, elle casse au coin qui touche (`GlassPaneEditor` : poignées longueur / épaisseur, préréglages ;
+    menu GameObject > 2D Object > Glass Pane, avec `GlassDust`)
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
   À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
@@ -245,6 +304,10 @@ Scripts existants :
   matériau par défaut = `Sprites/Default` + disque flou généré (aucun asset, présent dans toute build). Émission selon les pas
   écoulés (`LevelSimulation.Step`) : rien sans nouveau pas, rien sur un saut (> 8 pas, rejeu accéléré) ; purge sur
   `Restarted` / `Jumped`. Aléa visuel à graine propre. Les particules ne collisionnent pas (traversent les murs)
+- `GlassDust` (`Cosmetics/`) : poussière et éclats fins d'une vitre, sur l'objet d'une `GlassPane`. Placement, quantité et vitesse
+  décidés par la physique (événements `GlassPane.Dust` : éclats sans corps, morceaux pulvérisés ; `Shattered` : bouffée à
+  l'impact), mis en file pendant le pas et émis dans `LateUpdate` ; rien pendant le rejeu accéléré. Freinage dans l'air (`drag`)
+  pour le nuage, traînées (`stretch`). Même principe de `ParticleSystem` que `ContactParticles`
 - `IContactFxSource.GetSurfaceContacts` : contacts de la balle pour les effets (point, normale vers la balle, vitesse du
   centre relative à la surface, impulsion normale, vitesse d'impact). `BLOB` l'implémente en lecture seule (capsules libres)
 - `TrainingMode` : S = point de sauvegarde (fantôme de chaque balle), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`

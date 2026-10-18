@@ -97,10 +97,42 @@ public abstract class BlobHazard : MonoBehaviour, ILevelPhysics, IPathRider
             _body.CreateShape(new CircleGeometry { center = new Vector2(c.x, c.y), radius = c.z }, shapeDef).userData =
                 new PhysicsUserData { objectValue = this, intValue = 0 };
         for (int i = 0; i < polygons.Count; i++)
-            _body.CreateShape(PolygonGeometry.Create(polygons[i], 0f), shapeDef).userData =
-                new PhysicsUserData { objectValue = this, intValue = i + 1 };
+            if (Box2DAcceptsHull(polygons[i]))
+                _body.CreateShape(PolygonGeometry.Create(polygons[i], 0f), shapeDef).userData =
+                    new PhysicsUserData { objectValue = this, intValue = i + 1 };
 
         OnBodyCreated();
+    }
+
+    // Box2D (b2ComputeHull) refuse une enveloppe à moins de 3 sommets après soudure (< 4 × linearSlop) et retrait des
+    // sommets alignés (≤ 2 × linearSlop de la droite des voisins), avec un avertissement coûteux (≈ 0,2 ms) : ce polygone
+    // n'aurait de toute façon jamais existé. Seuils un peu en dessous de ceux de Box2D : on n'écarte que les refus certains.
+    const float LinearSlop = 0.005f;
+    const float WeldSq = 16f * LinearSlop * LinearSlop * 0.99f;
+    const float MinDepth = 2f * LinearSlop * 0.99f;
+    static readonly Vector2[] _hull = new Vector2[8];
+
+    static bool Box2DAcceptsHull(Vector2[] polygon)
+    {
+        if (polygon.Length < 3 || polygon.Length > _hull.Length) return false;
+        int n = 0;
+        foreach (var p in polygon)
+        {
+            bool unique = true;
+            for (int j = 0; j < n && unique; j++) unique = (p - _hull[j]).sqrMagnitude >= WeldSq;
+            if (unique) _hull[n++] = p;
+        }
+        for (int i = 0; n >= 3 && i < n;)
+        {
+            Vector2 a = _hull[(i + n - 1) % n], b = _hull[i], c = _hull[(i + 1) % n];
+            Vector2 e = c - a;
+            float len = e.magnitude;
+            if (len > 0f && Mathf.Abs(e.x * (b.y - a.y) - e.y * (b.x - a.x)) / len > MinDepth) { i++; continue; }
+            for (int k = i; k < n - 1; k++) _hull[k] = _hull[k + 1];
+            n--;
+            i = 0;
+        }
+        return n >= 3;
     }
 
     void OnDrawGizmos()

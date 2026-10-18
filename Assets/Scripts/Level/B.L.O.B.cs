@@ -47,6 +47,10 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
 
     public static event System.Action<BLOB, BlobHazard, Vector2> Broken;
 
+    // Catégorie propre aux capsules (sans le bit 0) : les morceaux de verre en mode Ignore / Pulverize l'excluent.
+    // Tout le reste accepte toutes les catégories : contacts inchangés.
+    public const int CategoryBit = 28;
+
     // Blobs dont la physique existe, dans l'ordre de création (ordre de la hiérarchie via LevelRestart).
     static readonly List<BLOB> _active = new List<BLOB>();
     public static IReadOnlyList<BLOB> Active => _active;
@@ -200,7 +204,17 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         _bodies.Dispose();
     }
 
-    // Contacts de l'état issu du dernier pas, parcourus dans un ordre fixe (capsules puis contacts Box2D).
+    struct HazardContact
+    {
+        public BlobHazard hazard;
+        public PhysicsShape shape;
+        public Vector2 point;
+    }
+
+    HazardContact[] _hazardContacts = new HazardContact[8];
+
+    // Contacts de l'état issu du dernier pas, dans un ordre fixe : capsules, puis contacts triés par position
+    // (l'ordre renvoyé par Box2D suit ses identifiants internes, qui changent d'un essai à l'autre).
     // Seules les capsules qui touchent un obstacle relisent leurs contacts (rejeu accéléré des sauvegardes plus rapide).
     public void LevelTick()
     {
@@ -210,6 +224,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         for (int i = 0; i < _bodies.Length; i++)
         {
             if (_attached[i] || _hazardTouches[i] == 0) continue;
+            int count = 0;
             var contacts = _bodies[i].GetContacts(Allocator.Temp);
             for (int k = 0; k < contacts.Length; k++)
             {
@@ -223,10 +238,42 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
                     hazard = hazardShape.userData.objectValue as BlobHazard;
                 }
                 if (hazard == null) continue;
-                Hit(i, hazard, hazardShape, manifold[0].point);
+                if (count == _hazardContacts.Length) System.Array.Resize(ref _hazardContacts, 2 * count);
+                _hazardContacts[count++] = new HazardContact { hazard = hazard, shape = hazardShape, point = manifold[0].point };
             }
             contacts.Dispose();
+
+            for (int a = 1; a < count; a++)
+            {
+                var c = _hazardContacts[a];
+                int b = a - 1;
+                for (; b >= 0 && Compare(_hazardContacts[b], c) > 0; b--) _hazardContacts[b + 1] = _hazardContacts[b];
+                _hazardContacts[b + 1] = c;
+            }
+            for (int k = 0; k < count; k++)
+            {
+                Hit(i, _hazardContacts[k].hazard, _hazardContacts[k].shape, _hazardContacts[k].point);
+                _hazardContacts[k] = default;
+            }
         }
+    }
+
+    // Position, puis forme de l'obstacle, puis ordre de création des obstacles (égalités : sommets partagés entre piques).
+    static int Compare(in HazardContact a, in HazardContact b)
+    {
+        int c = a.point.x.CompareTo(b.point.x);
+        if (c != 0) return c;
+        c = a.point.y.CompareTo(b.point.y);
+        if (c != 0) return c;
+        c = a.shape.userData.intValue.CompareTo(b.shape.userData.intValue);
+        if (c != 0 || a.hazard == b.hazard) return c;
+        var physics = LevelRestart.Physics;
+        for (int k = 0; k < physics.Count; k++)
+        {
+            if (physics[k] == a.hazard) return -1;
+            if (physics[k] == b.hazard) return 1;
+        }
+        return 0;
     }
 
     // Les formes d'obstacle signalent leurs contacts (BlobHazard : contactEvents) : Box2D émet un début quand un contact
@@ -299,8 +346,8 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         material.customColor = debugColor;
         shapeDef.surfaceMaterial = material;
         var filter = shapeDef.contactFilter;
-        filter.categories = 1;
-        filter.contacts = PhysicsMask.All;
+        filter.categories = new PhysicsMask { bitMask = 1UL << CategoryBit };
+        filter.contacts = new PhysicsMask { bitMask = ~(1UL << GlassPane.LooseFragmentBit) };
         filter.groupIndex = -1; // négatif : les capsules d'un même blob ne collisionnent pas entre elles
         shapeDef.contactFilter = filter;
 
