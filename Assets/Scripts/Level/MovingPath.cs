@@ -16,8 +16,8 @@ public enum PathEndMode { PingPong, Teleport }
 public class MovingPath : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Mouvement")]
-    [Tooltip("Vitesse des éléments le long de la trajectoire, en m/s (absolu), la même pour tous. 0 = immobiles.")]
-    [Min(0f)] public float speed = 3f;
+    [Tooltip("Vitesse des éléments le long de la trajectoire, en km/h (absolu), la même pour tous. 0 = immobiles.")]
+    [SpeedKmh] [Min(0f)] public float speed = 3f;
     [Tooltip("Coché : les éléments parcourent la trajectoire dans l'autre sens (sens inverse du tracé de la courbe).")]
     public bool reverse;
     [Tooltip("Trajectoire ouverte seulement (une trajectoire fermée tourne en boucle) :\n" +

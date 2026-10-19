@@ -41,13 +41,13 @@ public class GrappleGadget : BlobGadget, ILevelPhysics, ILevelTick
              "Caméra actuelle (orthographicSize 9, 16:9) : (16, 9).")]
     public Vector2 screenHalfSize = new Vector2(16f, 9f);
     [Tooltip("Champ de vision, en degrés, centré sur la direction de la vitesse du blob. 360 = tout autour.\n" +
-             "Sous 1 m/s, la direction n'a pas de sens : tout autour. Parmi les points visibles, le plus proche est choisi.")]
+             "Sous 3,6 km/h, la direction n'a pas de sens : tout autour. Parmi les points visibles, le plus proche est choisi.")]
     [Range(0f, 360f)] public float viewAngle = 360f;
 
     [Header("Tir")]
-    [Tooltip("Vitesse du bout du filament à l'aller, en m/s (absolu). Très grand = accroche quasi instantanée.\n" +
+    [Tooltip("Vitesse du bout du filament à l'aller, en km/h (absolu). Très grand = accroche quasi instantanée.\n" +
              "Relâcher la touche pendant l'aller annule le tir (le filament revient).")]
-    [Min(1f)] public float shotSpeed = 80f;
+    [SpeedKmh] [Min(1f)] public float shotSpeed = 80f;
 
     [Header("Corde")]
     [Tooltip("NearestCapsule : la corde tire la capsule face au point (joint Box2D) ; le blob s'étire comme une balle tenue par un fil.\n" +
@@ -56,8 +56,8 @@ public class GrappleGadget : BlobGadget, ILevelPhysics, ILevelTick
     [Tooltip("Rigid : corde de longueur max fixe (= distance au moment de l'accroche), molle si le blob se rapproche.\n" +
              "Elastic : ressort qui tire au-delà de sa longueur au repos, jamais ne pousse (voir « Corde élastique »).")]
     public RopeMode ropeMode = RopeMode.Rigid;
-    [Tooltip("Raccourcit la corde tant que la touche est tenue, en m/s (absolu). 0 = longueur fixe.")]
-    [Min(0f)] public float reelInSpeed = 0f;
+    [Tooltip("Raccourcit la corde tant que la touche est tenue, en km/h (absolu). 0 = longueur fixe.")]
+    [SpeedKmh] [Min(0f)] public float reelInSpeed = 0f;
     [Tooltip("Longueur minimale de la corde, en m (absolu) : le rembobinage et l'enroulement s'arrêtent là.")]
     [Min(0.05f)] public float minLength = 0.5f;
     [Tooltip("Coché : la corde s'enroule sur le décor (murs, flippers…) qu'elle rencontre et se déroule quand le blob\n" +
@@ -100,12 +100,12 @@ public class GrappleGadget : BlobGadget, ILevelPhysics, ILevelTick
     [Tooltip("PassThrough : le filament revient en traversant tout (calculé par le script, aucun corps).\n" +
              "Collide : le filament est une chaîne de petits corps Box2D qui heurte le décor (il peut s'accrocher, voir 'maxReturnTime').")]
     public FilamentReturn returnMode = FilamentReturn.PassThrough;
-    [Tooltip("Vitesse de rembobinage au moment du relâchement, en m/s (absolu).")]
-    [Min(0.1f)] public float reelSpeed = 10f;
+    [Tooltip("Vitesse de rembobinage au moment du relâchement, en km/h (absolu).")]
+    [SpeedKmh] [Min(0.1f)] public float reelSpeed = 10f;
     [Tooltip("Accélération du rembobinage, en m/s² (absolu) : comme un mètre ruban, il va de plus en plus vite.")]
     [Min(0f)] public float reelAcceleration = 120f;
-    [Tooltip("Vitesse max du rembobinage, en m/s (absolu).")]
-    [Min(0.1f)] public float maxReelSpeed = 60f;
+    [Tooltip("Vitesse max du rembobinage, en km/h (absolu).")]
+    [SpeedKmh] [Min(0.1f)] public float maxReelSpeed = 60f;
     [Tooltip("Longueur d'un maillon du filament qui revient, en m (absolu). Plus court = vagues plus fines, plus coûteux.")]
     [Min(0.05f)] public float segmentLength = 0.25f;
     [Tooltip("Gravité du filament et de la corde molle, relative à celle du monde. 0 = flotte, 1 = tombe comme le reste.")]

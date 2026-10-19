@@ -23,9 +23,9 @@ public class PinballBumper : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Déplacement depuis la position de repos, en unités Unity (absolu), perpendiculaire à la barre.\n" +
              "Positif = vers +Y local, négatif = vers -Y local.")]
     public float travel = 0.5f;
-    [Tooltip("Vitesse du déplacement, en m/s (absolu). Défaut = vitesse du bout d'un flipper officiel\n" +
-             "(500 °/s × 1,68 m ≈ 14,66 m/s).")]
-    [Min(0.01f)] public float speed = 14.66f;
+    [Tooltip("Vitesse du déplacement, en km/h (absolu). Défaut = vitesse du bout d'un flipper officiel\n" +
+             "(500 °/s × 1,68 m ≈ 14,66 m/s ≈ 52,8 km/h).")]
+    [SpeedKmh] [Min(0.01f)] public float speed = 14.66f;
 
     [Header("Debug")]
     [Tooltip("Couleur de l'aperçu Scene view en position de repos.")]

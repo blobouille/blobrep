@@ -13,8 +13,8 @@ public class Ball2D : MonoBehaviour, ICameraTarget, ILevelPhysics, ITrainingBody
     public PhysicsBody.BodyType typeCorps = PhysicsBody.BodyType.Kinematic;
 
     [Header("Mouvement")]
-    [Tooltip("Vitesse linéaire initiale, en unités Unity par seconde.")]
-    public Vector2 vitesseLineaire = Vector2.zero;
+    [Tooltip("Vitesse linéaire initiale, en km/h (x, y).")]
+    [SpeedKmh] public Vector2 vitesseLineaire = Vector2.zero;
     [Tooltip("Vitesse angulaire initiale, en radians par seconde (positif = anti-horaire).")]
     public float vitesseAngulaire = 0f;
 

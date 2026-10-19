@@ -65,6 +65,15 @@ public class TrainingMode : MonoBehaviour
         public float radius;
         public bool broken;
         public List<BodyState> capsules = new List<BodyState>();
+        // Forme de chaque corps quand elles diffèrent (vide = même forme pour tous : center1, center2, radius).
+        public List<GhostPart> parts = new List<GhostPart>();
+    }
+
+    [System.Serializable]
+    struct GhostPart
+    {
+        public Vector2 center1, center2;
+        public float radius;
     }
 
     readonly List<Checkpoint> _checkpoints = new List<Checkpoint>();
@@ -128,14 +137,20 @@ public class TrainingMode : MonoBehaviour
         {
             body.GetBodyStates(_states);
             var shape = body.GhostShape;
-            cp.ghosts.Add(new Ghost
+            var ghost = new Ghost
             {
                 center1 = shape.center1,
                 center2 = shape.center2,
                 radius = shape.radius,
                 broken = body.IsBroken,
                 capsules = new List<BodyState>(_states)
-            });
+            };
+            for (int i = 0; i < _states.Count; i++)
+            {
+                var part = body.GhostShapeOf(i);
+                ghost.parts.Add(new GhostPart { center1 = part.center1, center2 = part.center2, radius = part.radius });
+            }
+            cp.ghosts.Add(ghost);
         }
 
         if (discardNewerOnSave && _cursor >= 0 && _cursor < _checkpoints.Count - 1)
@@ -263,14 +278,16 @@ public class TrainingMode : MonoBehaviour
             var color = c == _cursor ? currentGhostColor : ghostColor;
             foreach (var g in _checkpoints[c].ghosts)
             {
-                var capsule = new CapsuleGeometry { center1 = g.center1, center2 = g.center2, radius = g.radius };
-                var circle = new CircleGeometry { center = g.center1, radius = g.radius };
-                bool isCircle = (g.center2 - g.center1).sqrMagnitude < 1e-12f;
-                foreach (var s in g.capsules)
+                bool perBody = g.parts != null && g.parts.Count == g.capsules.Count;
+                for (int i = 0; i < g.capsules.Count; i++)
                 {
+                    var s = g.capsules[i];
+                    Part(g, perBody, i, out var c1, out var c2, out float r);
                     var pose = new PhysicsTransform(s.position, PhysicsRotate.FromRadians(s.angle));
-                    if (isCircle) world.DrawGeometry(circle, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
-                    else world.DrawGeometry(capsule, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
+                    if ((c2 - c1).sqrMagnitude < 1e-12f)
+                        world.DrawGeometry(new CircleGeometry { center = c1, radius = r }, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
+                    else
+                        world.DrawGeometry(new CapsuleGeometry { center1 = c1, center2 = c2, radius = r }, pose, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
                 }
             }
         }
@@ -283,13 +300,24 @@ public class TrainingMode : MonoBehaviour
         {
             Gizmos.color = c == _cursor ? currentGhostColor : ghostColor;
             foreach (var g in _checkpoints[c].ghosts)
-                foreach (var s in g.capsules)
+            {
+                bool perBody = g.parts != null && g.parts.Count == g.capsules.Count;
+                for (int i = 0; i < g.capsules.Count; i++)
                 {
+                    var s = g.capsules[i];
+                    Part(g, perBody, i, out var c1, out var c2, out float r);
                     Gizmos.matrix = Matrix4x4.TRS(s.position, Quaternion.Euler(0f, 0f, s.angle * Mathf.Rad2Deg), Vector3.one);
-                    DrawCapsule(g.center1, g.center2, g.radius);
+                    DrawCapsule(c1, c2, r);
                 }
+            }
         }
         Gizmos.matrix = Matrix4x4.identity;
+    }
+
+    static void Part(Ghost g, bool perBody, int i, out Vector2 c1, out Vector2 c2, out float r)
+    {
+        if (perBody) { c1 = g.parts[i].center1; c2 = g.parts[i].center2; r = g.parts[i].radius; }
+        else { c1 = g.center1; c2 = g.center2; r = g.radius; }
     }
 
     static void DrawCapsule(Vector2 a, Vector2 b, float r)

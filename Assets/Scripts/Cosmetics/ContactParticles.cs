@@ -11,17 +11,17 @@ public class ContactParticles : MonoBehaviour
     [Tooltip("Particules émises par seconde de simulation et par point de contact, à intensité maximale\n" +
              "(vitesse ≥ 'fullSpeed' et appui ≥ 'fullForce').")]
     [Min(0f)] public float rollRate = 120f;
-    [Tooltip("Vitesse de la balle le long de la surface (m/s, absolu) en dessous de laquelle rien n'est émis.")]
-    [Min(0f)] public float minSpeed = 1f;
-    [Tooltip("Vitesse le long de la surface (m/s, absolu) à partir de laquelle l'émission est maximale.")]
-    [Min(0.01f)] public float fullSpeed = 14f;
+    [Tooltip("Vitesse de la balle le long de la surface (km/h, absolu) en dessous de laquelle rien n'est émis.")]
+    [SpeedKmh] [Min(0f)] public float minSpeed = 1f;
+    [Tooltip("Vitesse le long de la surface (km/h, absolu) à partir de laquelle l'émission est maximale.")]
+    [SpeedKmh] [Min(0.01f)] public float fullSpeed = 14f;
     [Tooltip("Force d'appui d'un point de contact (N, absolu) à partir de laquelle l'émission est maximale.\n" +
              "Repère : un blob de diamètre 1 et densité 1 pèse ≈ 7,7 N, réparti sur ses points de contact.")]
     [Min(0.01f)] public float fullForce = 3f;
 
     [Header("Chocs")]
-    [Tooltip("Vitesse d'impact (m/s, le long de la normale) en dessous de laquelle un nouveau contact ne fait pas de gerbe.")]
-    [Min(0f)] public float impactMinSpeed = 3f;
+    [Tooltip("Vitesse d'impact (km/h, le long de la normale) en dessous de laquelle un nouveau contact ne fait pas de gerbe.")]
+    [SpeedKmh] [Min(0f)] public float impactMinSpeed = 3f;
     [Tooltip("Particules par m/s d'impact au-dessus de 'impactMinSpeed', pour un nouveau point de contact.")]
     [Min(0f)] public float impactParticlesPerSpeed = 2f;
     [Tooltip("Nombre maximal de particules d'une gerbe d'impact (par point de contact).")]
@@ -31,8 +31,8 @@ public class ContactParticles : MonoBehaviour
     [Tooltip("Part de la vitesse de la balle le long de la surface transmise aux particules (0 = restent sur place,\n" +
              "1 = suivent la balle). Une valeur moyenne donne une traînée derrière la balle.")]
     [Range(0f, 1f)] public float carry = 0.35f;
-    [Tooltip("Vitesse d'éjection le long de la normale de la surface (m/s), à intensité maximale.")]
-    [Min(0f)] public float kick = 3.5f;
+    [Tooltip("Vitesse d'éjection le long de la normale de la surface (km/h), à intensité maximale.")]
+    [SpeedKmh] [Min(0f)] public float kick = 3.5f;
     [Tooltip("Dispersion aléatoire de la direction d'éjection, en degrés de part et d'autre.")]
     [Range(0f, 90f)] public float spread = 35f;
     [Tooltip("Multiplicateur de gravité des particules (1 = gravité du monde, 0 = flottent).")]

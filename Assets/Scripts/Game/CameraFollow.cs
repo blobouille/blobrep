@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -24,8 +25,46 @@ public class CameraFollow : MonoBehaviour
              "peut bouger sans que la caméra ne la suive. (0, 0) = suivi permanent.")]
     public Vector2 deadZone = Vector2.zero;
 
+    [Header("Anticipation")]
+    [Tooltip("La caméra se décale dans la direction où va la cible (selon sa vitesse) pour montrer ce qui arrive devant elle.\n" +
+             "Rendu seulement : la physique n'est que lue.")]
+    public bool lookAhead = true;
+    [Tooltip("Temps d'anticipation, en secondes : on montre où sera la cible dans ce temps. Décalage = (vitesse − vitesse morte) × ce temps, plafonné.\n" +
+             "Ex. 0,25 s à 50 km/h ≈ 3 m devant.")]
+    [Min(0f)] public float lookAheadTime = 0.25f;
+    [Tooltip("Décalage d'anticipation maximal, en unités Unity (absolu). À garder sous la demi-hauteur de la caméra pour ne jamais perdre la cible.")]
+    [Min(0f)] public float lookAheadMaxDistance = 3f;
+    [Tooltip("Vitesse morte, en km/h : en dessous, aucune anticipation (la caméra reste centrée quand la cible roule doucement).")]
+    [SpeedKmh] [Min(0f)] public float lookAheadDeadSpeed = 2f;
+    [Tooltip("Poids de l'anticipation par axe (X horizontal, Y vertical), RELATIF : 1 = plein, 0 = aucune.\n" +
+             "Moins à la verticale évite que la caméra plonge à chaque rebond.")]
+    public Vector2 lookAheadAxisWeight = new Vector2(1f, 0.6f);
+    [Tooltip("Inertie de la direction suivie quand la cible ACCÉLÈRE, en secondes (temps pour environ 63 % du changement).\n" +
+             "Plus grand = la caméra ignore les rebonds brefs.")]
+    [Min(0f)] public float lookAheadSmoothTime = 0.35f;
+    [Tooltip("Inertie quand la cible RALENTIT ou change de sens, en secondes (63 %). Plus grand = retour plus doux.")]
+    [Min(0f)] public float lookAheadReturnTime = 0.8f;
+    [Tooltip("Vitesse maximale de glissement du décalage, en km/h (temps de jeu). Limite les grands balayages d'écran\n" +
+             "lors d'un demi-tour. 0 = sans limite.")]
+    [SpeedKmh] [Min(0f)] public float lookAheadMaxShiftSpeed = 6f;
+
+    [Header("Dézoom selon la vitesse")]
+    [Tooltip("La caméra dézoome quand la cible va vite, pour voir plus loin autour d'elle. Rendu seulement.")]
+    public bool speedZoom = true;
+    [Tooltip("Vitesse (km/h) à partir de laquelle le dézoom commence. En dessous : taille de départ de la caméra.")]
+    [SpeedKmh] [Min(0f)] public float speedZoomStartSpeed = 10f;
+    [Tooltip("Vitesse (km/h) à laquelle le dézoom est maximal (transition douce entre les deux vitesses).")]
+    [SpeedKmh] [Min(0f)] public float speedZoomFullSpeed = 30f;
+    [Tooltip("Dézoom maximal, RELATIF à la taille de départ de la caméra : 1,3 = on voit 30 % plus loin dans chaque direction.")]
+    [Range(1f, 3f)] public float speedZoomMaxFactor = 1.3f;
+    [Tooltip("Temps (en secondes de jeu) pour faire environ 63 % du dézoom quand la cible accélère.")]
+    [Min(0f)] public float speedZoomOutTime = 0.8f;
+    [Tooltip("Temps (en secondes de jeu) pour faire environ 63 % du retour au zoom normal quand la cible ralentit.\n" +
+             "Plus long que le dézoom pour ne pas pomper à chaque rebond.")]
+    [Min(0f)] public float speedZoomInTime = 2f;
+
     [Header("Focus destruction")]
-    [Tooltip("Quand la cible (un BLOB) est déstructurée par un obstacle, la caméra se centre sur l'obstacle et zoome.\n" +
+    [Tooltip("Quand la cible (un BLOB) est déstructurée par un obstacle, la caméra se centre sur le point de contact et zoome.\n" +
              "Après 'slowDuration', elle dézoome en restant centrée sur l'impact ; suivi normal au redémarrage du niveau.")]
     public bool focusOnBreak = true;
     [Tooltip("Taille orthographique de la caméra pendant le focus (demi-hauteur visible, en unités Unity). Plus petit = zoom plus fort.")]
@@ -54,6 +93,13 @@ public class CameraFollow : MonoBehaviour
     float _slowEndTime = -1f;
     float _zoomEndTime = -1f;
     monde_settings _settings;
+    readonly List<BodyState> _states = new List<BodyState>();
+    ITrainingBody _trainingBody;
+    Vector2 _lastTargetPos;
+    bool _hasLastTargetPos;
+    Vector2 _smoothVelocity;
+    Vector2 _lookOffset;
+    float _speedZoom = 1f;
 
     void Start()
     {
@@ -65,6 +111,7 @@ public class CameraFollow : MonoBehaviour
     void OnEnable()
     {
         BLOB.Broken += OnBlobBroken;
+        Skater.Died += OnSkaterDied;
         LevelRestart.Restarted += OnLevelRestarted;
         LevelSimulation.Jumped += OnLevelRestarted;
     }
@@ -72,6 +119,7 @@ public class CameraFollow : MonoBehaviour
     void OnDisable()
     {
         BLOB.Broken -= OnBlobBroken;
+        Skater.Died -= OnSkaterDied;
         LevelRestart.Restarted -= OnLevelRestarted;
         LevelSimulation.Jumped -= OnLevelRestarted;
         EndSlowMotion();
@@ -82,15 +130,20 @@ public class CameraFollow : MonoBehaviour
         _focusing = false;
         EndSlowMotion();
         if (_camera == null) return;
-        _camera.orthographicSize = _baseSize;
+        ResetMotion();
+        _camera.orthographicSize = _baseSize * _speedZoom;
         SnapToTarget();
     }
 
-    void OnBlobBroken(BLOB blob, BlobHazard hazard, Vector2 contactPoint)
+    void OnBlobBroken(BLOB blob, BlobHazard hazard, Vector2 contactPoint) => Focus(blob.gameObject, contactPoint);
+
+    void OnSkaterDied(Skater skater, Vector2 contactPoint) => Focus(skater.gameObject, contactPoint);
+
+    void Focus(GameObject broken, Vector2 contactPoint)
     {
-        if (!focusOnBreak || target != blob.gameObject || LevelSimulation.FastForwarding) return;
+        if (!focusOnBreak || target != broken || LevelSimulation.FastForwarding) return;
         _focusing = true;
-        _focusPoint = hazard.FocusPoint(contactPoint);
+        _focusPoint = contactPoint;
         _zoomEndTime = Time.unscaledTime + slowDuration;
 
         if (!slowMotion) return;
@@ -114,7 +167,7 @@ public class CameraFollow : MonoBehaviour
     [ContextMenu("Snap To Target")]
     public void SnapToTarget()
     {
-        if (TryGetTargetPosition(out var p)) MoveTo(Desired(p, transform.position, Vector2.zero));
+        if (TryGetTargetPosition(out var p)) MoveTo(Desired(p + _lookOffset, transform.position, Vector2.zero));
     }
 
     void LateUpdate()
@@ -123,7 +176,7 @@ public class CameraFollow : MonoBehaviour
 
         float f = Smooth(focusSmoothTime);
         bool zoomed = _focusing && Time.unscaledTime < _zoomEndTime;
-        _camera.orthographicSize = Mathf.Lerp(_camera.orthographicSize, zoomed ? focusSize : _baseSize, zoomed || !_focusing ? f : Smooth(dezoomSmoothTime));
+        _camera.orthographicSize = Mathf.Lerp(_camera.orthographicSize, zoomed ? focusSize : _baseSize * _speedZoom, zoomed || !_focusing ? f : Smooth(dezoomSmoothTime));
 
         if (_focusing)
         {
@@ -132,11 +185,84 @@ public class CameraFollow : MonoBehaviour
         }
 
         if (!TryGetTargetPosition(out var p)) return;
+        UpdateMotion();
 
         Vector2 current = transform.position;
-        Vector2 desired = Desired(p, current, deadZone);
+        Vector2 desired = Desired(p + _lookOffset, current, deadZone);
         float t = smoothTime > 0f ? 1f - Mathf.Exp(-Time.deltaTime / smoothTime) : 1f;
         MoveTo(Vector2.Lerp(current, desired, t));
+    }
+
+    // Après un redémarrage ou un retour de sauvegarde : décalage et dézoom directement à leur valeur d'équilibre, sans balayage.
+    void ResetMotion()
+    {
+        _hasLastTargetPos = false;
+        Vector2 v = TryGetTargetVelocity(out var tv, 0f) ? tv : Vector2.zero;
+        _smoothVelocity = lookAhead ? v : Vector2.zero;
+        _lookOffset = LookAheadGoal();
+        _speedZoom = SpeedZoomGoal(v.magnitude);
+    }
+
+    void UpdateMotion()
+    {
+        float dt = Time.deltaTime;
+        if (!lookAhead)
+        {
+            _lookOffset = Vector2.zero;
+            _smoothVelocity = Vector2.zero;
+        }
+        if (dt <= 0f || !TryGetTargetVelocity(out var v, dt)) return;
+
+        float zoomGoal = SpeedZoomGoal(v.magnitude);
+        float zoomTime = zoomGoal > _speedZoom ? speedZoomOutTime : speedZoomInTime;
+        _speedZoom = Mathf.Lerp(_speedZoom, zoomGoal, zoomTime > 0f ? 1f - Mathf.Exp(-dt / zoomTime) : 1f);
+
+        if (!lookAhead) return;
+
+        bool accelerating = v.sqrMagnitude >= _smoothVelocity.sqrMagnitude && Vector2.Dot(v, _smoothVelocity) >= 0f;
+        float time = accelerating ? lookAheadSmoothTime : lookAheadReturnTime;
+        _smoothVelocity = Vector2.Lerp(_smoothVelocity, v, time > 0f ? 1f - Mathf.Exp(-dt / time) : 1f);
+
+        Vector2 goal = LookAheadGoal();
+        _lookOffset = lookAheadMaxShiftSpeed > 0f ? Vector2.MoveTowards(_lookOffset, goal, lookAheadMaxShiftSpeed * dt) : goal;
+    }
+
+    float SpeedZoomGoal(float speed)
+    {
+        if (!speedZoom) return 1f;
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(speedZoomStartSpeed, speedZoomFullSpeed, speed));
+        return Mathf.Lerp(1f, speedZoomMaxFactor, t);
+    }
+
+    Vector2 LookAheadGoal()
+    {
+        if (!lookAhead) return Vector2.zero;
+        float speed = _smoothVelocity.magnitude;
+        float distance = Mathf.Min(lookAheadMaxDistance, Mathf.Max(0f, speed - lookAheadDeadSpeed) * lookAheadTime);
+        if (distance <= 0f) return Vector2.zero;
+        Vector2 o = _smoothVelocity * (distance / speed);
+        return new Vector2(o.x * lookAheadAxisWeight.x, o.y * lookAheadAxisWeight.y);
+    }
+
+    // Vitesse du centre de la cible : moyenne des corps d'un ITrainingBody (rotation du blob ignorée), sinon déplacement depuis l'image précédente.
+    bool TryGetTargetVelocity(out Vector2 velocity, float dt)
+    {
+        velocity = default;
+        if (!TryGetTargetPosition(out var p)) return false;
+        if (_trainingBody != null)
+        {
+            _trainingBody.GetBodyStates(_states);
+            if (_states.Count == 0) return false;
+            Vector2 sum = Vector2.zero;
+            for (int i = 0; i < _states.Count; i++) sum += _states[i].velocity;
+            velocity = sum / _states.Count;
+            return true;
+        }
+        bool ok = _hasLastTargetPos && dt > 0f;
+        if (ok) velocity = (p - _lastTargetPos) / dt;
+        _lastTargetPos = p;
+        _hasLastTargetPos = true;
+        return ok;
     }
 
     static float Smooth(float time) => time > 0f ? 1f - Mathf.Exp(-Time.unscaledDeltaTime / time) : 1f;
@@ -164,6 +290,8 @@ public class CameraFollow : MonoBehaviour
         {
             _cachedTarget = target;
             _cameraTarget = target.GetComponent<ICameraTarget>();
+            _trainingBody = target.GetComponent<ITrainingBody>();
+            _hasLastTargetPos = false;
         }
 
         position = _cameraTarget != null ? _cameraTarget.CameraPosition : (Vector2)target.transform.position;

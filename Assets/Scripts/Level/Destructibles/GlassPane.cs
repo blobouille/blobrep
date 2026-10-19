@@ -34,7 +34,7 @@ public class GlassPane : MonoBehaviour, ILevelPhysics, ILevelTick
     [Header("Résistance aux chocs")]
     [Tooltip("Énergie de choc qui casse le MILIEU de la vitre, en joules : ½ × masse réduite × (vitesse relative dans l'axe du choc)².\n" +
              "Masse réduite = m1 m2 / (m1 + m2) (contre un corps fixe : la masse de celui qui bouge).\n" +
-             "Repères : blob standard (≈ 0,79 kg) : 25 J ≈ 8 m/s de face, ≈ 1,6 m de chute avec la gravité de poc niveau 1.")]
+             "Repères : blob standard (≈ 0,79 kg) : 25 J ≈ 29 km/h de face, ≈ 1,6 m de chute avec la gravité de poc niveau 1.")]
     [Min(0.01f)] public float breakEnergy = 25f;
     [Tooltip("Fragilité aux bouts (appuis), relative au milieu (1). Entre les deux : profil de flexion 4u(1−u), le milieu est le\n" +
              "point le plus fragile. 0,35 = un bout demande ≈ 3 fois plus d'énergie que le milieu. 1 = partout pareil.")]
@@ -91,10 +91,10 @@ public class GlassPane : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(0f, 1f)] public float angleJitter = 0.7f;
     [Tooltip("Irrégularité du rayon des anneaux (0 = cercles parfaits, 1 = très irréguliers).")]
     [Range(0f, 1f)] public float radiusJitter = 0.5f;
-    [Tooltip("Vitesse de propagation des fissures, en m/s. 0 = instantanée (verre réel : ≈ 1 500 m/s).\n" +
+    [Tooltip("Vitesse de propagation des fissures, en km/h. 0 = instantanée (verre réel : ≈ 5 400 km/h).\n" +
              "Plus lent = effet de mise en scène : les morceaux se détachent à mesure que le front passe. Ce qui touche\n" +
              "l'impacteur se détache toujours tout de suite.")]
-    [Min(0f)] public float crackSpeed = 0f;
+    [SpeedKmh] [Min(0f)] public float crackSpeed = 0f;
     [Tooltip("Vitre fixe : coché, les grands morceaux au-delà des fissures concentriques qui touchent un bout restent en place (fêlés,\n" +
              "tenus par le cadre). Décoché : tout tombe. Sans effet sur une vitre libre.")]
     public bool supportedEnds = true;
@@ -127,8 +127,8 @@ public class GlassPane : MonoBehaviour, ILevelPhysics, ILevelTick
     public GlassBlobInteraction blobInteraction = GlassBlobInteraction.Collide;
     [Tooltip("Pulverize : distance (m) autour de la vitre dans laquelle le blob pulvérise les morceaux. Plus loin, aucun test (coût nul).")]
     [Min(0f)] public float pulverizeZone = 3f;
-    [Tooltip("Vitesse (m/s) sous laquelle un morceau s'endort (ne coûte plus rien). Plus haut = s'endort plus vite.")]
-    [Min(0f)] public float sleepSpeed = 0.08f;
+    [Tooltip("Vitesse (km/h) sous laquelle un morceau s'endort (ne coûte plus rien). Plus haut = s'endort plus vite.")]
+    [SpeedKmh] [Min(0f)] public float sleepSpeed = 0.08f;
     [Tooltip("Durée de vie des morceaux après leur détachement, en secondes de jeu. 0 = ils restent jusqu'au redémarrage.")]
     [Min(0f)] public float cleanupDelay = 0f;
     [Tooltip("Morceaux tombés à plus de cette distance (m) sous la vitre retirés : hors écran, dans le vide, ils ne s'endormiraient\n" +
@@ -143,8 +143,8 @@ public class GlassPane : MonoBehaviour, ILevelPhysics, ILevelTick
              "sa vitesse ; à 'burstRadius' de plus sur le côté, à 37 %. Donne aussi la portée de l'éclatement (avec sa largeur).\n" +
              "Petit = trou net à sa taille ; grand = il entraîne beaucoup de verre (et ralentit plus).")]
     [Min(0.01f)] public float burstRadius = 0.3f;
-    [Tooltip("Vitesse d'éclatement vers l'extérieur de l'impact (m/s) par doublement d'énergie au-delà du seuil.")]
-    [Min(0f)] public float burstSpeed = 2.5f;
+    [Tooltip("Vitesse d'éclatement vers l'extérieur de l'impact (km/h) par doublement d'énergie au-delà du seuil.")]
+    [SpeedKmh] [Min(0f)] public float burstSpeed = 2.5f;
     [Tooltip("Dispersion de la direction des éclats, en degrés de part et d'autre (cône du nuage de débris).")]
     [Range(0f, 90f)] public float spreadAngle = 25f;
     [Tooltip("Variation de la vitesse des éclats (0 = tous pareils, 0,35 = ±35 %).")]
@@ -160,7 +160,7 @@ public class GlassPane : MonoBehaviour, ILevelPhysics, ILevelTick
 
     [Header("Détection du blob")]
     [Tooltip("Distance (m, absolu) autour de la vitre à partir de laquelle le choc du blob est prévu avant le contact (lecture de\n" +
-             "ses capsules) : doit dépasser son déplacement en un pas (0,6 m ≈ 70 m/s à 120 Hz). Plus loin, une seule lecture par pas.")]
+             "ses capsules) : doit dépasser son déplacement en un pas (0,6 m ≈ 260 km/h à 120 Hz). Plus loin, une seule lecture par pas.")]
     [Min(0.05f)] public float detectionMargin = 0.6f;
 
     [Header("Debug")]

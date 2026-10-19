@@ -22,9 +22,9 @@ public class BoostZone : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Accélération dans le sens de la flèche, en m/s² (absolu), appliquée à chaque capsule dont le centre est dans la zone.\n" +
              "Gain de vitesse = accélération × temps passé dans la zone (ex. 150 m/s² pendant 0,1 s = +15 m/s).")]
     [Min(0f)] public float acceleration = 150f;
-    [Tooltip("Plafond de vitesse dans le sens de la flèche, en m/s (absolu) : la zone n'accélère plus au-delà, sans jamais freiner.")]
+    [Tooltip("Plafond de vitesse dans le sens de la flèche, en km/h (absolu) : la zone n'accélère plus au-delà, sans jamais freiner.")]
     [FormerlySerializedAs("exitSpeed")]
-    [Min(0f)] public float maxSpeed = 30f;
+    [SpeedKmh] [Min(0f)] public float maxSpeed = 30f;
 
     [Header("Debug")]
     [Tooltip("Couleur de l'aperçu Scene view.")]

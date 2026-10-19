@@ -18,6 +18,8 @@ public interface ITrainingBody
 {
     // Forme de chaque corps dans son repère local (cercle = capsule de longueur nulle), pour dessiner le fantôme.
     CapsuleGeometry GhostShape { get; }
+    // Forme du corps 'index' quand ils n'ont pas tous la même (skateur : planche, tête, membres). Par défaut : GhostShape.
+    CapsuleGeometry GhostShapeOf(int index) => GhostShape;
     bool IsBroken { get; }
     void GetBodyStates(List<BodyState> states);
     void RestoreBodyStates(IReadOnlyList<BodyState> states, bool broken);

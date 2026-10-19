@@ -20,6 +20,9 @@ avec des courbes de Bézier épaisses (murs/rails) et ces éléments. Plusieurs 
    - À venir : éléments physiques / obstacles neutres activés par des déclencheurs (triggers) du niveau. Idée de mise en scène :
      le blob longe une vitre très vite à l'horizontale (trop rasant pour la casser), un marteau au coin de la vitre s'abat
      et la brise, le blob passe dans la gerbe (la vitre gère déjà un choc au bout et la propagation des fissures)
+   - Démo technique en cours (2026-10-19) : un SKATEUR à la place du blob (`Skater`, scène `skate reboot`) pour juger si c'est
+     plus amusant et plus lisible (le blob est chaotique, peu prévisible, passif en l'air). Piliers et blob inchangés tant que ce
+     n'est pas décidé. Idées notées pour la suite : figures = boost, point jaune façon Geometry Dash avec micro-gel visuel
 2. Boucle de jeu : départ, arrivée (fin de niveau), échec / recommencer. But : finir le niveau d'une traite (comme Geometry Dash)
    - Mode entraînement (`TrainingMode`) : points de sauvegarde exacts pour s'entraîner sur un passage.
      Fait : S / Tab / Shift / R + fantômes + 2 modes de sauvegarde. À venir (mobile) : toucher un fantôme pour choisir
@@ -38,6 +41,11 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 120 Hz, `fixedDeltaTime` ≈ 0,0083)
 - Les `NativeList` doivent être détruits/libérés dans `OnDestroy` (sinon fuite mémoire)
 - Utiliser `XxxDefinition.defaultDefinition` pour les définitions (corps, formes, joints), puis modifier les champs
+- Unités des rotations (mesuré, Unity 6000.6) : `PhysicsBody.angularVelocity` et les angles des charnières (`angle`,
+  `springTargetAngle`, limites, `motorSpeed`) sont en degrés ; `PhysicsBody.GetBatchVelocity` rend `angularVelocity` en rad/s mais
+  `SetBatchVelocity` l'attend en °/s : convertir avant de réécrire, sinon chaque écriture écrase presque la rotation des corps
+- Charnière (`PhysicsHingeJoint`) : `angle` = angle du corps B − angle du corps A quand les ancres (`PhysicsTransform`) n'ont pas
+  de rotation ; le ressort (`enableSpring`, `springFrequency` en Hz, normalisé par la masse) vise `springTargetAngle`
 
 ## Échelle (standard du projet)
 - 1 unité Unity = 1 m pour Box2D (`lengthUnitsPerMeter = 1`). Ses tolérances sont en absolu
@@ -133,10 +141,14 @@ Vérifier une optimisation (méthode utilisée) :
   A flipper au bout de la pente, B bumper au-dessus des scies, C mur + berceau-flipper + cheminée, D flipper puis
   flipper-tremplin à tenir, E bosse + longue descente, F flipper final + bassin d'arrivée ; R raccourci (bumper sur la montée
   de E → rail + accélérateur → bassin, ≈ 5 s gagnées). Départ du blob en (-0.6, 1.75)
+- `skate reboot` : piste de test du skateur (démo), réglages du monde de `poc niveau 1` (gravité −20, caméra ortho 9), sous `Track`
+  (racine en (0, 40)) : descente, plat (frein), kicker + fosse à piques, flipper (Espace) au bout d'une pente, grande réception,
+  vitre posée au sol (la planche la brise), quarter pipe. Départ du skateur sur le haut de la descente (≈ (2.1, 47.6))
 
 ## Organisation des scripts
 - `Scripts/Level/` : tout ce qui se pose dans un niveau (BLOB, courbes, flippers, `Hazards/` obstacles,
-  `Neutral/` éléments neutres, `Gadgets/` gadgets du blob et leurs zones / points, `Destructibles/` éléments à briser).
+  `Neutral/` éléments neutres, `Gadgets/` gadgets du blob et leurs zones / points, `Destructibles/` éléments à briser,
+  `Skater/` skateur de la démo).
   C'est la palette du futur éditeur de niveaux en jeu : code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur (simulation pas à pas, entrées, redémarrage, réglages du monde)
 - `Scripts/Game/` : un exemplaire par scène, hors niveau (caméra, mode entraînement avec la touche R)
@@ -291,10 +303,48 @@ Scripts existants :
     9 m/s traverse, 15 → 8,8 m/s, 30 → 19 m/s. Vitre libre 4 m posée à plat : intacte jusqu'à 0,6 m de chute, fissurée à 1,5 m,
     brisée à 4 m ; en biais, elle casse au coin qui touche (`GlassPaneEditor` : poignées longueur / épaisseur, préréglages ;
     menu GameObject > 2D Object > Glass Pane, avec `GlassDust`)
+- `Skater` + `Skateboard` (`Level/Skater/`, démo) : skateur à la place du blob. `Skateboard` = géométrie seule de la planche
+  (longueur, épaisseur, relevés nose/tail on/off + angle, roues, empattement, trucks ; repère : origine au sol entre les roues,
+  +X = nose ; `KickIndex` = polygone de chaque relevé). DÉCISION (2026-10-19, après essai au clavier d'un personnage physique à
+  articulations : « mou, pas satisfaisant ») : ON CONTRÔLE LA PLANCHE, le personnage suit visuellement.
+  - Vivant, la planche est le SEUL corps physique : roues = cercles sans frottement (roues libres), elle porte la masse totale
+    (`boardMass` + `mass`), centre de gravité bas (stable, colle aux courbes). Le centre de gravité suit horizontalement celui
+    du personnage projeté le long de la normale du sol (`weightShift`) : hanches en arrière = poids sur le tail.
+  - Le personnage (bonhomme bâton, tailles en fractions de `height`) est une POSE recalculée à chaque pas dans le repère de la
+    planche (cinématique inverse des jambes, hanches, buste, bras ; recalcul sauté si ses entrées n'ont pas changé), dessinée dans
+    `LateUpdate` (`DrawGeometry`) et servant de HITBOX par requêtes de recouvrement : tête / torse contre le décor (catégorie
+    `Skater.CategoryBit` exclue, verre jamais mortel), tous les membres contre les obstacles (test de boîte puis par membre).
+    Il ne pousse rien. Pendant une bascule voulue il garde le buste droit (`counterTilt`, plafond `maxCounterTilt`) ; sans
+    flèche, il suit la planche (son poids revient alors de lui-même vers le milieu).
+  - Flèches (`LevelInput`) : au sol, la planche pivote sur la roue qui reste au sol (rotation + montée / descente selon la
+    normale du sol, jamais de vitesse le long du sol) vers le tail (`StopAngle` + `tailPress` : une fois le tail posé, rotation
+    pure qui le presse, le frottement du plateau freine) ou vers le nose ; nose au sol + flèche avant tenue `noseFallTime`
+    (0,3 s) = chute. En l'air, rotation autour du centre de gravité commun personnage + planche (point balistique mémorisé au
+    décollage, la planche tourne autour), `airSpinSpeed`, freinée au relâchement.
+  - Mort : hitbox, planche contre un obstacle (événements de contact), nose tenu au sol, ou planche hors sol immobile
+    `stuckTime`. Le personnage devient alors un ragdoll (10 corps + charnières libres à frottement `deadJointFriction`) créé à
+    la pose actuelle avec la vitesse de la planche en chaque point ; la planche garde sa vitesse et ne porte plus que sa masse.
+    Empalement par les piques comme le blob. `Skater.Died` (focus caméra).
+  - `ICameraTarget` (torse de la pose), `ITrainingBody` (11 états : planche + membres de la pose, ou du ragdoll ; fantôme en
+    bonhomme bâton via `GhostShapeOf`).
+  Mesuré (PC, éditeur) : ≈ 4,5 µs par pas (pas complet ≈ 13 µs) ; restart, rejeu (d'un bloc, pas à pas, par paquets) et retour au
+  point du mode entraînement exacts au bit près. Parcours de `skate reboot` sans touche : vivant jusqu'au quarter ; kicker :
+  tape de 50 à 85 ms pour replaquer, salto arrière = appui de 0,4 à 0,6 s ; frein tenu : 17 → 4 m/s par le seul frottement ;
+  bumper : sous la planche il l'envoie à ≈ 5,5 m, trop tôt il fait mur.
+  Abandonné (version « tout physique » à ressorts) : trop mou au clavier ; équilibre actif par rotation imposée et frein assisté
+  (uncanny : debout au-dessus du vide, frein en tapotant). Limite actuelle : le corps traverse une vitre (seule la planche la brise).
+  Pas encore lus par `BoostZone`, `GadgetZone`, grappin, ni par la prédiction de casse de `GlassPane` (`BLOB.Active` seulement)
 - `CameraFollow` : caméra qui suit un GameObject (lissage, décalage, zone morte) ; rendu seulement, dans `LateUpdate`.
   Les Transform de BLOB/Ball2D ne bougent pas : elles exposent leur position physique via `ICameraTarget`.
-  À la casse du blob suivi : focus + zoom sur l'obstacle, ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
-  après `slowDuration`, dézoom sur place (toujours centré sur l'impact) jusqu'au redémarrage
+  À la casse du blob suivi : focus + zoom sur le point de contact avec l'obstacle (pas son centre), ralenti optionnel via `monde_settings.SetTimeScaleMultiplier` ;
+  après `slowDuration`, dézoom sur place (toujours centré sur l'impact) jusqu'au redémarrage.
+  Anticipation (`lookAhead`, cochée par défaut) : décalage dans le sens de la vitesse moyenne de la cible
+  (`ITrainingBody.GetBodyStates`) = (vitesse − `lookAheadDeadSpeed`) × `lookAheadTime`, plafonné (`lookAheadMaxDistance`, 3 m),
+  pondéré par axe (`lookAheadAxisWeight`, moins à la verticale). Vitesse lissée : inertie courte quand elle accélère, plus longue
+  quand elle ralentit / change de sens (`lookAheadReturnTime`) ; glissement plafonné (`lookAheadMaxShiftSpeed`). Au redémarrage
+  et au retour de sauvegarde, décalage et dézoom posés directement à leur valeur (pas de balayage).
+  Dézoom selon la vitesse (`speedZoom`, coché par défaut) : taille × 1 à `speedZoomMaxFactor` (1,3) entre `speedZoomStartSpeed`
+  (10 m/s) et `speedZoomFullSpeed` (30 m/s), dézoom en `speedZoomOutTime`, retour plus lent en `speedZoomInTime`
 - `SpeedMeter` : compteur de vitesse (km/h, case `useMph` pour les mph), coin haut droit. Vitesse = norme de la moyenne
   des vitesses des corps (`ITrainingBody.GetBodyStates`, rotation du blob ignorée) ; cible vide = cible de la `CameraFollow`
   principale, sinon premier BLOB. Affiché en IMGUI (`OnGUI`) : seule UI du projet pour l'instant, aucun asset ni Canvas
@@ -313,7 +363,7 @@ Scripts existants :
 - `TrainingMode` : S = point de sauvegarde (fantôme de chaque balle), Tab = dernier point pratiqué ; réappui dans `previousChainDelay`
   (0,5 s) = point précédent ; Shift = plus récent ; R = `LevelRestart.Restart()` entre deux pas (recommence le niveau et efface tous les points ; plus de script `RespawnOnKey`). 100 points max (le plus ancien saute).
   Balles suivies : tout `ITrainingBody` actif (`BLOB`, `Ball2D`), dans l'ordre de `LevelRestart.Physics` (hiérarchie) : fantôme
-  (`GhostShape`, cercle = capsule de longueur nulle) et état (`BodyState`) de chaque corps. : une Ball2D sert aussi aux tests
+  (`GhostShape`, cercle = capsule de longueur nulle ; `GhostShapeOf(i)` quand les corps diffèrent, ex. skateur) et état (`BodyState`) de chaque corps. : une Ball2D sert aussi aux tests
   `discardNewerOnSave` coché : sauvegarder après un retour efface les points suivants (ordre du niveau) ;
   décoché : tout est gardé, dans l'ordre de création.
   Édition du niveau (éditeur uniquement) : points gardés entre deux Play et à la fermeture de Unity
@@ -341,6 +391,10 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 - Pas de commentaires, sauf point vraiment non évident
 - Paramètres exposés : toujours `[Header]` + `[Tooltip]` (en français, précis sur l'effet et les unités),
   plus `[Min]` / `[Range]` quand pertinent
+- Vitesses linéaires exposées : stockées en m/s (unité du code et de Box2D), affichées et saisies en km/h dans l'inspecteur
+  grâce à `[SpeedKmh]` (`Core/SpeedKmhAttribute`, dessin `Editor/Core/SpeedKmhDrawer`, float ou Vector2, respecte `[Min]`) ;
+  le tooltip parle en km/h. Valeur réécrite seulement si on la modifie : sans effet sur la simulation. Pas pour les rotations
+  (°/s) ni les accélérations (m/s²)
 - Noms de variables et classes en anglais ; champs privés préfixés `_` (exception : les champs publics français de `Ball2D`/`monde_settings`, gardés pour ne pas perdre les valeurs)
 - Un script = une responsabilité ; ne pas renommer les champs publics existants (valeurs d'inspecteur perdues)
 - Maths avec `Unity.Mathematics` pour la physique ; dimensions en unités Unity : toujours préciser
@@ -351,6 +405,8 @@ Scripts de test (pas des éléments de jeu, mais doivent respecter les règles) 
 - Proposer un plan avant les changements importants
 - Réponses courtes : dire ce qui a été modifié, sans longs développements
 - Mettre à jour ce fichier quand une décision de projet est prise (vision, roadmap, conventions)
+- Problème de fond repéré (philosophie du jeu, game design, direction artistique, frustration du joueur), même s'il touche un
+  pilier : le signaler en quelques lignes avec une piste, sans bloquer ni retarder la tâche demandée (qui reste faite comme demandé)
 
 ## Éditeur Unity (CLI)
 - L'Éditeur ouvert est pilotable via le CLI `unity` (`unity status`, `unity list`, `unity command eval '...'`) :

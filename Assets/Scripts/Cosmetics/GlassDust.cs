@@ -10,7 +10,7 @@ public class GlassDust : MonoBehaviour
 {
     [Header("Quantité")]
     [Tooltip("Particules par m² de verre réduit en poussière. Repère : un éclat de 3 × 3 cm ≈ 0,001 m².\n" +
-             "Une vitre de 2 m × 8 cm traversée à 15 m/s donne ≈ 0,02 m² de poussière.")]
+             "Une vitre de 2 m × 8 cm traversée à 54 km/h donne ≈ 0,02 m² de poussière.")]
     [Min(0f)] public float particlesPerArea = 6000f;
     [Tooltip("Particules par éclat de poussière au minimum (un éclat visible même minuscule) et au maximum.")]
     public Vector2Int particlesPerShard = new Vector2Int(1, 14);
@@ -22,8 +22,8 @@ public class GlassDust : MonoBehaviour
     [Header("Mouvement")]
     [Tooltip("Part de la vitesse de l'éclat transmise à ses particules (1 = elles partent avec lui).")]
     [Range(0f, 2f)] public float inherit = 1f;
-    [Tooltip("Vitesse aléatoire ajoutée (m/s), dans toutes les directions : le nuage s'élargit.")]
-    [Min(0f)] public float scatter = 1.5f;
+    [Tooltip("Vitesse aléatoire ajoutée (km/h), dans toutes les directions : le nuage s'élargit.")]
+    [SpeedKmh] [Min(0f)] public float scatter = 1.5f;
     [Tooltip("Freinage dans l'air (1/s) : le nuage ralentit et reste en suspension. 0 = aucun.")]
     [Min(0f)] public float drag = 2.5f;
     [Tooltip("Multiplicateur de gravité des particules (1 = gravité du monde, 0 = flottent).")]
