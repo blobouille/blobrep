@@ -244,11 +244,13 @@ public class CameraFollow : MonoBehaviour
         return new Vector2(o.x * lookAheadAxisWeight.x, o.y * lookAheadAxisWeight.y);
     }
 
-    // Vitesse du centre de la cible : moyenne des corps d'un ITrainingBody (rotation du blob ignorée), sinon déplacement depuis l'image précédente.
+    // Vitesse du centre de la cible : celle donnée par son ICameraTarget (skateur : planche, que ses rotations ne changent pas),
+    // sinon moyenne des corps d'un ITrainingBody (rotation du blob ignorée), sinon déplacement depuis l'image précédente.
     bool TryGetTargetVelocity(out Vector2 velocity, float dt)
     {
         velocity = default;
         if (!TryGetTargetPosition(out var p)) return false;
+        if (_cameraTarget != null && _cameraTarget.TryGetCameraVelocity(out velocity)) return true;
         if (_trainingBody != null)
         {
             _trainingBody.GetBodyStates(_states);

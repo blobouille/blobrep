@@ -63,7 +63,15 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
     GizmoPickArea _pickArea;
 #endif
 
-    public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad)
+    // Le levier = cercle de base + un seul polygone arrondi (rayon du bout) qui fait le dessus, le dessous et le bout.
+    // Côté base, ce polygone est enfoncé de SeamInset dans le cercle : un coin de polygone posé sur le cercle était vu par
+    // Box2D comme un vrai coin (normale tournée vers l'arrière) et freinait / faisait pivoter une roue qui passait sur la base.
+    // Enfoncé au-delà de la distance de contact spéculatif de Box2D (0,02 m), il n'est jamais touché de l'extérieur.
+    const float SeamInset = 0.025f;
+
+    // 'quad' : bords visibles du dessus et du dessous (bas base, bas bout, haut bout, haut base) ; 'core' : sommets du polygone
+    // de collision, à arrondir de r2.
+    public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad, out Vector2[] core)
     {
         r1 = baseRadius * size;
         r2 = tipRadius * size;
@@ -71,17 +79,23 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
         c1 = Vector2.zero;
         c2 = new Vector2(L, 0f);
 
-        float s = (r1 - r2) / L;
+        float inset = Mathf.Clamp(SeamInset, 0f, 0.5f * Mathf.Max(0f, r1 - r2));
+        float R = r1 - inset;
+        float s = (R - r2) / L;
         float c = Mathf.Sqrt(Mathf.Max(0f, 1f - s * s));
 
         quad = new[]
         {
-            c1 + r1 * new Vector2(s, -c),
+            c1 + R * new Vector2(s, -c),
             c2 + r2 * new Vector2(s, -c),
             c2 + r2 * new Vector2(s,  c),
-            c1 + r1 * new Vector2(s,  c)
+            c1 + R * new Vector2(s,  c)
         };
+        core = new[] { c1 + (R - r2) * new Vector2(s, -c), c2, c1 + (R - r2) * new Vector2(s, c) };
     }
+
+    public void BuildShape(out Vector2 c1, out float r1, out Vector2 c2, out float r2, out Vector2[] quad) =>
+        BuildShape(out c1, out r1, out c2, out r2, out quad, out _);
 
     void OnEnable()
     {
@@ -131,10 +145,9 @@ public class PinballFlipper : MonoBehaviour, ILevelPhysics, ILevelTick
             _flipper.sleepingAllowed = false;
         }
 
-        BuildShape(out var c1, out var r1, out var c2, out var r2, out var quad);
+        BuildShape(out var c1, out var r1, out _, out var r2, out _, out var core);
         _flipper.CreateShape(new CircleGeometry { center = c1, radius = r1 });
-        _flipper.CreateShape(new CircleGeometry { center = c2, radius = r2 });
-        _flipper.CreateShape(PolygonGeometry.Create(quad));
+        _flipper.CreateShape(PolygonGeometry.Create(core, r2));
 
         if (_builtWithTorque)
         {

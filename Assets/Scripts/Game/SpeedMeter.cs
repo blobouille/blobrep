@@ -31,15 +31,18 @@ public class SpeedMeter : MonoBehaviour
     readonly List<BodyState> _states = new List<BodyState>();
     GameObject _cachedTarget;
     ITrainingBody _body;
+    ICameraTarget _cameraTarget;
     float _displayed;
     GUIStyle _style;
 
-    // Vitesse du centre de la balle en m/s : moyenne des vecteurs vitesse des capsules (la rotation du blob ne compte pas).
+    // Vitesse en m/s : celle donnée par l'ICameraTarget de la cible (skateur : planche, que ses rotations ne changent pas),
+    // sinon moyenne des vecteurs vitesse des corps (la rotation du blob ne compte pas).
     public float SpeedMetersPerSecond
     {
         get
         {
             var body = ResolveTarget();
+            if (_cameraTarget != null && _cameraTarget.TryGetCameraVelocity(out var velocity)) return velocity.magnitude;
             if (body == null) return 0f;
             body.GetBodyStates(_states);
             if (_states.Count == 0) return 0f;
@@ -58,6 +61,7 @@ public class SpeedMeter : MonoBehaviour
         {
             _cachedTarget = go;
             _body = go != null ? go.GetComponent<ITrainingBody>() : null;
+            _cameraTarget = go != null ? go.GetComponent<ICameraTarget>() : null;
         }
         return _body;
     }

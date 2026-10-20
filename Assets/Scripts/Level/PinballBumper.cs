@@ -93,11 +93,78 @@ public class PinballBumper : MonoBehaviour, ILevelPhysics, ILevelTick
     public void LevelTick()
     {
         if (!_body.isValid) return;
+        float dt = Time.fixedDeltaTime;
         float target = LevelInput.IsDown(key) ? travel : 0f;
-        float current = Vector2.Dot(_body.position - _rest, _direction);
-        float v = Mathf.Clamp((target - current) / Time.fixedDeltaTime, -speed, speed);
+        Vector2 position = _body.position;
+        float current = Vector2.Dot(position - _rest, _direction);
+        float v = Mathf.Clamp((target - current) / dt, -speed, speed);
+        if (v != 0f) KickBodiesInPath(position, _direction * v, dt);
         _body.linearVelocity = _direction * v;
     }
+
+    // Box2D ne voit un contact qu'à moins de 0,02 m et ne fait pas de collision continue contre un kinematic : à 0,46 m par
+    // pas, le bumper traversait la paroi du blob. Chaque corps dynamique qu'il atteindra pendant ce pas reçoit donc d'avance
+    // le choc d'un corps de masse infinie (sans rebond ni frottement) au point de contact : il part à la vitesse du bumper
+    // et reste devant lui. Indépendant de l'ordre des résultats de Box2D (extrêmes départagés par la position).
+    void KickBodiesInPath(Vector2 position, Vector2 velocity, float dt)
+    {
+        BuildShape(out var c1, out var c2, out var r);
+        var rot = _body.rotation;
+        var capsule = new CapsuleGeometry
+        {
+            center1 = position + new Vector2(rot.cos * c1.x - rot.sin * c1.y, rot.sin * c1.x + rot.cos * c1.y),
+            center2 = position + new Vector2(rot.cos * c2.x - rot.sin * c2.y, rot.sin * c2.x + rot.cos * c2.y),
+            radius = r
+        };
+        Vector2 move = velocity.normalized;
+        Vector2 bar = new Vector2(-_direction.y, _direction.x);
+        var hits = PhysicsWorld.defaultWorld.CastGeometry(capsule, velocity * dt, PhysicsQuery.QueryFilter.defaultFilter,
+                                                          PhysicsQuery.WorldCastMode.All, Unity.Collections.Allocator.Temp);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            var body = hits[i].shape.isValid ? hits[i].shape.body : default;
+            if (!body.isValid || body.type != PhysicsBody.BodyType.Dynamic || FirstHitOf(hits, body) != i) continue;
+
+            // Une seule poussée par corps : au milieu des deux points de contact extrêmes le long de la barre (planche à plat
+            // sur ses deux roues = translation pure, sans rotation parasite).
+            int lo = i, hi = i;
+            for (int j = i + 1; j < hits.Length; j++)
+            {
+                if (!hits[j].shape.isValid || hits[j].shape.body != body) continue;
+                if (Before(hits[j].point, hits[lo].point, bar)) lo = j;
+                if (Before(hits[hi].point, hits[j].point, bar)) hi = j;
+            }
+            Vector2 point = 0.5f * (hits[lo].point + hits[hi].point);
+            Vector2 normal = Outward(hits[lo].normal, move) + Outward(hits[hi].normal, move);
+            normal = normal.sqrMagnitude > 1e-8f ? normal.normalized : move;
+
+            float deficit = Vector2.Dot(velocity - body.GetWorldPointVelocity(point), normal);
+            if (deficit <= 0f) continue;
+            float arm = Cross(point - body.worldCenterOfMass, normal);
+            float inertia = body.rotationalInertia;
+            float k = 1f / body.mass + (inertia > 0f ? arm * arm / inertia : 0f);
+            body.ApplyLinearImpulse(normal * (deficit / k), point, true);
+        }
+        hits.Dispose();
+    }
+
+    static int FirstHitOf(Unity.Collections.NativeArray<PhysicsQuery.WorldCastResult> hits, PhysicsBody body)
+    {
+        for (int i = 0; i < hits.Length; i++)
+            if (hits[i].shape.isValid && hits[i].shape.body == body) return i;
+        return -1;
+    }
+
+    static bool Before(Vector2 a, Vector2 b, Vector2 axis)
+    {
+        float da = Vector2.Dot(a, axis), db = Vector2.Dot(b, axis);
+        return da != db ? da < db : a.x != b.x ? a.x < b.x : a.y < b.y;
+    }
+
+    // Normale du contact orientée dans le sens du mouvement (le signe rendu par le lancer n'est pas garanti).
+    static Vector2 Outward(Vector2 n, Vector2 move) => Vector2.Dot(n, move) < 0f ? -n : n;
+
+    static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
 
     void OnDrawGizmos()
     {

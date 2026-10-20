@@ -53,6 +53,13 @@ public class GrappleGadget : BlobGadget, ILevelPhysics, ILevelTick
     [Tooltip("NearestCapsule : la corde tire la capsule face au point (joint Box2D) ; le blob s'étire comme une balle tenue par un fil.\n" +
              "Center : la corde tire le centre du blob, répartie sur toutes les capsules ; le blob garde sa forme.")]
     public RopeAttach attach = RopeAttach.NearestCapsule;
+    [Tooltip("Mode Center. Décoché : toutes les capsules reçoivent la même correction de vitesse : le blob est tiré d'un bloc,\n" +
+             "sans se déformer (comme la gravité). Coché : la même quantité de mouvement au total, mais plus sur les capsules\n" +
+             "tournées vers le point d'accroche que sur celles de derrière : le blob s'étire vers le point.")]
+    public bool centerDeforms = false;
+    [Tooltip("Mode Center avec 'centerDeforms' : écart de traction entre l'avant et l'arrière du blob.\n" +
+             "0 = uniforme (comme décoché) ; 1 = les capsules de l'avant tirées 2× plus que la moyenne, celles de l'arrière plus du tout.")]
+    [Range(0f, 1f)] public float centerDeformAmount = 0.6f;
     [Tooltip("Rigid : corde de longueur max fixe (= distance au moment de l'accroche), molle si le blob se rapproche.\n" +
              "Elastic : ressort qui tire au-delà de sa longueur au repos, jamais ne pousse (voir « Corde élastique »).")]
     public RopeMode ropeMode = RopeMode.Rigid;
@@ -484,12 +491,38 @@ public class GrappleGadget : BlobGadget, ILevelPhysics, ILevelTick
         if (dv >= 0f) return;
 
         Vector2 delta = n * dv;
-        for (int i = 0; i < _blob.CapsuleCount; i++)
+        int count = _blob.CapsuleCount;
+        if (!centerDeforms || centerDeformAmount <= 0f)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var body = _blob.Capsule(i);
+                body.linearVelocity += delta;
+            }
+            return;
+        }
+
+        // Poids 1 + a × cos(angle entre la capsule et le point), ramenés à une moyenne de 1 : même élan total qu'uniforme.
+        if (_centerWeights == null || _centerWeights.Length < count) _centerWeights = new float[count];
+        float sum = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 r = _blob.Capsule(i).position - c;
+            float len = r.magnitude;
+            float w = 1f - centerDeformAmount * (len > 1e-5f ? Vector2.Dot(r / len, n) : 0f);
+            _centerWeights[i] = w;
+            sum += w;
+        }
+        if (sum <= 1e-5f) return;
+        float scale = count / sum;
+        for (int i = 0; i < count; i++)
         {
             var body = _blob.Capsule(i);
-            body.linearVelocity += delta;
+            body.linearVelocity += delta * (_centerWeights[i] * scale);
         }
     }
+
+    float[] _centerWeights;
 
     // Vitesse radiale max pour ne pas dépasser 'limit' au pas suivant (au-delà : retour progressif, moitié de l'écart par pas).
     static float LimitSpeed(float limit, float dist, float dt) => (dist <= limit ? limit - dist : 0.5f * (limit - dist)) / dt;

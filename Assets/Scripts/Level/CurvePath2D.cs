@@ -46,7 +46,7 @@ public class CurvePath2D : MonoBehaviour
     [Header("Échantillonnage (partagé aperçu / collision)")]
     [Tooltip("0 = approximation grossière (peu de points), 1 = très précis (beaucoup de points).\n" +
              "Les points sont toujours concentrés dans les virages ; les parties droites en ont très peu.")]
-    [Range(0f, 1f)] public float resolution = 0.65f;
+    [Range(0f, 1f)] public float resolution = 0.3f;
 
     [Tooltip("NETTOYAGE DES PARTIES DROITES (très important pour le nombre de points).\n\n" +
              "Après l'échantillonnage, on supprime tout point dont le retrait déplace la ligne de MOINS que cette valeur (en unités Unity).\n" +
