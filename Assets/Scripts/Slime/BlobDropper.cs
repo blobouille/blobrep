@@ -45,6 +45,9 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     [Header("Affichage")]
     [Tooltip("Coin haut gauche : nombre de blobs, de corps physiques, coût de la physique par pas et images par seconde.")]
     public bool showStats = true;
+    [Tooltip("Dessin de debug : slime à lâcher et suivant (cercles), zone de lâcher et ligne de visée.\n" +
+             "À décocher quand SlimeSkin dessine les slimes.")]
+    public bool debugDraw = true;
     public Color previewColor = new Color(1f, 1f, 1f, 0.5f);
     [Tooltip("Position de l'aperçu du slime suivant (celui d'après le prochain), en m par rapport à l'objet.")]
     public Vector2 nextPreviewOffset = new Vector2(6f, -2f);
@@ -66,6 +69,9 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
     int _spawned;
     GUIStyle _centered;
+
+    // Slime lâché et son niveau (pendant LevelTick : les effets s'en servent, sans écrire dans la simulation).
+    public event System.Action<BLOB, int> Dropped;
 
     public int Count => _blobs.Count;
     // Blobs vivants, dans l'ordre de création.
@@ -121,7 +127,8 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         _cooldown = dropInterval;
         if (template == null || (maxBlobs > 0 && _blobs.Count >= maxBlobs)) return;
-        SpawnLevel(DropPoint, _current);
+        var blob = SpawnLevel(DropPoint, _current);
+        Dropped?.Invoke(blob, _current);
         _current = _next;
         _next = RollLevel();
         float limit = HalfWidth(_current);
@@ -188,7 +195,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         Destroy(blob.gameObject);
     }
 
-    Vector2 DropPoint => (Vector2)transform.position + new Vector2(_offset, 0f);
+    public Vector2 DropPoint => (Vector2)transform.position + new Vector2(_offset, 0f);
 
     void Update()
     {
@@ -205,7 +212,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
     void LateUpdate()
     {
-        if (!Application.isPlaying || template == null) return;
+        if (!Application.isPlaying || template == null || !debugDraw) return;
         var world = PhysicsWorld.defaultWorld;
         DrawSlime(world, DropPoint, _current);
         DrawSlime(world, NextPreviewPoint, _next);
@@ -215,7 +222,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         world.DrawLine(DropPoint, DropPoint + Vector2.down * 30f, new Color(1f, 1f, 1f, 0.12f), 0f);
     }
 
-    Vector2 NextPreviewPoint => (Vector2)transform.position + nextPreviewOffset;
+    public Vector2 NextPreviewPoint => (Vector2)transform.position + nextPreviewOffset;
 
     void DrawSlime(PhysicsWorld world, Vector2 center, int level)
     {

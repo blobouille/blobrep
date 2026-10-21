@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 853983680}
   - component: {fileID: 853983679}
+  - component: {fileID: 853983681}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -202,6 +203,99 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &853983681
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 853983678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 1
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
+--- !u!1 &992879751
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 992879753}
+  - component: {fileID: 992879752}
+  m_Layer: 0
+  m_Name: "Effets \xE9cran"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &992879752
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 992879751}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
+  m_IsGlobal: 1
+  priority: 0
+  blendDistance: 0
+  weight: 1
+  sharedProfile: {fileID: 11400000, guid: 4d4fb562b48e8aa41b97d5acee0bcf9e, type: 2}
+--- !u!4 &992879753
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 992879751}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1427126411
 GameObject:
   m_ObjectHideFlags: 0
@@ -236,7 +330,7 @@ MonoBehaviour:
   simulationSubSteps: 5
   simulationWorkers: 1
   continuousAllowed: 1
-  drawOptions: 32
+  drawOptions: 2
 --- !u!4 &1427126413
 Transform:
   m_ObjectHideFlags: 0
@@ -335,6 +429,261 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1688171906
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1688171911}
+  - component: {fileID: 1688171910}
+  - component: {fileID: 1688171909}
+  - component: {fileID: 1688171908}
+  - component: {fileID: 1688171907}
+  m_Layer: 0
+  m_Name: Habillage
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1688171907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688171906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 158850958b763a544a29181b2be0f71f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeSound
+  dropper: {fileID: 1967278710}
+  skin: {fileID: 1688171909}
+  master: 0.8
+  dropVolume: 0.4
+  impactVolume: 0.6
+  mergeVolume: 0.85
+  comboVolume: 0.45
+  bigVolume: 0.7
+  semitonesPerLevel: 1.5
+  jitter: 0.7
+  stereo: 0.5
+  softImpact: 3.5
+  loudImpact: 10
+  boomLevel: 6
+  voices: 16
+--- !u!114 &1688171908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688171906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fefd63ce3bceed4c8cf4ec4c0d874be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeFx
+  dropper: {fileID: 1967278710}
+  skin: {fileID: 1688171909}
+  backdrop: {fileID: 1688171910}
+  shader: {fileID: 4800000, guid: 9c1c4961a3d70324d9240ae98291e320, type: 3}
+  droplets: 10
+  dropletSpeed: 5
+  sparkles: 5
+  ringSize: 2.6
+  shake: 0.35
+  slowMotionCombo: 4
+  slowMotionLevel: 9
+  slowMotionScale: 0.35
+  slowMotionTime: 0.7
+  bannerCombo: 2
+  confettiLevel: 5
+  splashSpeed: 4
+  aimDots: 1
+  aimLength: 14
+--- !u!114 &1688171909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688171906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e9c48a590c6abc4ab70672d322c35c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeSkin
+  dropper: {fileID: 1967278710}
+  shader: {fileID: 4800000, guid: f24393dc7f09b8e4d88a8ae3acee88b7, type: 3}
+  designs:
+  - name: Goutte
+    body: {r: 0.4, g: 0.8, b: 1, a: 1}
+    shade: {r: 0.13, g: 0.4, b: 0.85, a: 1}
+    accent: {r: 0.92, g: 0.98, b: 1, a: 1}
+    pattern: 1
+    accessory: 0
+    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
+    face: 0
+    blush: 1
+    glow: 0
+  - name: Menthe
+    body: {r: 0.38, g: 0.93, b: 0.74, a: 1}
+    shade: {r: 0.05, g: 0.56, b: 0.52, a: 1}
+    accent: {r: 0.8, g: 1, b: 0.9, a: 1}
+    pattern: 0
+    accessory: 1
+    accessoryColor: {r: 0.4, g: 0.82, b: 0.22, a: 1}
+    face: 4
+    blush: 1
+    glow: 0
+  - name: Petit pois
+    body: {r: 0.55, g: 0.88, b: 0.3, a: 1}
+    shade: {r: 0.2, g: 0.53, b: 0.15, a: 1}
+    accent: {r: 0.86, g: 1, b: 0.62, a: 1}
+    pattern: 2
+    accessory: 0
+    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
+    face: 0
+    blush: 1
+    glow: 0
+  - name: Citron
+    body: {r: 0.92, g: 0.97, b: 0.32, a: 1}
+    shade: {r: 0.5, g: 0.7, b: 0.08, a: 1}
+    accent: {r: 1, g: 1, b: 0.7, a: 1}
+    pattern: 3
+    accessory: 0
+    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
+    face: 3
+    blush: 0
+    glow: 0.8
+  - name: Miel
+    body: {r: 1, g: 0.78, b: 0.22, a: 1}
+    shade: {r: 0.85, g: 0.44, b: 0.04, a: 1}
+    accent: {r: 1, g: 0.94, b: 0.62, a: 1}
+    pattern: 4
+    accessory: 2
+    accessoryColor: {r: 0.32, g: 0.18, b: 0.08, a: 1}
+    face: 0
+    blush: 1
+    glow: 0.3
+  - name: Tigrou
+    body: {r: 1, g: 0.58, b: 0.18, a: 1}
+    shade: {r: 0.84, g: 0.28, b: 0.05, a: 1}
+    accent: {r: 0.4, g: 0.13, b: 0.04, a: 1}
+    pattern: 5
+    accessory: 3
+    accessoryColor: {r: 1, g: 0.55, b: 0.16, a: 1}
+    face: 1
+    blush: 0
+    glow: 0
+  - name: Braise
+    body: {r: 0.8, g: 0.17, b: 0.12, a: 1}
+    shade: {r: 0.34, g: 0.03, b: 0.06, a: 1}
+    accent: {r: 1, g: 0.72, b: 0.18, a: 1}
+    pattern: 6
+    accessory: 4
+    accessoryColor: {r: 0.3, g: 0.09, b: 0.09, a: 1}
+    face: 2
+    blush: 0
+    glow: 2.2
+  - name: Bonbon
+    body: {r: 1, g: 0.52, b: 0.76, a: 1}
+    shade: {r: 0.84, g: 0.2, b: 0.52, a: 1}
+    accent: {r: 1, g: 1, b: 1, a: 1}
+    pattern: 7
+    accessory: 5
+    accessoryColor: {r: 0.96, g: 0.2, b: 0.38, a: 1}
+    face: 0
+    blush: 1
+    glow: 0.8
+  - name: Cristal
+    body: {r: 0.74, g: 0.38, b: 0.96, a: 1}
+    shade: {r: 0.35, g: 0.1, b: 0.66, a: 1}
+    accent: {r: 0.86, g: 0.97, b: 1, a: 1}
+    pattern: 8
+    accessory: 6
+    accessoryColor: {r: 0.62, g: 0.92, b: 1, a: 1}
+    face: 3
+    blush: 0
+    glow: 0.7
+  - name: "N\xE9buleuse"
+    body: {r: 0.3, g: 0.25, b: 0.8, a: 1}
+    shade: {r: 0.08, g: 0.05, b: 0.32, a: 1}
+    accent: {r: 1, g: 0.55, b: 0.92, a: 1}
+    pattern: 9
+    accessory: 7
+    accessoryColor: {r: 1, g: 0.9, b: 0.55, a: 1}
+    face: 4
+    blush: 0
+    glow: 1.2
+  - name: Roi
+    body: {r: 0.98, g: 0.98, b: 1, a: 1}
+    shade: {r: 0.55, g: 0.45, b: 0.9, a: 1}
+    accent: {r: 1, g: 1, b: 1, a: 1}
+    pattern: 10
+    accessory: 8
+    accessoryColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+    face: 5
+    blush: 1
+    glow: 0.5
+  outlineSamples: 72
+  pixelsPerSample: 6
+  outlineWidth: 0.05
+  faceSize: 1.15
+  faceShrink: 0.35
+  uprightTime: 0.8
+  blinkInterval: 3.5
+  watchDrop: 1
+  impactSpeed: 2.5
+  fallSpeed: 5
+  happyTime: 1.6
+  curiosity: 2
+  drawPreviews: 1
+  gallery: 1
+  galleryInPlay: 0
+  galleryOrigin: {x: -17, y: 15}
+  galleryWidth: 12
+--- !u!114 &1688171910
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688171906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4563de66d4e10da40a0abdcf59e841af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeBackdrop
+  backdropShader: {fileID: 4800000, guid: 4d8970c728116d2448020de61feb4ff5, type: 3}
+  top: {r: 0.17, g: 0.11, b: 0.34, a: 1}
+  bottom: {r: 0.04, g: 0.13, b: 0.22, a: 1}
+  bokeh: {r: 0.55, g: 0.8, b: 1, a: 0.07}
+  pulseTime: 0.6
+  reservoir: {fileID: 1593634472}
+  glassShader: {fileID: 4800000, guid: 9c1c4961a3d70324d9240ae98291e320, type: 3}
+  glass: {r: 0.75, g: 0.92, b: 1, a: 0.9}
+  glassBack: {r: 0.55, g: 0.8, b: 1, a: 0.035}
+--- !u!4 &1688171911
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1688171906}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1700390678
 GameObject:
   m_ObjectHideFlags: 0
@@ -418,7 +767,7 @@ MonoBehaviour:
   template: {fileID: 2014553905}
   maxBlobs: 0
   seed: 1
-  maxDropLevel: 3
+  maxDropLevel: 4
   smallBias: 0
   halfWidth: 3.4
   moveSpeed: 5
@@ -427,6 +776,7 @@ MonoBehaviour:
   leftKey: 0
   rightKey: 1
   showStats: 1
+  debugDraw: 0
   previewColor: {r: 1, g: 1, b: 1, a: 0.5}
   nextPreviewOffset: {x: 6, y: -2}
 --- !u!4 &1967278711
@@ -457,10 +807,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlobFusion
   growth: 1.3
-  maxSides: 32
+  maxSides: 24
   maxLevel: 10
   sizeStiffness: 1
-  mergeTime: 0.3
+  mergeTime: 0.2
   mergeCurve:
     serializedVersion: 2
     m_Curve:
@@ -560,18 +910,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d959d9bbdd123f4383e516f3374a45b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BLOB
-  sides: 32
+  sides: 3
   diameter: 1
   debugColor: {r: 0, g: 1, b: 1, a: 1}
   capsuleRadius: 0.5
   capsuleSpacing: 0
   density: 1
-  jointFrequency: 64
+  jointFrequency: 0
   jointDamping: 10
-  jointLinearFrequency: 64
+  jointLinearFrequency: 0
   jointLinearDamping: 10
   friction: 0.03
-  bounciness: 0.5
+  bounciness: 0
   fastCollisions: 0
   heavyKey: 3
   heavyGravity: 3
@@ -603,3 +953,5 @@ SceneRoots:
   - {fileID: 2014553906}
   - {fileID: 1967278711}
   - {fileID: 1700390680}
+  - {fileID: 1688171911}
+  - {fileID: 992879753}

@@ -65,7 +65,10 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    inchangé : c'est un ratio sans unité, garder le même ratio garde la similitude. Mesurer au repos COMPLET : un gros blob
    oscille plus lentement (temps × √taille), à 3 s il bougeait encore (faux écart de 3 %). Exact seulement à nombre de
    capsules égal (modèle à 16 : la 1re fusion passe à 32, plus souple).
-   À revoir : ceux du bas de la pile s'aplatissent ; surface (et
+   À revoir : lâcher en rafale (Espace tenu, un lâcher toutes les 0,3 s) fait naître le slime DANS le précédent (tombé de
+   0,7 m seulement) : anneaux enchevêtrés pour de bon (mesuré : capsules qui se chevauchent de 0,39 m, dès le 3e lâcher,
+   sans aucune fusion ; très visible avec l'habillage). Piste : ne lâcher que quand le précédent a libéré la place (test
+   de distance dans LevelTick, déterministe) ; ceux du bas de la pile s'aplatissent ; surface (et
    masse) du blob fusionné = 2 × celle des deux blobs réunis (conserver la matière = diamètre ×1,41)
    Suite, aperçu, points (2026-10-21) : niveaux définis à un seul endroit (`BlobFusion.LevelDiameter / LevelSides /
    LevelColor / LevelStiffness`, diamètre calculé pareil pour lâchés et fusionnés : égal au bit près,
@@ -87,7 +90,21 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    enfermé, identique au bit près sur 3 essais
 2. Choisir la représentation des slimes selon les mesures (blob actuel allégé / anneau simple / cercle + gélatine visuelle)
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
-4. Sensation (gélatine, sons, effets), puis idées retenues une par une
+4. Sensation (gélatine, sons, effets), puis idées retenues une par une. Commencé (2026-10-22), objet « Habillage » de
+   `Slime/reservoir` :
+   - `SlimeSkin` : un design par niveau (11, inspirés de Slime Rancher sans copie : Goutte, Menthe, Petit pois, Citron, Miel,
+     Tigrou, Braise, Bonbon, Cristal, Nébuleuse, Roi ; couleurs dans l'ordre du dégradé de BlobFusion) = couleurs, motif,
+     accessoire, style de visage, lueur. La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
+     dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
+     regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
+     éclair blanc et accessoires qui poussent à la naissance. Vitrine des designs dans la Scene view
+   - `SlimeFx` : fusion = halo, onde lumineuse, gouttes de gelée, étincelles ; plus fort avec le niveau et la chaîne :
+     tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
+     éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
+   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son
+   - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
+     1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
+     bit près (5 875 pas, 17 fusions, même score)
 
 Garder cette section à jour quand une étape avance ou que la vision du jeu se précise.
 
@@ -154,7 +171,10 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
 - `Scripts/Game/` : `CameraFollow`, `SpeedMeter`, `TrainingMode` (points de sauvegarde exacts, S / Tab / R)
 - `Scripts/Skater/` : skateur (abandonné)
 - `Scripts/Slime/` : le nouveau jeu. `BlobDropper` (lâcher, suite aléatoire, aperçu ; possède la liste des blobs et leur
-  pas), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `BlobFusion.Merged`), `SlimeEscape` (sort les slimes enfermés dans un autre).
+  pas ; événement `Dropped`), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `Scored`
+  après chaque fusion comptée), `SlimeEscape` (sort les slimes enfermés dans un autre).
+- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound`) ; ils mettent
+  les événements de la simulation en file et ignorent le rejeu accéléré. `SlimeSkin.Impact` = chocs (vus à l'affichage)
   Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
 - Scènes : `Assets/Scenes/Slime/` (nouveau jeu), le reste = bancs de test hérités
 
@@ -171,8 +191,19 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   (tout corps créé hors d'un `ILevelPhysics` empêche la remise à zéro du monde)
 
 ## Rendu
-- Pour l'instant : rendu debug de la physique (`drawOptions`) et `PhysicsWorld.Draw…`. L'esthétique viendra après la sensation
-- AUCUN mesh, sprite (exceptions : `GizmoPickArea` éditeur ; `ParticleSystem` des effets de `Cosmetics/`)
+- Habillage (décision du 2026-10-22) : maillages procéduraux reconstruits à chaque image par `Cosmetics/` (`SlimeSkin`,
+  `SlimeFx`, `SlimeBackdrop`), dessinés par `Graphics.RenderMesh` pour chaque caméra ; shaders `Assets/Shaders/`
+  (`Slime/Body`, `Slime/Fx`, `Slime/Backdrop`). Ordre de dessin par file de rendu : fond 2900, vitre 2950, slimes 3000,
+  parois 3010, effets 3020. Lueur : couleurs > 1 + bloom (volume « Effets écran », profil `Settings/Slime Volume`)
+- Toujours aucun sprite ni texture importée : formes, motifs et visages calculés (distances signées dans le shader)
+- Dessin debug de la physique : `monde_settings.drawOptions` (formes sélectionnées seulement) et `BlobDropper.debugDraw`
+
+## Son
+- Procédural (décision du 2026-10-22) : `SlimeSound` calcule tous les sons au lancement à partir de formules, aucun fichier
+  audio. Lâcher = « plop » ; choc = « splotch » (volume selon la vitesse perdue, silencieux sous 3,5 m/s) ; fusion = « bloup »
+  plus grave pour les gros + cloche dont la note monte à chaque maillon (gamme pentatonique) ; grondement (niveau 6+),
+  paillettes (chaîne de 3+), fanfare (record dès le niveau 4, niveau max). Hauteur variée au hasard, son placé gauche / droite
+- Je ne peux pas écouter : les réglages se font à l'oreille par l'utilisateur (volumes, `semitonesPerLevel`, `jitter`…)
 
 ## Déterminisme
 - Pas de `Random` sans graine fixe explicite

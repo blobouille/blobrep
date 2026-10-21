@@ -33,6 +33,20 @@ public class SlimeScore : MonoBehaviour, ILevelPhysics
     int _lastMergeStep = int.MinValue;
     readonly List<Popup> _popups = new List<Popup>();
     GUIStyle _scoreStyle, _smallStyle, _popupStyle;
+    float _shownScore, _bump;
+    int _lastShown;
+
+    public struct Hit
+    {
+        public BLOB blob;
+        public int level, points, combo;
+        public Vector2 position;
+        public bool record; // plus gros niveau atteint jusqu'ici dans la partie
+    }
+
+    // Chaque fusion comptée (pendant LevelTick, après mise à jour du score) : effets et sons s'en servent, sans écrire dans la
+    // simulation. Aussi pendant le rejeu accéléré (LevelSimulation.FastForwarding) : à ignorer côté effets.
+    public event System.Action<Hit> Scored;
 
     public int Score { get; private set; }
     public int Combo { get; private set; }
@@ -66,7 +80,9 @@ public class SlimeScore : MonoBehaviour, ILevelPhysics
         points = points * (100 + (Combo - 1) * comboPercent) / 100;
         Score += points;
         if (Score > Best) Best = Score;
-        if (level > BiggestLevel) BiggestLevel = level;
+        bool record = level > BiggestLevel;
+        if (record) BiggestLevel = level;
+        Scored?.Invoke(new Hit { blob = merged, level = level, points = points, combo = Combo, position = position, record = record });
 
         if (LevelSimulation.FastForwarding) return;
         _popups.Add(new Popup
@@ -85,9 +101,23 @@ public class SlimeScore : MonoBehaviour, ILevelPhysics
         _scoreStyle ??= new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperRight };
         _popupStyle ??= new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
 
+        // Score qui défile jusqu'à sa valeur, avec un rebond à chaque gain.
+        if (Event.current.type == EventType.Repaint)
+        {
+            float dt = Time.unscaledDeltaTime;
+            _shownScore = Score < _shownScore ? Score : Mathf.MoveTowards(_shownScore, Score, Mathf.Max(30f, (Score - _shownScore) * 6f) * dt);
+            if (Score > _lastShown) _bump = 1f;
+            _lastShown = Score;
+            _bump = Mathf.Max(0f, _bump - dt * 3f);
+        }
+        float bump = 1f + 0.25f * _bump * _bump;
         var area = new Rect(Screen.width - 330f, 10f, 320f, 44f);
-        GUI.Label(area, Score.ToString("N0"), _scoreStyle);
+        var saved = GUI.matrix;
+        GUIUtility.ScaleAroundPivot(new Vector2(bump, bump), new Vector2(area.xMax, area.center.y));
+        Outlined(area, Mathf.RoundToInt(_shownScore).ToString("N0"), _scoreStyle, Color.Lerp(Color.white, new Color(1f, 0.9f, 0.4f), _bump), 1f, 2.5f);
+        GUI.matrix = saved;
         _smallStyle ??= new GUIStyle(_scoreStyle) { fontSize = 14, fontStyle = FontStyle.Normal };
+        _smallStyle.normal.textColor = new Color(1f, 1f, 1f, 0.85f);
         GUI.Label(new Rect(Screen.width - 330f, 54f, 320f, 22f), $"Meilleur : {Best:N0}   Plus gros : niveau {BiggestLevel}", _smallStyle);
 
         var cam = Camera.main;
@@ -97,16 +127,24 @@ public class SlimeScore : MonoBehaviour, ILevelPhysics
             var p = _popups[i];
             float age = (Time.time - p.born) / popupTime;
             if (age >= 1f || age < 0f) { _popups.RemoveAt(i); continue; }
-            Vector3 s = cam.WorldToScreenPoint(p.position + Vector2.up * (1.5f * age));
-            _popupStyle.fontSize = Mathf.RoundToInt(p.size * (1f + 0.3f * Mathf.Max(0f, 1f - 6f * age)));
-            var color = p.color;
-            color.a = 1f - age * age;
-            var shadow = new Color(0f, 0f, 0f, color.a * 0.7f);
+            Vector3 s = cam.WorldToScreenPoint(p.position + Vector2.up * (1.5f * (1f - (1f - age) * (1f - age))));
+            float pop = age < 0.1f ? Mathf.Lerp(0.3f, 1.35f, age / 0.1f) : 1f + 0.35f * Mathf.Exp(-(age - 0.1f) * 12f);
+            _popupStyle.fontSize = Mathf.RoundToInt(p.size * pop);
             var rect = new Rect(s.x - 150f, Screen.height - s.y - 30f, 300f, 60f);
-            _popupStyle.normal.textColor = shadow;
-            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), p.text, _popupStyle);
-            _popupStyle.normal.textColor = color;
-            GUI.Label(rect, p.text, _popupStyle);
+            Outlined(rect, p.text, _popupStyle, Color.Lerp(p.color, Color.white, 0.25f), 1f - age * age * age, 2f);
         }
+    }
+
+    static void Outlined(Rect r, string text, GUIStyle style, Color color, float alpha, float width)
+    {
+        style.normal.textColor = new Color(0.08f, 0.04f, 0.12f, alpha * 0.9f);
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * Mathf.PI / 4f;
+            GUI.Label(new Rect(r.x + Mathf.Cos(a) * width, r.y + Mathf.Sin(a) * width + 1f, r.width, r.height), text, style);
+        }
+        color.a = alpha;
+        style.normal.textColor = color;
+        GUI.Label(r, text, style);
     }
 }

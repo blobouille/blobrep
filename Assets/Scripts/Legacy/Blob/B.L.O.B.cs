@@ -186,6 +186,8 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
 
     // Épaisseur réelle des capsules (rayon, en m) au repos.
     public float CapsuleThickness => CapsuleWorldRadius;
+    // Rayon actuel des capsules (m) : celui du repos, ou celui donné par SetCapsuleRadius (fusion en cours).
+    public float CapsuleRadius => _capsuleRadius;
 
     // Raideur en flexion des joints en fraction de 'jointFrequency' (1 = réglage). Jamais 0 (= rigide pour Box2D).
     public void SetBendStiffness(float scale)
