@@ -71,7 +71,13 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
     public static IReadOnlyList<BLOB> Active => _active;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void ClearActive() => _active.Clear();
+    static void ClearActive()
+    {
+        _active.Clear();
+        _groupCounter = 0;
+    }
+
+    static int _groupCounter;
 
     NativeList<PhysicsBody> _bodies;
     // _joints[i] relie la capsule i-1 à la capsule i.
@@ -82,6 +88,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
     int[] _touches;       // contacts touchants de chaque capsule, toutes formes confondues
     float[] _stretch;     // allongement de chaque capsule (SetCapsuleStretch)
     float[] _shapeStretch; // allongement de sa forme (suit par pas)
+    float _capsuleRadius;  // rayon actuel des formes (SetCapsuleRadius)
     int _touchingCapsules;
     int _eventsStep = -1;
 
@@ -140,6 +147,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
                 var geometry = CapsuleShape;
                 geometry.center1 = new Vector2(0f, -0.5f * (CapsuleLength + extra));
                 geometry.center2 = new Vector2(0f, 0.5f * (CapsuleLength + extra));
+                geometry.radius = _capsuleRadius;
                 shape.capsuleGeometry = geometry;
             }
         }
@@ -152,6 +160,38 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
             joint.localAnchorA = new PhysicsTransform(new Vector2(0f, 0.5f * (SegmentLength + _stretch[prev])),
                 bendJ == 0f ? PhysicsRotate.identity : PhysicsRotate.FromRadians(bendJ));
             joint.localAnchorB = new Vector2(0f, -0.5f * (SegmentLength + _stretch[j]));
+        }
+    }
+
+    // Blob propriétaire d'une forme (null si ce n'est pas une capsule de blob ou si elle est détruite).
+    public static BLOB FromShape(PhysicsShape shape) => shape.isValid ? shape.userData.objectValue as BLOB : null;
+
+    // Épaisseur réelle des capsules (rayon, en m) au repos.
+    public float CapsuleThickness => CapsuleWorldRadius;
+
+    // Raideur en flexion des joints en fraction de 'jointFrequency' (1 = réglage). Jamais 0 (= rigide pour Box2D).
+    public void SetBendStiffness(float scale)
+    {
+        for (int j = 0; j < _joints.Length; j++)
+        {
+            PhysicsFixedJoint joint = _joints[j];
+            if (joint.isValid) joint.angularFrequency = jointFrequency * scale;
+        }
+    }
+
+    // Rayon des capsules (m), allongements gardés. Reconstruit leurs contacts : à éviter à chaque pas. Masse inchangée.
+    public void SetCapsuleRadius(float radius)
+    {
+        _capsuleRadius = radius;
+        for (int i = 0; i < _shapes.Length; i++)
+        {
+            var shape = _shapes[i];
+            if (!shape.isValid) continue;
+            var geometry = CapsuleShape;
+            geometry.center1 = new Vector2(0f, -0.5f * (CapsuleLength + _shapeStretch[i]));
+            geometry.center2 = new Vector2(0f, 0.5f * (CapsuleLength + _shapeStretch[i]));
+            geometry.radius = radius;
+            shape.capsuleGeometry = geometry;
         }
     }
 
@@ -481,7 +521,9 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         var filter = shapeDef.contactFilter;
         filter.categories = new PhysicsMask { bitMask = 1UL << CategoryBit };
         filter.contacts = new PhysicsMask { bitMask = ~(1UL << GlassPane.LooseFragmentBit) };
-        filter.groupIndex = -1; // négatif : les capsules d'un même blob ne collisionnent pas entre elles
+        // Négatif : les capsules d'un même blob ne collisionnent pas entre elles. Un groupe par blob (avant : -1 pour tous,
+        // deux blobs se traversaient). Seule l'égalité compte : la valeur ne change pas la simulation.
+        filter.groupIndex = -(++_groupCounter);
         shapeDef.contactFilter = filter;
         shapeDef.contactEvents = true;
 
@@ -490,6 +532,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         _touches = new int[sides];
         _stretch = new float[sides];
         _shapeStretch = new float[sides];
+        _capsuleRadius = CapsuleWorldRadius;
         _touchingCapsules = 0;
         _eventsStep = LevelSimulation.Step; // événements encore en attente : ceux des anciennes capsules
         Generation++;
@@ -501,6 +544,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
 
             var body = world.CreateBody(bodyDef);
             _shapes[i] = body.CreateShape(capsule, shapeDef);
+            _shapes[i].userData = new PhysicsUserData { objectValue = this };
             _bodies.Add(body);
         }
 
