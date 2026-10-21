@@ -3,7 +3,8 @@
 JEU DE SLIMES (décision du 2026-10-21) : jeu mobile en écran VERTICAL, autour de slimes mous qu'on prend plaisir à voir
 tomber, s'écraser, trembler et fusionner. Point de départ du gameplay : un « Suika » (jeu de la pastèque) de slimes : on lâche
 des slimes dans un réservoir, deux slimes de même couleur qui se touchent fusionnent en un plus gros (« division cellulaire à
-l'envers »), la partie s'arrête quand ça déborde. Très simple, très addictif, très satisfaisant. Le cœur de jeu définitif
+l'envers »). Déborder n'est PAS la fin (décision du 2026-10-21) : on peut empiler au-dessus du bord jusqu'au bout ; on PERD
+quand un slime tombe hors du réservoir. Très simple, très addictif, très satisfaisant. Le cœur de jeu définitif
 n'est PAS encore décidé : on prototype d'abord la sensation.
 
 Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers, puis un skateur (abandonnés). Tout cet état
@@ -18,6 +19,10 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
 - Performance cruciale, mobile d'abord : beaucoup de slimes à l'écran sans ralentir
 
 ## Idées retenues (À VALIDER en jeu, rien n'est décidé)
+- Format « niveau » façon campagne Candy Crush / Block Blast (une partie à la Suika, sans fin, jugée bien trop longue) :
+  1 min 30 à 2 min 30 par niveau, bornée par un NOMBRE DE LÂCHERS (≈ 30 à 3–4 s chacun), objectif de points à 1–3 étoiles
+  (les chaînes = la 3e étoile), suite à graine fixe par niveau (seuils calés sur des parties réelles) ; perdre = un slime
+  tombe du réservoir. Points restants comptés dès le dernier lâcher posé
 - Tenir avant de lâcher : le slime se comprime, puis rebondit ou s'étale (compétence sans complexité)
 - Secouer le réservoir : ressource rare (2–3 par partie, rechargée par les grosses fusions), toute la pile tremble et se
   débloque ; entrée enregistrée comme les autres (déterministe)
@@ -45,14 +50,41 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    et pas à pas). Corrigé au passage : tous les blobs avaient le même groupe de collision (−1) et se traversaient ; un groupe
    négatif par blob maintenant (`BLOB._groupCounter`)
    Fusion (2026-10-21, `BlobFusion` sur `Lâcher`) : deux blobs de même taille qui se touchent → un blob ×2 en diamètre
-   (`growth`), capsules doublées jusqu'à 32, couleur par niveau, `maxLevel` = 2 par défaut (sans limite : blobs de 8 puis 16 m
+   (`growth`), capsules doublées jusqu'à 32, couleur par niveau (dégradé de 10 teintes depuis le cyan du modèle : vert, jaune, orange, rouge, rose, violet),
+   `maxLevel` = 10 par défaut. Taille LINÉAIRE depuis le 2026-10-21 (exponentielle avant, jugée trop rapide) : diamètre du
+   niveau n = modèle × (1 + (`growth` − 1) × n) ; avec `growth` 1,37 : 1 ; 1,37 ; 1,74… ; 4,7 m au niveau 10 (tient dans le
+   réservoir de 8 m ; en exponentiel, 1,25 donnait déjà 9,3 m). Historique de l'exponentiel (sans limite : blobs de 8 puis 16 m
    dans le réservoir de 8 m, éjectés à 200 m/s). Mitose à l'envers : nouvel anneau posé sur une cacahuète (union adoucie des
    deux cercles, col `waist`) TENUE par l'anneau (`SetShape` : angles de repos des joints = angles de la cacahuète − 2π/m,
    capsules allongées à son périmètre), puis ramenée au cercle en `mergeTime` selon `mergeCurve` ; capsules qui s'épaississent.
    Avant : laissée s'arrondir seule = quasi instantané, et avec `growth` < 2 les joints contractaient le périmètre d'un coup. Écarté : recoudre les capsules réelles des deux anneaux (un blob écrasé par sa chute se replie,
    l'anneau recousu se croise en 8 et y reste bloqué). Rejeu exact au bit près (d'un bloc et pas à pas, 33 fusions).
-   À revoir : les gros blobs (32 capsules, mêmes joints) sont bien plus mous, ceux du bas de la pile s'aplatissent ; surface (et
+   Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
+   blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
+   ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement
+   inchangé : c'est un ratio sans unité, garder le même ratio garde la similitude. Mesurer au repos COMPLET : un gros blob
+   oscille plus lentement (temps × √taille), à 3 s il bougeait encore (faux écart de 3 %). Exact seulement à nombre de
+   capsules égal (modèle à 16 : la 1re fusion passe à 32, plus souple).
+   À revoir : ceux du bas de la pile s'aplatissent ; surface (et
    masse) du blob fusionné = 2 × celle des deux blobs réunis (conserver la matière = diamètre ×1,41)
+   Suite, aperçu, points (2026-10-21) : niveaux définis à un seul endroit (`BlobFusion.LevelDiameter / LevelSides /
+   LevelColor / LevelStiffness`, diamètre calculé pareil pour lâchés et fusionnés : égal au bit près,
+   c'est ce qui reconnaît deux slimes de même niveau). `BlobDropper` : suite aléatoire à graine fixe (`seed`, xorshift32 en
+   entiers, tirée au départ et à chaque lâcher dans `LevelTick` ; pas `UnityEngine.Random`), niveaux 0 à `maxDropLevel` (3),
+   `smallBias` pour favoriser les petits ; slime à lâcher dessiné au point de lâcher + « Suivant » à côté ; zone de lâcher
+   réduite pour les gros (leur bord s'arrête au même endroit). `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
+   n(n+1)/2, fusions à moins de `comboWindow` (1,2 s, en pas de simulation) l'une de l'autre = chaîne, + `comboPercent` (50 %)
+   par maillon ; points qui s'envolent (OnGUI, pas pendant le rejeu accéléré), score / meilleur / plus gros niveau. Vérifié :
+   partie scriptée de 3600 pas (22 fusions, chaîne ×6, 2 735 points) identique au bit près, score compris, sur 3 essais
+   (2 d'un bloc, 1 pas à pas) ; 4000 tirages ≈ 25 % par niveau
+   Slimes enfermés (`SlimeEscape`, 2026-10-21) : un slime qui fusionne démarre sur une cacahuète tracée sur des cercles
+   idéaux, plus gros que des slimes écrasés dans la pile ; il peut chevaucher la membrane d'un voisin et Box2D le pousse
+   DEDANS (reproduit : deux niveau 1 contre un niveau 5 → le niveau 2 né à l'intérieur, et il y restait même après que le
+   gros a refusionné). Détection pendant `mergeTime` + `watchTime` après chaque fusion (centre du petit dans le polygone des
+   capsules du gros, tri grossier par une capsule) ; sortie : le petit prend le groupe de collision du gros
+   (`BLOB.SetCollisionGroup`, il traverse sa membrane et touche tout le reste), poussé à `escapeSpeed` vers l'extérieur et le
+   haut, groupe rendu dès qu'il est dégagé. Vérifié : partie en rafale de 3600 pas (65 fusions, 1 sortie), plus aucun slime
+   enfermé, identique au bit près sur 3 essais
 2. Choisir la représentation des slimes selon les mesures (blob actuel allégé / anneau simple / cercle + gélatine visuelle)
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
 4. Sensation (gélatine, sons, effets), puis idées retenues une par une
@@ -121,7 +153,8 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   piques, scies), `MovingPath`, `BoostZone`, gadgets (grappin), vitre destructible `GlassPane`
 - `Scripts/Game/` : `CameraFollow`, `SpeedMeter`, `TrainingMode` (points de sauvegarde exacts, S / Tab / R)
 - `Scripts/Skater/` : skateur (abandonné)
-- `Scripts/Slime/` : le nouveau jeu. `BlobDropper` (lâcher, possède la liste des blobs et leur pas), `BlobFusion` (fusion).
+- `Scripts/Slime/` : le nouveau jeu. `BlobDropper` (lâcher, suite aléatoire, aperçu ; possède la liste des blobs et leur
+  pas), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `BlobFusion.Merged`), `SlimeEscape` (sort les slimes enfermés dans un autre).
   Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
 - Scènes : `Assets/Scenes/Slime/` (nouveau jeu), le reste = bancs de test hérités
 

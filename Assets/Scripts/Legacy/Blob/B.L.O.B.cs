@@ -89,6 +89,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
     float[] _stretch;     // allongement de chaque capsule (SetCapsuleStretch)
     float[] _shapeStretch; // allongement de sa forme (suit par pas)
     float _capsuleRadius;  // rayon actuel des formes (SetCapsuleRadius)
+    int _group;
     int _touchingCapsules;
     int _eventsStep = -1;
 
@@ -165,6 +166,23 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
 
     // Blob propriétaire d'une forme (null si ce n'est pas une capsule de blob ou si elle est détruite).
     public static BLOB FromShape(PhysicsShape shape) => shape.isValid ? shape.userData.objectValue as BLOB : null;
+
+    // Groupe de collision (négatif : ses capsules ne se touchent pas entre elles). Donner à un blob le groupe d'un autre = ils se
+    // traversent (sortir un slime enfermé dans un autre) ; OwnGroup = le sien.
+    public int OwnGroup => _group;
+
+    public void SetCollisionGroup(int group)
+    {
+        for (int i = 0; i < _shapes.Length; i++)
+        {
+            var shape = _shapes[i];
+            if (!shape.isValid) continue;
+            var filter = shape.contactFilter;
+            if (filter.groupIndex == group) continue;
+            filter.groupIndex = group;
+            shape.contactFilter = filter;
+        }
+    }
 
     // Épaisseur réelle des capsules (rayon, en m) au repos.
     public float CapsuleThickness => CapsuleWorldRadius;
@@ -523,7 +541,8 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
         filter.contacts = new PhysicsMask { bitMask = ~(1UL << GlassPane.LooseFragmentBit) };
         // Négatif : les capsules d'un même blob ne collisionnent pas entre elles. Un groupe par blob (avant : -1 pour tous,
         // deux blobs se traversaient). Seule l'égalité compte : la valeur ne change pas la simulation.
-        filter.groupIndex = -(++_groupCounter);
+        _group = -(++_groupCounter);
+        filter.groupIndex = _group;
         shapeDef.contactFilter = filter;
         shapeDef.contactEvents = true;
 

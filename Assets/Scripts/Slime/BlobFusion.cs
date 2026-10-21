@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.U2D.Physics;
 using UnityEngine;
 
-// Fusion des slimes : deux blobs de même taille qui se touchent deviennent un seul blob 'growth' fois plus large.
+// Fusion des slimes : deux blobs de même taille qui se touchent deviennent un seul blob du niveau suivant (taille linéaire).
 // Mitose à l'envers : un seul anneau remplace les deux, posé en cacahuète sur eux et tenu dans cette forme par les angles de
 // repos de ses joints, ramenés vers le cercle en 'mergeTime' : le col s'ouvre, les bouts rentrent, les capsules s'épaississent.
 // Contacts entre blobs comptés par événements (sommes entières : indépendant de leur ordre), fusions dans l'ordre de création.
@@ -12,13 +12,19 @@ using UnityEngine;
 public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Fusion")]
-    [Tooltip("Diamètre du blob fusionné, en multiple du diamètre des deux blobs (2 = deux fois plus large, 4 fois la surface).")]
+    [Tooltip("Croissance LINÉAIRE : chaque niveau ajoute (growth − 1) × le diamètre du premier slime.\n" +
+             "Diamètre du niveau n = modèle × (1 + (growth − 1) × n). Ex. 1,25 avec un modèle de 1 m : 1 ; 1,25 ; 1,5 ; 1,75… ; 3,5 m au niveau 10.")]
     [Min(1f)] public float growth = 2f;
     [Tooltip("Nombre max de capsules d'un blob fusionné. Chaque fusion double le nombre de capsules (capsules de même longueur :\n" +
              "les deux anneaux se recousent exactement) jusqu'à ce maximum. Plus = plus rond, plus coûteux.")]
     [Range(3, 32)] public int maxSides = 32;
     [Tooltip("Nombre max de fusions successives : au-delà, deux blobs de même taille ne fusionnent plus. 0 = sans limite.")]
-    [Min(0)] public int maxLevel = 2;
+    [Min(0)] public int maxLevel = 10;
+    [Tooltip("Tenue des gros blobs face à la gravité, comparée au blob lâché :\n" +
+             "1 = tous se comportent pareil (même affaissement relatif, juste plus gros) ;\n" +
+             "> 1 = plus ils sont gros, plus ils sont durs (2 = comme sans ajustement) ; < 1 = plus ils sont gros, plus ils sont mous ;\n" +
+             "0 = aucun ajustement (mêmes joints que le modèle : à raideur égale, un blob 2 × plus gros s'affaisse 2 × moins).")]
+    [Min(0f)] public float sizeStiffness = 1f;
 
     [Header("Animation (mitose à l'envers)")]
     [Tooltip("Durée (s) pour que les deux slimes n'en fassent plus qu'un : la cacahuète est TENUE par les joints, puis ramenée\n" +
@@ -36,12 +42,15 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(0.05f, 1f)] public float waist = 0.4f;
 
     [Header("Couleurs")]
-    [Tooltip("Couleur des blobs fusionnés : [0] = après 1 fusion, [1] = après 2… (la dernière se répète).\n" +
-             "Blobs lâchés : couleur du blob modèle.")]
+    [Tooltip("Couleur des niveaux : [0] = niveau 1 (après 1 fusion), [1] = niveau 2… (la dernière se répète).\n" +
+             "Niveau 0 : couleur du blob modèle. Les slimes lâchés plus gros prennent la couleur de leur niveau.")]
     public Color[] levelColors =
     {
-        new Color(0.55f, 1f, 0.3f), new Color(1f, 0.85f, 0.2f), new Color(1f, 0.5f, 0.15f),
-        new Color(1f, 0.3f, 0.45f), new Color(0.7f, 0.4f, 1f), Color.white
+        // Dégradé de teinte depuis le cyan du modèle : turquoise, vert, jaune, orange, rouge, rose, magenta, violet.
+        Color.HSVToRGB(0.44f, 0.75f, 1f), Color.HSVToRGB(0.36f, 0.75f, 1f), Color.HSVToRGB(0.26f, 0.8f, 1f),
+        Color.HSVToRGB(0.16f, 0.8f, 1f), Color.HSVToRGB(0.09f, 0.8f, 1f), Color.HSVToRGB(0.02f, 0.75f, 1f),
+        Color.HSVToRGB(0.95f, 0.65f, 1f), Color.HSVToRGB(0.88f, 0.65f, 1f), Color.HSVToRGB(0.80f, 0.65f, 1f),
+        Color.HSVToRGB(0.72f, 0.6f, 1f)
     };
 
     struct Fusing
@@ -70,6 +79,37 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     int _eventsStep = -1;
 
     public int Merges { get; private set; }
+    // Fusion faite (pendant le pas) : blob créé, son niveau (1 = première fusion), point de rencontre des deux blobs.
+    public event System.Action<BLOB, int, Vector2> Merged;
+
+    // Définition des niveaux, la même pour les slimes lâchés et fusionnés (diamètres calculés de la même façon : égaux au bit
+    // près, c'est ce qui permet de reconnaître deux slimes de même niveau). Niveau 0 = blob modèle.
+    public int MaxLevel => maxLevel > 0 ? maxLevel : 30;
+
+    public float LevelDiameter(int level)
+    {
+        float diameter = Template.diameter;
+        return diameter * (1f + (growth - 1f) * level);
+    }
+
+    public int LevelSides(int level)
+    {
+        int sides = Template.sides;
+        for (int i = 0; i < level && sides < maxSides; i++) sides = Mathf.Min(maxSides, 2 * sides);
+        return sides;
+    }
+
+    public Color LevelColor(int level)
+    {
+        if (level <= 0 || levelColors == null || levelColors.Length == 0) return Template.debugColor;
+        return levelColors[Mathf.Min(level - 1, levelColors.Length - 1)];
+    }
+
+    public float LevelStiffness(int level) => SizeStiffness(LevelDiameter(level) / Template.diameter);
+
+    public int LevelOf(BLOB blob) => Level(blob);
+
+    BLOB Template => (_dropper != null ? _dropper : GetComponent<BlobDropper>()).template;
 
     void OnEnable()
     {
@@ -191,7 +231,7 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     int Level(BLOB blob)
     {
         if (growth <= 1f) return 0;
-        return Mathf.RoundToInt(Mathf.Log(blob.diameter / _dropper.template.diameter) / Mathf.Log(growth));
+        return Mathf.RoundToInt((blob.diameter / _dropper.template.diameter - 1f) / (growth - 1f));
     }
 
     void Merge(BLOB a, BLOB b)
@@ -218,13 +258,10 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
 
         float radius0 = a.CapsuleThickness;
         int level = Level(a) + 1;
-        var color = levelColors != null && levelColors.Length > 0 ? levelColors[Mathf.Min(level - 1, levelColors.Length - 1)] : a.debugColor;
-        int sides = Mathf.Min(maxSides, 2 * a.sides);
-        float diameter = a.diameter * growth;
         _dropper.Remove(a);
         _dropper.Remove(b);
 
-        var merged = _dropper.Spawn(0.5f * (centerA + centerB), diameter, sides, color);
+        var merged = _dropper.SpawnLevel(0.5f * (centerA + centerB), level);
         int m = merged.CapsuleCount;
         float step = length / m;
         for (int k = 0; k < m; k++)
@@ -254,6 +291,16 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         merged.SetBendStiffness(startStiffness);
         _fusing.Add(new Fusing { blob = merged, radius0 = radius0, radius1 = merged.CapsuleThickness, written = radius0, bend = bend, stretch = stretch });
         Merges++;
+        Merged?.Invoke(merged, level, 0.5f * (centerA + centerB));
+    }
+
+    // Affaissement relatif sous la gravité ≈ g / (fréquence² × taille) (joints de Box2D normalisés par la masse) : à fréquence
+    // égale, un blob s fois plus gros est s fois plus dur. Dureté relative voulue = s^(sizeStiffness − 1)
+    // → fréquence × s^((sizeStiffness − 2) / 2). Similitude exacte seulement à nombre de capsules égal.
+    float SizeStiffness(float scale)
+    {
+        if (sizeStiffness <= 0f || scale <= 0f) return 1f;
+        return Mathf.Pow(scale, 0.5f * (sizeStiffness - 2f));
     }
 
     const int LoopSamples = 128;

@@ -394,6 +394,8 @@ GameObject:
   - component: {fileID: 1967278711}
   - component: {fileID: 1967278710}
   - component: {fileID: 1967278712}
+  - component: {fileID: 1967278713}
+  - component: {fileID: 1967278714}
   m_Layer: 0
   m_Name: "L\xE2cher"
   m_TagString: Untagged
@@ -415,6 +417,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlobDropper
   template: {fileID: 2014553905}
   maxBlobs: 0
+  seed: 1
+  maxDropLevel: 3
+  smallBias: 0
   halfWidth: 3.4
   moveSpeed: 5
   dropInterval: 0.3
@@ -423,6 +428,7 @@ MonoBehaviour:
   rightKey: 1
   showStats: 1
   previewColor: {r: 1, g: 1, b: 1, a: 0.5}
+  nextPreviewOffset: {x: 6, y: -2}
 --- !u!4 &1967278711
 Transform:
   m_ObjectHideFlags: 0
@@ -450,9 +456,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7148e03219d4472458ae6cfabfea101e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlobFusion
-  growth: 1.25
+  growth: 1.3
   maxSides: 32
-  maxLevel: 6
+  maxLevel: 10
+  sizeStiffness: 1
   mergeTime: 0.3
   mergeCurve:
     serializedVersion: 2
@@ -481,12 +488,49 @@ MonoBehaviour:
   startStiffness: 0.5
   waist: 0.05
   levelColors:
-  - {r: 0.55, g: 1, b: 0.3, a: 1}
-  - {r: 1, g: 0.85, b: 0.2, a: 1}
-  - {r: 1, g: 0.5, b: 0.15, a: 1}
-  - {r: 1, g: 0.3, b: 0.45, a: 1}
-  - {r: 0.7, g: 0.4, b: 1, a: 1}
-  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 0.25, g: 1, b: 0.73, a: 1}
+  - {r: 0.25, g: 1, b: 0.37000006, a: 1}
+  - {r: 0.55200005, g: 1, b: 0.19999999, a: 1}
+  - {r: 1, g: 0.968, b: 0.19999999, a: 1}
+  - {r: 1, g: 0.632, b: 0.19999999, a: 1}
+  - {r: 1, g: 0.34, b: 0.25, a: 1}
+  - {r: 1, g: 0.35000002, b: 0.5450001, a: 1}
+  - {r: 1, g: 0.35000002, b: 0.818, a: 1}
+  - {r: 0.87000006, g: 0.35000002, b: 1, a: 1}
+  - {r: 0.59200007, g: 0.39999998, b: 1, a: 1}
+--- !u!114 &1967278713
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1967278709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5beb41acc59349a4ebb8ae0a942f4d10, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeScore
+  pointsPerMerge: 10
+  comboWindow: 1.2
+  comboPercent: 50
+  popupTime: 1.2
+--- !u!114 &1967278714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1967278709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c2fe3c420e2e624387b77e9e44a349e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeEscape
+  watchTime: 1
+  checkInterval: 2
+  escapeSpeed: 3
+  upBias: 1
+  maxEscapeTime: 3
 --- !u!1 &2014553904
 GameObject:
   m_ObjectHideFlags: 0
@@ -522,10 +566,10 @@ MonoBehaviour:
   capsuleRadius: 0.5
   capsuleSpacing: 0
   density: 1
-  jointFrequency: 32
-  jointDamping: 1
-  jointLinearFrequency: 32
-  jointLinearDamping: 1
+  jointFrequency: 64
+  jointDamping: 10
+  jointLinearFrequency: 64
+  jointLinearDamping: 10
   friction: 0.03
   bounciness: 0.5
   fastCollisions: 0
