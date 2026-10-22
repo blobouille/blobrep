@@ -75,7 +75,8 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    c'est ce qui reconnaît deux slimes de même niveau). `BlobDropper` : suite aléatoire à graine fixe (`seed`, xorshift32 en
    entiers, tirée au départ et à chaque lâcher dans `LevelTick` ; pas `UnityEngine.Random`), niveaux 0 à `maxDropLevel` (3),
    `smallBias` pour favoriser les petits ; slime à lâcher dessiné au point de lâcher + « Suivant » à côté ; zone de lâcher
-   selon le rayon (2026-10-22 : `halfWidth` = demi-largeur intérieure jusqu'au verre dessiné, 3,8 m ; tout au bord, un
+   selon le rayon (2026-10-22 : paroi intérieure mesurée sur la courbe `reservoir` (axe − ½ épaisseur, moitié haute ;
+   suit la box quand on la redimensionne ; `halfWidth` à la main seulement sans courbe) ; tout au bord, un
    slime de toute taille longe la paroi à `wallGap` 0,15 m sans la toucher, mesuré ; avant, son bord entrait dans le verre).
    `dropInterval` vaut aussi pour les appuis répétés, plus seulement pour la touche tenue. H = formes physiques (capsules)
    dessinées par-dessus l'habillage (`showHitboxes`). Objectif (`SlimeGoal`, 2026-10-22, case `useGoal`, appliquée au
@@ -98,7 +99,10 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    Parois = limites (`SlimeWallHold`, 2026-10-22) : un slime lâché au bord s'écrasait contre la paroi et partait en roulant
    jusqu'à l'autre côté (mesuré : niveau 4, de x = 2,68 à −0,67 en 3 s, toujours lancé). Tant qu'il touche une paroi (face
    intérieure = `halfWidth`, la collision y est aussi), la vitesse de son centre qui l'en éloigne est annulée
-   (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Mesuré : reste à
+   (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Marge de contact
+   0,08 m (`contactMargin`) : à 0,03, un slime lâché pile contre la paroi gauche, repoussé en s'écrasant au sol, sortait de la
+   marge en un pas et repartait en roulant de 2 m (mesuré, 2026-10-22) ; à 0,08 il reste collé, niveaux 0, 3 et 6, des deux
+   côtés. Mesuré : reste à
    x = 2,70 ; partie scriptée identique au bit près (2 essais)
    `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
    n(n+1)/2, fusions à moins de `comboWindow` (1,2 s, en pas de simulation) l'une de l'autre = chaîne, + `comboPercent` (50 %)

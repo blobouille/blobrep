@@ -31,9 +31,12 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(0f, 1f)] public float smallBias = 0f;
 
     [Header("Lâcher")]
-    [Tooltip("Demi-largeur intérieure du réservoir à la hauteur du lâcher, en m : de l'axe de l'objet à la face intérieure de la\n" +
-             "paroi (verre dessiné compris). Le point de lâcher s'arrête à cette distance − rayon du slime − 'wallGap' : un slime\n" +
-             "lâché au bord longe la paroi sans la toucher, quelle que soit sa taille.")]
+    [Tooltip("Courbe du réservoir : ses parois donnent la zone de lâcher (face intérieure = axe de la courbe − ½ épaisseur, sur\n" +
+             "la moitié haute, côté le plus proche de l'axe de cet objet). Suit tout seul la largeur et l'épaisseur de la box.\n" +
+             "Vide = 'halfWidth' à la main.")]
+    public CurvePath2D reservoir;
+    [Tooltip("Sans courbe de réservoir seulement : demi-largeur intérieure, en m, de l'axe de l'objet à la face intérieure de la\n" +
+             "paroi. Le point de lâcher s'arrête à cette distance − rayon du slime − 'wallGap'.")]
     [Min(0f)] public float halfWidth = 3.8f;
     [Tooltip("Espace laissé entre le bord du slime et la paroi quand on lâche tout au bord, en m.")]
     [Min(0f)] public float wallGap = 0.15f;
@@ -91,6 +94,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnEnable()
     {
         _fusion = GetComponent<BlobFusion>();
+        _wallHalf = MeasureWalls();
         _rng = StartRng();
         _current = RollLevel();
         _next = RollLevel();
@@ -194,7 +198,31 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     }
 
     // Zone de lâcher pour ce niveau : le bord du slime s'arrête à 'wallGap' de la paroi.
-    float HalfWidth(int level) => Mathf.Max(0f, halfWidth - 0.5f * LevelDiameter(level) - wallGap);
+    float HalfWidth(int level) => Mathf.Max(0f, WallHalfWidth - 0.5f * LevelDiameter(level) - wallGap);
+
+    // Distance de l'axe du lâcher à la face intérieure des parois, en m (mesurée au départ sur la courbe du réservoir).
+    public float WallHalfWidth => reservoir != null ? _wallHalf : halfWidth;
+    float _wallHalf;
+
+    float MeasureWalls()
+    {
+        if (reservoir == null) return halfWidth;
+        if (reservoir.center.Count == 0) reservoir.Rebuild();
+        var pts = reservoir.center;
+        var tr = reservoir.transform;
+        float minY = float.MaxValue, maxY = float.MinValue;
+        for (int i = 0; i < pts.Count; i++) { float y = tr.TransformPoint(pts[i]).y; minY = Mathf.Min(minY, y); maxY = Mathf.Max(maxY, y); }
+        float mid = 0.5f * (minY + maxY), axis = transform.position.x, left = float.MaxValue, right = float.MaxValue;
+        for (int i = 0; i < pts.Count; i++)
+        {
+            Vector3 w = tr.TransformPoint(pts[i]);
+            if (w.y < mid) continue;
+            float d = w.x - axis;
+            if (d < 0f) left = Mathf.Min(left, -d); else right = Mathf.Min(right, d);
+        }
+        float wall = Mathf.Min(left, right);
+        return wall < float.MaxValue ? Mathf.Max(0f, wall - 0.5f * reservoir.thickness) : halfWidth;
+    }
 
     float LevelDiameter(int level) => _fusion != null ? _fusion.LevelDiameter(level) : template.diameter;
     Color LevelColor(int level) => _fusion != null ? _fusion.LevelColor(level) : template.debugColor;
@@ -318,6 +346,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         if (_fusion == null) _fusion = GetComponent<BlobFusion>();
         Gizmos.color = previewColor;
         Vector3 p = transform.position;
+        float halfWidth = Application.isPlaying ? WallHalfWidth : MeasureWalls();
         Gizmos.DrawLine(p + Vector3.left * halfWidth, p + Vector3.right * halfWidth);
         Gizmos.DrawLine(p + new Vector3(-halfWidth, -1f), p + new Vector3(-halfWidth, 1f));
         Gizmos.DrawLine(p + new Vector3(halfWidth, -1f), p + new Vector3(halfWidth, 1f));

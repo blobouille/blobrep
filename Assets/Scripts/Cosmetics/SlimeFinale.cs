@@ -114,7 +114,7 @@ public class SlimeFinale : MonoBehaviour
         if (_pieces.Count == 0) return;
         var cam = Camera.main;
         float top = cam != null ? cam.transform.position.y + cam.orthographicSize : 30f;
-        float half = _dropper != null ? _dropper.halfWidth : 4f;
+        float half = _dropper != null ? _dropper.WallHalfWidth : 4f;
         _born.Clear();
         for (int i = _pieces.Count - 1; i >= 0; i--)
         {

@@ -327,7 +327,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::monde_settings
   gameSpeed: 1
   gravite: {x: 0, y: -10}
-  simulationSubSteps: 5
+  simulationSubSteps: 3
   simulationWorkers: 1
   continuousAllowed: 1
   drawOptions: 2
@@ -391,19 +391,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CurvePath2D
   points:
-  - position: {x: -4, y: 14}
+  - position: {x: -4.5, y: 12}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
-  - position: {x: -4, y: 0}
+  - position: {x: -4.5, y: 0}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
-  - position: {x: 4, y: 0}
+  - position: {x: 4.5, y: 0}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
-  - position: {x: 4, y: 14}
+  - position: {x: 4.5, y: 12}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
@@ -423,7 +423,7 @@ Transform:
   m_GameObject: {fileID: 1593634470}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -1.14, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -801,6 +801,7 @@ MonoBehaviour:
   seed: 2
   maxDropLevel: 4
   smallBias: 0.2
+  reservoir: {fileID: 1593634472}
   halfWidth: 3.8
   wallGap: 0.02
   moveSpeed: 5
@@ -809,8 +810,8 @@ MonoBehaviour:
   leftKey: 0
   rightKey: 1
   showStats: 1
-  debugDraw: 1
-  showHitboxes: 1
+  debugDraw: 0
+  showHitboxes: 0
   hitboxColor: {r: 1, g: 1, b: 1, a: 0.9}
   previewColor: {r: 1, g: 1, b: 1, a: 0.5}
   nextPreviewOffset: {x: 6, y: -2}
@@ -952,7 +953,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlimeWallHold
   wallTop: 14
-  contactMargin: 0.03
+  contactMargin: 0.08
   maxAwaySpeed: 0
 --- !u!114 &1967278717
 MonoBehaviour:
@@ -999,16 +1000,16 @@ MonoBehaviour:
   sides: 16
   diameter: 1
   debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
-  capsuleRadius: 0.5
+  capsuleRadius: 0.25
   capsuleSpacing: 0
   density: 1
   jointFrequency: 32
-  jointDamping: 2
+  jointDamping: 3
   jointLinearFrequency: 32
-  jointLinearDamping: 2
-  friction: 0.5
+  jointLinearDamping: 3
+  friction: 1
   bounciness: 0
-  fastCollisions: 0
+  fastCollisions: 1
   heavyKey: 3
   heavyGravity: 3
   heavyRampTime: 0.1

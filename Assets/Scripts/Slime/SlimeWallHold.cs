@@ -2,7 +2,7 @@ using UnityEngine;
 
 // Les parois du réservoir sont des limites, pas des tremplins : un slime qui s'écrase contre une paroi (lâché dans le coin)
 // ne repart pas en roulant vers l'autre côté. Tant qu'il touche une paroi, la vitesse de son centre qui l'éloigne de cette
-// paroi (face intérieure : BlobDropper.halfWidth) est ramenée à 'maxAwaySpeed' ; la même correction est donnée à toutes ses
+// paroi (face intérieure : BlobDropper.WallHalfWidth) est ramenée à 'maxAwaySpeed' ; la même correction est donnée à toutes ses
 // capsules, donc sa déformation (écrasement, tremblement) n'est pas touchée. Dans LevelTick, après le pas des blobs : déterministe.
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -12,8 +12,9 @@ public class SlimeWallHold : MonoBehaviour, ILevelPhysics, ILevelTick
     [Header("Parois")]
     [Tooltip("Hauteur du haut des parois, en m (au-dessus, rien n'est retenu).")]
     public float wallTop = 14f;
-    [Tooltip("Une capsule à moins de cette distance de la paroi la touche, en m.")]
-    [Min(0f)] public float contactMargin = 0.03f;
+    [Tooltip("Une capsule à moins de cette distance de la paroi la touche, en m. Trop petit (0,03) : en s'écrasant à\n" +
+             "l'atterrissage, le slime est repoussé hors de cette marge en un pas, n'est plus retenu et repart en roulant.")]
+    [Min(0f)] public float contactMargin = 0.08f;
     [Tooltip("Vitesse max (km/h) à laquelle un slime qui touche une paroi peut s'en éloigner. 0 = il reste contre la paroi tant\n" +
              "qu'il la touche. Ne freine pas le mouvement vers la paroi ni vertical.")]
     [SpeedKmh] [Min(0f)] public float maxAwaySpeed = 0f;
@@ -41,10 +42,10 @@ public class SlimeWallHold : MonoBehaviour, ILevelPhysics, ILevelTick
             if (n == 0) continue;
             // Tri grossier : une capsule + diamètre (la gelée ne s'étale pas au-delà).
             Vector2 p0 = blob.Capsule(0).position;
-            if (Mathf.Abs(p0.x - axis) + blob.diameter < _dropper.halfWidth - contactMargin) continue;
+            if (Mathf.Abs(p0.x - axis) + blob.diameter < _dropper.WallHalfWidth - contactMargin) continue;
             if (_fusion != null && _fusion.IsMerging(blob)) continue;
 
-            float rc = blob.CapsuleRadius, reach = _dropper.halfWidth - contactMargin;
+            float rc = blob.CapsuleRadius, reach = _dropper.WallHalfWidth - contactMargin;
             int side = 0;
             for (int k = 0; k < n; k++)
             {
