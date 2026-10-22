@@ -776,6 +776,7 @@ GameObject:
   - component: {fileID: 1967278714}
   - component: {fileID: 1967278715}
   - component: {fileID: 1967278716}
+  - component: {fileID: 1967278717}
   m_Layer: 0
   m_Name: "L\xE2cher"
   m_TagString: Untagged
@@ -953,6 +954,19 @@ MonoBehaviour:
   wallTop: 14
   contactMargin: 0.03
   maxAwaySpeed: 0
+--- !u!114 &1967278717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1967278709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0779a4c323543e240b6d1107ab44b72e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeLevelSetup
+  campaign: {fileID: 11400000, guid: 42978dec770436b4a93270e8e3d96fc4, type: 2}
 --- !u!1 &2014553904
 GameObject:
   m_ObjectHideFlags: 0

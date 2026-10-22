@@ -39,7 +39,7 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
   trop lourd pour 30 slimes à l'écran : à mesurer (étape 1)
 
 ## Roadmap (étape actuelle en gras)
-1. **Strict minimum (scène `Slime/reservoir`)** : un réservoir (rectangle ouvert en haut), on lâche des blobs d'en haut
+1. Strict minimum (scène `Slime/reservoir`) : un réservoir (rectangle ouvert en haut), on lâche des blobs d'en haut
    (`BlobDropper`), rien d'autre. But : voir comment ils s'empilent et combien on peut en mettre avant de ralentir.
    Fait (2026-10-21) : réservoir 8 × 14 m (courbe ouverte en U), `Lâcher` (flèches = viser, Espace = lâcher, tenu = rafale,
    R = vider), `Blob modèle (désactivé)` = réglages des blobs lâchés (défauts : 16 capsules, Ø 1 m, joints 48 Hz), gravité −15.
@@ -136,6 +136,30 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
      bit près (5 875 pas, 17 fusions, même score)
+5. **Carte du monde, Aventure / Sans fin** (commencé le 2026-10-22, scène `Slime/carte`, première des Build Settings) :
+   - Écran titre sur la carte : « Aventure » (la carte) ou « Sans fin » (réservoir sans objectif, graine tirée au hasard à
+     chaque nouvelle partie et affichée, record gardé ; la partie reste rejouable au bit près avec sa graine).
+   - Campagne = asset `Settings/Campagne` (`SlimeCampaign`) : zones de niveaux réglés UN PAR UN à la main (graine, coups,
+     difficulté ou objectif à la main, part en chaînes, niveau max lâché, notes pour de futures mécaniques). Zone 1
+     « Plaine », 30 niveaux : 1–5 faciles, puis moyens, difficiles aux 10 / 20 / 30, facile juste après. Inspecteur : tableau
+     avec objectif calculé et marge réelle (règles lues dans le réservoir ouvert), « Jouer » lance n'importe quel niveau (même
+     verrouillé, outil de dev), « Remettre la progression à zéro ». Étoiles : 1 = réussi, 2 / 3 selon les coups restants
+     (≥ 10 % / ≥ 20 %, à caler sur de vraies parties)
+   - Style (décision du 2026-10-22, après un essai en 3D low-poly jugé raté) : diorama de PAPIER DÉCOUPÉ façon Paper Mario /
+     Candy Crush / Don't Starve. Sol peint à plat (herbe à taches, grandes dalles cerclées d'encre, jetons de carton numérotés
+     : gris verrouillé, rose en cours, doré fini avec ses étoiles), tout le reste en cartes plates face à la caméra, contour
+     encré teinté + liseré de papier blanc + ombre au sol. Caméra en perspective inclinée (42°) et monde courbé au loin
+     (façon Animal Crossing : on ne voit pas le bout), nuages de papier sur ce qui n'est pas découvert (niveaux débloqués + le
+     suivant en avant-goût) qui s'écartent à chaque victoire
+   - Avatar : vrai anneau Box2D qui sautille TOUT SEUL vers le niveau touché (pas un saut de gameplay ; physique dans un plan
+     vu de côté, dessin posé au point du chemin), placeholder = le Roi. Retour d'une victoire : jeton doré + étoiles, nuages,
+     saut au niveau suivant, sa fiche s'ouvre
+   - Mesuré (PC) : scripts de la carte ≈ 0,08 ms par image (avatar compris), construction 12 ms ; ≈ 2 500 découpes en un
+     seul maillage trié ; 30 images/s quand rien ne bouge (`idleFrameInterval`)
+   - À faire : commandes tactiles du réservoir (encore au clavier), défaite « un slime tombe » (en Sans fin on quitte par
+     Menu), sons de la carte, zones suivantes
+6. Avatar à créer : le blob du joueur sur la carte, mélange de tous les accessoires et shaders possibles des slimes
+   (en attendant : le Roi)
 
 Garder cette section à jour quand une étape avance ou que la vision du jeu se précise.
 
@@ -205,7 +229,11 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   pas ; événement `Dropped`), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `Scored`
   après chaque fusion comptée), `SlimeEscape` (sort les slimes enfermés dans un autre), `SlimeGoal` (coups max + objectif
   de points calculé selon la difficulté, fin de niveau ; limite donnée à `BlobDropper.dropLimit`), `SlimeWallHold` (parois
-  qui retiennent au lieu de relancer).
+  qui retiennent au lieu de relancer), `SlimeCampaign` (niveaux de l'Aventure), `SlimeSession` (partie choisie, progression
+  dans PlayerPrefs, gardée en mémoire), `SlimeLevelSetup` (applique la partie choisie au réservoir, boutons de fin ; Play
+  direct dans l'éditeur = réglages de la scène, rien ne change), `SlimeUi` (boutons et textes OnGUI communs).
+- `Scripts/Map/` : la carte (`SlimeMap` décor et caméra, `SlimeMapMesh` sol, `SlimeMapAvatar`, `SlimeMapMenu` titre / fiche /
+  enchaînements). Purement visuel, hors simulation (l'avatar a sa physique Box2D, mais rien n'y est rejoué).
 - `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound`, `SlimeFinale`) ; ils mettent
   les événements de la simulation en file et ignorent le rejeu accéléré. `SlimeSkin.Impact` = chocs (vus à l'affichage)
   Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
@@ -229,6 +257,10 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   (`Slime/Body`, `Slime/Fx`, `Slime/Backdrop`). Ordre de dessin par file de rendu : fond 2900, vitre 2950, slimes 3000,
   parois 3010, effets 3020. Lueur : couleurs > 1 + bloom (volume « Effets écran », profil `Settings/Slime Volume`)
 - Toujours aucun sprite ni texture importée : formes, motifs et visages calculés (distances signées dans le shader)
+- Carte : `Slime/Map` (sol peint), `Slime/MapCard` (découpes de papier : une sorte = une fonction de forme, alpha prémultiplié
+  + profondeur écrite, maillage trié du plus loin au plus près), `Slime/MapSprite` (ciel, étoiles, ombres). Files : ciel 1000,
+  sol 2000, ombres 2950, découpes 2970, étoiles 2990, avatar 3000. Couleurs de sommets données en sRGB : les convertir
+  (`Color.linear`), sinon tout ressort délavé (projet en linéaire)
 - Dessin debug de la physique : `monde_settings.drawOptions` (formes sélectionnées seulement) et `BlobDropper.debugDraw`
 
 ## Son

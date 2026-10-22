@@ -57,7 +57,7 @@ public class SlimeGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     // Objectif de la partie en cours (calculé au départ si 'autoTarget').
     public int Target => _target;
 
-    public float ExtraMoves => difficulty == Difficulty.Easy ? easyExtraMoves : difficulty == Difficulty.Hard ? hardExtraMoves : mediumExtraMoves;
+    public float ExtraMoves => ExtraMovesFor(difficulty);
 
     // Points SANS CHAÎNE des 'count' premiers slimes de la suite, fusionnés parfaitement : chaque paire de même niveau fusionne
     // (comme une retenue en binaire, l'ordre ne change pas le total), jusqu'au niveau max. Fusion vers le niveau n = points × n(n+1)/2.
@@ -84,19 +84,14 @@ public class SlimeGoal : MonoBehaviour, ILevelPhysics, ILevelTick
         return _dropper != null && _score != null && _fusion != null && _dropper.template != null;
     }
 
-    int Perfect(int moves)
-    {
-        _dropper.PredictSequence(moves, _sequence);
-        return PerfectPoints(_sequence, moves, _fusion.MaxLevel, _score.pointsPerMerge);
-    }
-
     // Objectif calculé : points sans chaîne avec tous les coups, divisés par (1 + coups en plus), + part des chaînes. Compté en
     // points et pas en coups : les points parfaits montent par paliers (un coup de plus ne complète pas toujours une fusion),
     // en coups deux difficultés tombaient sur le même objectif.
     public int ComputeTarget()
     {
         if (!Prepare()) return targetScore;
-        return Mathf.Max(_score.pointsPerMerge, Mathf.RoundToInt(Perfect(maxDrops) / (1f + ExtraMoves) * (1f + comboShare)));
+        _dropper.PredictSequence(maxDrops, _sequence);
+        return AutoTarget(_sequence, maxDrops, _fusion.MaxLevel, _score.pointsPerMerge, ExtraMoves, comboShare);
     }
 
     // Difficulté d'un objectif : nombre de coups minimum pour l'atteindre sans chaîne (avec la part des chaînes), 0 si
@@ -105,10 +100,21 @@ public class SlimeGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         if (!Prepare()) return 0;
         _dropper.PredictSequence(maxDrops, _sequence);
+        return MovesNeeded(_sequence, maxDrops, target, _fusion.MaxLevel, _score.pointsPerMerge, comboShare);
+    }
+
+    // Mêmes calculs sans réservoir (inspecteur de la campagne), sur la suite prédite ('sequence', au moins 'maxDrops' slimes).
+    public static int AutoTarget(System.Collections.Generic.List<int> sequence, int maxDrops, int maxLevel, int pointsPerMerge, float extraMoves, float comboShare)
+        => Mathf.Max(pointsPerMerge, Mathf.RoundToInt(PerfectPoints(sequence, maxDrops, maxLevel, pointsPerMerge) / (1f + extraMoves) * (1f + comboShare)));
+
+    public static int MovesNeeded(System.Collections.Generic.List<int> sequence, int maxDrops, int target, int maxLevel, int pointsPerMerge, float comboShare)
+    {
         for (int k = 1; k <= maxDrops; k++)
-            if (PerfectPoints(_sequence, k, _fusion.MaxLevel, _score.pointsPerMerge) * (1f + comboShare) >= target) return k;
+            if (PerfectPoints(sequence, k, maxLevel, pointsPerMerge) * (1f + comboShare) >= target) return k;
         return 0;
     }
+
+    public float ExtraMovesFor(Difficulty d) => d == Difficulty.Easy ? easyExtraMoves : d == Difficulty.Hard ? hardExtraMoves : mediumExtraMoves;
 
     void OnValidate()
     {
@@ -116,6 +122,10 @@ public class SlimeGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     }
     public State Result { get; private set; }
     public bool Reached { get; private set; }
+    // Coups restants au moment où l'objectif a été atteint (étoiles).
+    public int LeftAtWin => _leftAtWin;
+    // Temps (s) depuis l'apparition du panneau de fin ; négatif tant qu'il n'est pas affiché.
+    public float PanelAge => !_active || Result == State.Playing ? -1f : Time.time - _endTime - (Result == State.Won ? celebrationTime : 0f);
 
     // Fin du niveau (pendant LevelTick ; aussi pendant le rejeu accéléré : à ignorer côté effets). Réussi : appelé AVANT de
     // retirer les slimes (on peut encore lire leur position et leur niveau).

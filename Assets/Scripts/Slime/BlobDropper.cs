@@ -147,9 +147,13 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
     // Suite aléatoire déterministe : xorshift32 (entiers, même résultat partout ; pas UnityEngine.Random, partagé et non garanti).
     // Tirée seulement au départ et à chaque lâcher, dans LevelTick : rejouée à l'identique.
-    int RollLevel() => Roll(ref _rng);
+    int RollLevel() => Roll(ref _rng, MaxRoll, smallBias);
 
-    uint StartRng()
+    int MaxRoll => _fusion != null ? Mathf.Min(maxDropLevel, _fusion.MaxLevel) : 0;
+
+    uint StartRng() => StartRng(seed);
+
+    static uint StartRng(int seed)
     {
         uint rng = (uint)seed * 2654435761u ^ 0x9E3779B9u;
         return rng == 0u ? 1u : rng;
@@ -159,14 +163,19 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     public void PredictSequence(int count, System.Collections.Generic.List<int> levels)
     {
         if (_fusion == null) _fusion = GetComponent<BlobFusion>();
-        levels.Clear();
-        uint rng = StartRng();
-        for (int i = 0; i < count; i++) levels.Add(Roll(ref rng));
+        PredictSequence(seed, MaxRoll, smallBias, count, levels);
     }
 
-    int Roll(ref uint rng)
+    // Même tirage sans réservoir (inspecteur de la campagne) : 'maxLevel' = min(maxDropLevel, plus gros niveau de BlobFusion).
+    public static void PredictSequence(int seed, int maxLevel, float smallBias, int count, System.Collections.Generic.List<int> levels)
     {
-        int max = _fusion != null ? Mathf.Min(maxDropLevel, _fusion.MaxLevel) : 0;
+        levels.Clear();
+        uint rng = StartRng(seed);
+        for (int i = 0; i < count; i++) levels.Add(Roll(ref rng, maxLevel, smallBias));
+    }
+
+    static int Roll(ref uint rng, int max, float smallBias)
+    {
         rng ^= rng << 13;
         rng ^= rng >> 17;
         rng ^= rng << 5;

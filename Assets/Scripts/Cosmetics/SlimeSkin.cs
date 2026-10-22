@@ -133,6 +133,24 @@ public class SlimeSkin : MonoBehaviour
         EmitRound(v.look, v.center, v.radius, dt, v.scale, Time.time);
     }
 
+    // Seulement pendant DrawExtras : un vrai blob qui n'appartient pas à BlobDropper (avatar de la carte), au design 'level',
+    // qui regarde vers 'lookAt'.
+    public void DrawBlob(BLOB blob, int level, Vector2 lookAt, float dt)
+    {
+        if (blob == null || blob.CapsuleCount < 3) return;
+        var look = GetLook(blob);
+        look.level = level;
+        look.seen = _frame;
+        look.attention = lookAt;
+        look.attentionTime = 1f;
+        UpdateBlob(blob, look, dt, LevelSimulation.Step);
+    }
+
+    // Carte : matrice qui pose le dessin dans le monde 3D, et taille d'un pixel en unités du dessin (caméra en perspective, 0 =
+    // calculée pour une caméra orthographique). Défauts : dessin tel quel (réservoir).
+    [System.NonSerialized] public Matrix4x4 renderMatrix = Matrix4x4.identity;
+    [System.NonSerialized] public float pixelSize;
+
     const float TAU = Mathf.PI * 2f;
 
     internal class Look
@@ -169,6 +187,7 @@ public class SlimeSkin : MonoBehaviour
     readonly Look[] _galleryLooks = new Look[32];
     System.Random _rand = new System.Random(7);
     int _frame, _builtFrame = -1, _heldLevel = -1, _nextLevel = -1, _seedCounter;
+    bool _searched;
     float _pixel = 0.01f;
 
     // Sommets entrelacés (un seul envoi par image) ; tableaux agrandis seulement quand il le faut.
@@ -237,6 +256,7 @@ public class SlimeSkin : MonoBehaviour
         Prepare();
         _mesh = new Mesh { name = "Slimes", hideFlags = HideFlags.HideAndDontSave, indexFormat = IndexFormat.UInt32 };
         _mesh.MarkDynamic();
+        _vbCapacity = _ibCapacity = 0; // maillage neuf : tampons à recréer (sinon erreur après un OnDisable / OnEnable)
         if (shader == null) shader = Shader.Find("Slime/Body");
         if (shader != null) _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, renderQueue = 3000 };
         RenderPipelineManager.beginCameraRendering += OnBeginCamera;
@@ -265,7 +285,9 @@ public class SlimeSkin : MonoBehaviour
 
     void Prepare()
     {
-        if (dropper == null) dropper = FindAnyObjectByType<BlobDropper>();
+        // En Play, cherché une seule fois (la carte n'a pas de BlobDropper : pas de recherche à chaque image).
+        if (dropper == null && !(_searched && Application.isPlaying)) dropper = FindAnyObjectByType<BlobDropper>();
+        _searched = true;
         if (_fusion == null && dropper != null) _fusion = dropper.GetComponent<BlobFusion>();
     }
 
@@ -380,6 +402,7 @@ public class SlimeSkin : MonoBehaviour
 
     void UpdatePixel()
     {
+        if (pixelSize > 0f) { _pixel = pixelSize; return; }
         var cam = Camera.main;
         if (cam != null && cam.orthographic && cam.pixelHeight > 0) _pixel = 2f * cam.orthographicSize / cam.pixelHeight;
     }
@@ -1010,6 +1033,6 @@ public class SlimeSkin : MonoBehaviour
             layer = gameObject.layer,
             worldBounds = new Bounds(Vector3.zero, Vector3.one * 10000f)
         };
-        Graphics.RenderMesh(rp, _mesh, 0, Matrix4x4.identity);
+        Graphics.RenderMesh(rp, _mesh, 0, renderMatrix);
     }
 }
