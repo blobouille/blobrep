@@ -4,9 +4,9 @@ using UnityEngine;
 // Sound design procédural : tous les sons sont calculés au lancement (aucun fichier audio), à partir de formules.
 // - lâcher : petit « plop » de bulle ;
 // - choc : « splotch » mouillé (bruit filtré + coup sourd), plus fort si le choc est violent, plus grave si le slime est gros ;
-// - fusion : « bloup » qui monte, plus grave pour les gros slimes, puis une cloche dont la note monte à chaque maillon de la
-//   chaîne (gamme pentatonique : toujours juste) ; gros slime : grondement ; longue chaîne : pluie de paillettes ;
-//   nouveau record ou niveau max : fanfare.
+// - fusion : « bloup » qui monte quand les deux slimes se touchent (plus grave pour les gros), puis à l'éclat (SlimeFx) une
+//   cloche dont la note monte à chaque maillon de la chaîne (gamme pentatonique : toujours juste) ; gros slime : grondement ;
+//   longue chaîne : pluie de paillettes ; nouveau record ou niveau max : fanfare.
 // Purement audio : événements de la simulation mis en file, joués dans Update ; rien pendant le rejeu accéléré.
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(960)]
@@ -55,6 +55,7 @@ public class SlimeSound : MonoBehaviour
 
     BlobFusion _fusion;
     SlimeScore _score;
+    SlimeFx _fx;
     AudioClip _plop, _bloop, _ding, _boom, _sparkle, _fanfare;
     AudioClip[] _splats;
     AudioSource[] _sources;
@@ -77,6 +78,8 @@ public class SlimeSound : MonoBehaviour
         }
         if (_score != null) _score.Scored += OnScored;
         if (skin != null) skin.Impact += OnImpact;
+        _fx = FindAnyObjectByType<SlimeFx>();
+        if (_fx != null) _fx.Popped += OnPopped;
 
         Synthesize();
         _voices = new GameObject("Voix (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
@@ -98,6 +101,7 @@ public class SlimeSound : MonoBehaviour
         if (dropper != null) dropper.Dropped -= OnDropped;
         if (_score != null) _score.Scored -= OnScored;
         if (skin != null) skin.Impact -= OnImpact;
+        if (_fx != null) _fx.Popped -= OnPopped;
         if (_voices != null) Destroy(_voices);
         if (_listener != null) Destroy(_listener);
         foreach (var clip in new[] { _plop, _bloop, _ding, _boom, _sparkle, _fanfare }) if (clip != null) Destroy(clip);
@@ -116,6 +120,19 @@ public class SlimeSound : MonoBehaviour
             _requests.Add(new Request { kind = 1, level = hit.level, combo = hit.combo, x = hit.position.x, record = hit.record });
     }
 
+    // Éclat de la fusion (pendant LateUpdate de SlimeFx, hors simulation) : joué tout de suite.
+    void OnPopped(SlimeScore.Hit hit, Vector2 position) => Burst(hit.level, hit.combo, hit.record, position.x);
+
+    void Burst(int level, int combo, bool record, float x)
+    {
+        int maxLevel = _fusion != null ? _fusion.MaxLevel : 99;
+        combo = Mathf.Max(1, combo);
+        Play(_ding, comboVolume * (combo == 1 ? 0.55f : 1f), Ladder[Mathf.Min(combo - 1, Ladder.Length - 1)], x);
+        if (boomLevel > 0 && level >= boomLevel) Play(_boom, bigVolume * Mathf.Min(1f, 0.45f + 0.06f * level), -(level - boomLevel) * 0.8f, x);
+        if (combo >= 3) Play(_sparkle, bigVolume * Mathf.Min(1f, 0.3f + 0.12f * combo), Ladder[Mathf.Min(combo - 3, 4)], x);
+        if ((record && level >= 4) || level >= maxLevel) Play(_fanfare, bigVolume, 0f, 0f);
+    }
+
     void OnImpact(BLOB blob, Vector2 point, Vector2 normal, float speed)
     {
         if (speed < softImpact || _impactsThisFrame >= 3 || _fusion == null) return;
@@ -128,7 +145,6 @@ public class SlimeSound : MonoBehaviour
     void Update()
     {
         _impactsThisFrame = 0;
-        int maxLevel = _fusion != null ? _fusion.MaxLevel : 99;
         for (int i = 0; i < _requests.Count; i++)
         {
             var r = _requests[i];
@@ -137,12 +153,8 @@ public class SlimeSound : MonoBehaviour
                 Play(_plop, dropVolume, 3f - r.level * semitonesPerLevel * 0.6f + Jitter(), r.x);
                 continue;
             }
-            int combo = Mathf.Max(1, r.combo);
             Play(_bloop, mergeVolume, 5f - r.level * semitonesPerLevel + Jitter() * 0.5f, r.x);
-            Play(_ding, comboVolume * (combo == 1 ? 0.55f : 1f), Ladder[Mathf.Min(combo - 1, Ladder.Length - 1)], r.x);
-            if (boomLevel > 0 && r.level >= boomLevel) Play(_boom, bigVolume * Mathf.Min(1f, 0.45f + 0.06f * r.level), -(r.level - boomLevel) * 0.8f, r.x);
-            if (combo >= 3) Play(_sparkle, bigVolume * Mathf.Min(1f, 0.3f + 0.12f * combo), Ladder[Mathf.Min(combo - 3, 4)], r.x);
-            if ((r.record && r.level >= 4) || r.level >= maxLevel) Play(_fanfare, bigVolume, 0f, 0f);
+            if (_fx == null || !_fx.isActiveAndEnabled) Burst(r.level, r.combo, r.record, r.x);
         }
         _requests.Clear();
     }

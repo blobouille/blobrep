@@ -88,6 +88,8 @@ public class SlimeSkin : MonoBehaviour
     [SpeedKmh] [Min(0f)] public float fallSpeed = 5f;
     [Tooltip("Durée (s) du sourire après une fusion.")]
     [Min(0f)] public float happyTime = 1.6f;
+    [Tooltip("Éclair blanc du nouveau slime à l'éclat de la fusion (SlimeFx) : 0 = aucun, 1 = tout blanc.")]
+    [Range(0f, 1f)] public float mergeFlash = 0.45f;
     [Tooltip("Distance (en diamètres du nouveau slime) à laquelle les voisins regardent une fusion, étonnés.")]
     [Min(0f)] public float curiosity = 2f;
 
@@ -115,6 +117,7 @@ public class SlimeSkin : MonoBehaviour
         public bool hasRot, hasCenter, hasVelocity;
         public Vector2 center, velocity, look, attention;
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
+        public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
         // Vitesses des derniers pas vus (choc = vitesse perdue sur ImpactWindow pas, quelle que soit la cadence d'affichage).
         public readonly Vector2[] pastVelocity = new Vector2[8];
         public readonly int[] pastStep = new int[8];
@@ -131,6 +134,7 @@ public class SlimeSkin : MonoBehaviour
     }
 
     BlobFusion _fusion;
+    SlimeFx _fx;
     Material _material;
     Mesh _mesh;
     readonly Dictionary<BLOB, Look> _looks = new Dictionary<BLOB, Look>();
@@ -179,24 +183,24 @@ public class SlimeSkin : MonoBehaviour
 
     public static List<SlimeDesign> DefaultDesigns() => new List<SlimeDesign>
     {
-        new SlimeDesign("Goutte", new Color(0.40f, 0.80f, 1.00f), new Color(0.13f, 0.40f, 0.85f), new Color(0.92f, 0.98f, 1.00f),
+        new SlimeDesign("Goutte", new Color(0.36f, 0.70f, 1.00f), new Color(0.12f, 0.36f, 0.86f), new Color(0.92f, 0.98f, 1.00f),
             SlimePattern.Bubbles, SlimeAccessory.None, Color.white, SlimeFace.Smile, true, 0f),
-        new SlimeDesign("Menthe", new Color(0.38f, 0.93f, 0.74f), new Color(0.05f, 0.56f, 0.52f), new Color(0.80f, 1.00f, 0.90f),
-            SlimePattern.None, SlimeAccessory.Leaf, new Color(0.40f, 0.82f, 0.22f), SlimeFace.Serene, true, 0f),
-        new SlimeDesign("Petit pois", new Color(0.55f, 0.88f, 0.30f), new Color(0.20f, 0.53f, 0.15f), new Color(0.86f, 1.00f, 0.62f),
-            SlimePattern.Spots, SlimeAccessory.None, Color.white, SlimeFace.Smile, true, 0f),
-        new SlimeDesign("Citron", new Color(0.92f, 0.97f, 0.32f), new Color(0.50f, 0.70f, 0.08f), new Color(1.00f, 1.00f, 0.70f),
-            SlimePattern.Rings, SlimeAccessory.None, Color.white, SlimeFace.Starry, false, 0.8f),
-        new SlimeDesign("Miel", new Color(1.00f, 0.78f, 0.22f), new Color(0.85f, 0.44f, 0.04f), new Color(1.00f, 0.94f, 0.62f),
-            SlimePattern.Honeycomb, SlimeAccessory.Antennae, new Color(0.32f, 0.18f, 0.08f), SlimeFace.Smile, true, 0.3f),
-        new SlimeDesign("Tigrou", new Color(1.00f, 0.58f, 0.18f), new Color(0.84f, 0.28f, 0.05f), new Color(0.40f, 0.13f, 0.04f),
-            SlimePattern.Stripes, SlimeAccessory.Ears, new Color(1.00f, 0.55f, 0.16f), SlimeFace.Cat, false, 0f),
-        new SlimeDesign("Braise", new Color(0.80f, 0.17f, 0.12f), new Color(0.34f, 0.03f, 0.06f), new Color(1.00f, 0.72f, 0.18f),
-            SlimePattern.Cracks, SlimeAccessory.Horns, new Color(0.30f, 0.09f, 0.09f), SlimeFace.Fierce, false, 2.2f),
+        new SlimeDesign("Pousse", new Color(0.50f, 0.88f, 0.30f), new Color(0.16f, 0.52f, 0.14f), new Color(0.85f, 1.00f, 0.60f),
+            SlimePattern.None, SlimeAccessory.Leaf, new Color(0.22f, 0.62f, 0.18f), SlimeFace.Serene, true, 0f),
         new SlimeDesign("Bonbon", new Color(1.00f, 0.52f, 0.76f), new Color(0.84f, 0.20f, 0.52f), new Color(1.00f, 1.00f, 1.00f),
             SlimePattern.Sparkles, SlimeAccessory.Bow, new Color(0.96f, 0.20f, 0.38f), SlimeFace.Smile, true, 0.8f),
-        new SlimeDesign("Cristal", new Color(0.74f, 0.38f, 0.96f), new Color(0.35f, 0.10f, 0.66f), new Color(0.86f, 0.97f, 1.00f),
-            SlimePattern.Facets, SlimeAccessory.Crystals, new Color(0.62f, 0.92f, 1.00f), SlimeFace.Starry, false, 0.7f),
+        new SlimeDesign("Citron", new Color(1.00f, 0.92f, 0.28f), new Color(0.85f, 0.58f, 0.05f), new Color(1.00f, 1.00f, 0.75f),
+            SlimePattern.Rings, SlimeAccessory.None, Color.white, SlimeFace.Starry, false, 0.8f),
+        new SlimeDesign("Cristal", new Color(0.68f, 0.40f, 0.98f), new Color(0.32f, 0.10f, 0.66f), new Color(0.86f, 0.97f, 1.00f),
+            SlimePattern.Facets, SlimeAccessory.Crystals, new Color(0.62f, 0.92f, 1.00f), SlimeFace.Smile, false, 0.7f),
+        new SlimeDesign("Tigrou", new Color(1.00f, 0.52f, 0.12f), new Color(0.82f, 0.26f, 0.04f), new Color(0.40f, 0.13f, 0.04f),
+            SlimePattern.Stripes, SlimeAccessory.Ears, new Color(1.00f, 0.52f, 0.12f), SlimeFace.Cat, false, 0f),
+        new SlimeDesign("Braise", new Color(0.80f, 0.17f, 0.12f), new Color(0.34f, 0.03f, 0.06f), new Color(1.00f, 0.72f, 0.18f),
+            SlimePattern.Cracks, SlimeAccessory.Horns, new Color(0.30f, 0.09f, 0.09f), SlimeFace.Fierce, false, 2.2f),
+        new SlimeDesign("Miel", new Color(1.00f, 0.80f, 0.24f), new Color(0.86f, 0.48f, 0.04f), new Color(1.00f, 0.94f, 0.62f),
+            SlimePattern.Honeycomb, SlimeAccessory.Antennae, new Color(0.32f, 0.18f, 0.08f), SlimeFace.Smile, true, 0.3f),
+        new SlimeDesign("Lagon", new Color(0.28f, 0.86f, 0.84f), new Color(0.04f, 0.48f, 0.58f), new Color(0.82f, 1.00f, 0.98f),
+            SlimePattern.Spots, SlimeAccessory.None, Color.white, SlimeFace.Smile, true, 0f),
         new SlimeDesign("Nébuleuse", new Color(0.30f, 0.25f, 0.80f), new Color(0.08f, 0.05f, 0.32f), new Color(1.00f, 0.55f, 0.92f),
             SlimePattern.Galaxy, SlimeAccessory.Halo, new Color(1.00f, 0.90f, 0.55f), SlimeFace.Serene, false, 1.2f),
         new SlimeDesign("Roi", new Color(0.98f, 0.98f, 1.00f), new Color(0.55f, 0.45f, 0.90f), new Color(1.00f, 1.00f, 1.00f),
@@ -214,6 +218,8 @@ public class SlimeSkin : MonoBehaviour
         if (Application.isPlaying)
         {
             if (_fusion != null) _fusion.Merged += OnMerged;
+            _fx = FindAnyObjectByType<SlimeFx>();
+            if (_fx != null) _fx.Popped += OnPopped;
             if (dropper != null) dropper.Dropped += OnDropped;
             LevelRestart.Restarted += OnRestarted;
         }
@@ -223,6 +229,7 @@ public class SlimeSkin : MonoBehaviour
     {
         RenderPipelineManager.beginCameraRendering -= OnBeginCamera;
         if (_fusion != null) _fusion.Merged -= OnMerged;
+        if (_fx != null) _fx.Popped -= OnPopped;
         if (dropper != null) dropper.Dropped -= OnDropped;
         LevelRestart.Restarted -= OnRestarted;
         _looks.Clear();
@@ -246,6 +253,17 @@ public class SlimeSkin : MonoBehaviour
     void OnMerged(BLOB merged, int level, Vector2 position)
     {
         if (!LevelSimulation.FastForwarding) _pending.Add(new Pending { blob = merged, position = position, merge = true });
+    }
+
+    // Éclat de la fusion (le nouveau slime est redevenu rond) : éclair, accessoires qui poussent, sourire.
+    void OnPopped(SlimeScore.Hit hit, Vector2 position)
+    {
+        if (hit.blob == null || !_looks.TryGetValue(hit.blob, out var look)) return;
+        look.waitPop = false;
+        look.pop = 0f;
+        look.flash = mergeFlash;
+        look.wow = 0f;
+        look.happy = happyTime;
     }
 
     void OnDropped(BLOB blob, int level)
@@ -291,10 +309,12 @@ public class SlimeSkin : MonoBehaviour
             var look = GetLook(p.blob);
             if (p.merge)
             {
-                look.flash = 1f;
-                look.wow = 0.35f;
+                // Pendant la fusion : bouche ronde, accessoires cachés jusqu'à l'éclat (sans SlimeFx : tout de suite).
+                look.waitPop = _fx != null && _fx.isActiveAndEnabled;
+                look.wow = look.waitPop ? 3f : 0.35f;
                 look.happy = happyTime;
                 look.pop = 0f;
+                if (!look.waitPop) look.flash = mergeFlash;
                 float reach = curiosity * 2f * look.radius;
                 foreach (var other in _looks.Values)
                 {
@@ -455,7 +475,7 @@ public class SlimeSkin : MonoBehaviour
         look.impactCooldown -= dt;
         look.attentionTime -= dt;
         look.flash = Mathf.Max(0f, look.flash - dt / 0.3f);
-        look.pop = Mathf.Min(1f, look.pop + dt / 0.5f);
+        if (!look.waitPop) look.pop = Mathf.Min(1f, look.pop + dt / 0.5f);
 
         look.blinkIn -= dt;
         if (look.blinkIn <= 0f)

@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// Effets à l'écran : à chaque fusion, gouttes de gelée projetées, onde lumineuse, étincelles et éclair ; plus la chaîne est longue
-// et le slime gros, plus c'est fort (tremblement de l'écran, ralenti, grosse annonce « ×4 Gluant ! », pulsation du fond,
-// confettis pour un nouveau record). Éclaboussures aux chocs (SlimeSkin.Impact), pointillés de visée sous le slime à lâcher.
+// Effets à l'écran. Fusion en deux temps, pour qu'on la voie : pendant que les deux slimes se rejoignent, seulement une lueur
+// douce derrière eux ; puis l'éclat (`popAt` de la fusion, le nouveau slime presque rond) : onde lumineuse et halo DERRIÈRE
+// les slimes, gouttes de gelée et étincelles qui partent de sa surface. Plus la chaîne est longue et le slime gros, plus c'est
+// fort (tremblement de l'écran, ralenti, annonce « ×4 Gluant ! », pulsation du fond, confettis pour un nouveau record).
+// Éclaboussures aux chocs (SlimeSkin.Impact), pointillés de visée sous le slime à lâcher.
 // Purement visuel : événements de la simulation mis en file, tout le reste dans LateUpdate ; rien pendant le rejeu accéléré.
 // Le ralenti change Time.timeScale (vitesse du temps réel seulement : les pas de simulation restent identiques).
 [ExecuteAlways]
@@ -20,14 +22,20 @@ public class SlimeFx : MonoBehaviour
     public Shader shader;
 
     [Header("Fusion")]
-    [Tooltip("Gouttes de gelée projetées par une fusion (+ 2 par niveau, + 4 par maillon de chaîne).")]
-    [Min(0)] public int droplets = 10;
+    [Tooltip("Moment de l'éclat, en fraction de la durée de fusion (mergeTime de BlobFusion) : 0 = dès que les deux slimes se\n" +
+             "touchent, 1 = quand le nouveau est redevenu rond. Avant : seulement une lueur douce derrière, on voit la fusion.")]
+    [Range(0f, 1f)] public float popAt = 0.8f;
+    [Tooltip("Gouttes de gelée projetées à l'éclat (+ 1 par niveau, + 3 par maillon de chaîne).")]
+    [Min(0)] public int droplets = 6;
     [Tooltip("Vitesse des gouttes, en km/h.")]
     [SpeedKmh] [Min(0f)] public float dropletSpeed = 5f;
-    [Tooltip("Étincelles d'une fusion (+ 1 par niveau, + 3 par maillon de chaîne).")]
-    [Min(0)] public int sparkles = 5;
+    [Tooltip("Étincelles de l'éclat (+ 1 par niveau, + 3 par maillon de chaîne).")]
+    [Min(0)] public int sparkles = 4;
     [Tooltip("Taille de l'onde lumineuse, en rayons du nouveau slime.")]
-    [Min(0f)] public float ringSize = 2.6f;
+    [Min(0f)] public float ringSize = 2.3f;
+
+    // Éclat d'une fusion, et sa position (centre du nouveau slime à ce moment).
+    public event System.Action<SlimeScore.Hit, Vector2> Popped;
 
     [Header("Chaînes et gros slimes")]
     [Tooltip("Tremblement max de l'écran, en m.")]
@@ -61,6 +69,13 @@ public class SlimeFx : MonoBehaviour
         public float size, endSize, life, age, rotation, spin, gravity, drag, param, additive;
         public Vector4 color;
         public int type;
+        public bool behind; // dessinée derrière les slimes
+    }
+
+    struct Pop
+    {
+        public SlimeScore.Hit hit;
+        public float at;
     }
 
     struct Banner
@@ -72,10 +87,11 @@ public class SlimeFx : MonoBehaviour
 
     BlobFusion _fusion;
     SlimeScore _score;
-    Material _material;
-    Mesh _mesh;
+    Material _material, _behindMaterial;
+    Mesh _mesh, _behindMesh;
     readonly List<Particle> _particles = new List<Particle>();
     readonly List<SlimeScore.Hit> _hits = new List<SlimeScore.Hit>();
+    readonly List<Pop> _pops = new List<Pop>();
     readonly List<Vector3> _verts = new List<Vector3>();
     readonly List<Vector4> _uv0 = new List<Vector4>(), _uv1 = new List<Vector4>(), _uv2 = new List<Vector4>();
     readonly List<int> _tris = new List<int>();
@@ -96,8 +112,14 @@ public class SlimeFx : MonoBehaviour
         Prepare();
         _mesh = new Mesh { name = "Effets slimes", hideFlags = HideFlags.HideAndDontSave, indexFormat = IndexFormat.UInt32 };
         _mesh.MarkDynamic();
+        _behindMesh = new Mesh { name = "Effets slimes (derrière)", hideFlags = HideFlags.HideAndDontSave, indexFormat = IndexFormat.UInt32 };
+        _behindMesh.MarkDynamic();
         if (shader == null) shader = Shader.Find("Slime/Fx");
-        if (shader != null) _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, renderQueue = 3020 };
+        if (shader != null)
+        {
+            _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, renderQueue = 3020 };
+            _behindMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, renderQueue = 2990 };
+        }
         RenderPipelineManager.beginCameraRendering += OnBeginCamera;
         if (!Application.isPlaying) return;
         if (_score != null) _score.Scored += OnScored;
@@ -116,8 +138,11 @@ public class SlimeFx : MonoBehaviour
         _ownsTimeScale = false;
         _particles.Clear();
         _hits.Clear();
+        _pops.Clear();
         if (_mesh != null) DestroyImmediate(_mesh);
+        if (_behindMesh != null) DestroyImmediate(_behindMesh);
         if (_material != null) DestroyImmediate(_material);
+        if (_behindMaterial != null) DestroyImmediate(_behindMaterial);
     }
 
     void Prepare()
@@ -136,6 +161,7 @@ public class SlimeFx : MonoBehaviour
     {
         _particles.Clear();
         _hits.Clear();
+        _pops.Clear();
         _hasBanner = false;
         _trauma = 0f;
     }
@@ -149,58 +175,30 @@ public class SlimeFx : MonoBehaviour
     float Rand(float a, float b) => a + (b - a) * Rand();
 
     void Emit(int type, Vector2 position, Vector2 velocity, float size, float endSize, float life, Vector4 color, float additive,
-        float gravity = 0f, float drag = 0f, float param = 0f, float spin = 0f, float delay = 0f)
+        float gravity = 0f, float drag = 0f, float param = 0f, float spin = 0f, float delay = 0f, bool behind = false)
     {
         if (_particles.Count >= 2500) return;
         _particles.Add(new Particle
         {
-            type = type, position = position, velocity = velocity, size = size, endSize = endSize, life = life, age = -delay,
+            behind = behind, type = type, position = position, velocity = velocity, size = size, endSize = endSize, life = life, age = -delay,
             color = color, additive = additive, gravity = gravity, drag = drag, param = param, spin = spin, rotation = Rand(0f, Mathf.PI * 2f)
         });
     }
 
     static Vector4 Hdr(Color c, float k) => new Vector4(c.r * k, c.g * k, c.b * k, 1f);
 
+    float PopDelay => _fusion != null ? popAt * _fusion.mergeTime : 0f;
+
+    // Début de la fusion : lueur douce derrière les deux slimes, annonce, ralenti (on voit la fusion au ralenti) ; l'éclat suit.
     void Merge(SlimeScore.Hit hit)
     {
         var design = skin != null ? skin.Design(hit.level) : null;
         Color body = design != null ? design.body : (hit.blob != null ? hit.blob.debugColor : Color.white);
-        Color accent = design != null ? design.accent : Color.white;
         float radius = _fusion != null ? 0.5f * _fusion.LevelDiameter(hit.level) : 1f;
         int combo = Mathf.Max(1, hit.combo);
-        float power = 1f + 0.12f * hit.level + 0.35f * (combo - 1);
-        Vector2 p = hit.position;
 
-        Emit(4, p, Vector2.zero, 1.1f * radius, 2f * radius * Mathf.Min(power, 1.8f), 0.3f, Hdr(Color.Lerp(body, Color.white, 0.4f), 1.1f), 1f);
-        Emit(2, p, Vector2.zero, 0.8f * radius, ringSize * radius * (1f + 0.15f * (combo - 1)), 0.5f, Hdr(Color.Lerp(body, Color.white, 0.35f), 2.5f), 1f, param: 0.2f);
-        if (combo >= 3 || hit.level >= 6)
-            Emit(2, p, Vector2.zero, 0.5f * radius, ringSize * 1.5f * radius, 0.7f, Hdr(accent, 2f), 1f, param: 0.1f, delay: 0.1f);
-
-        int drops = Mathf.Min(80, droplets + 2 * hit.level + 4 * (combo - 1));
-        float speed = dropletSpeed * Mathf.Sqrt(radius / 0.5f) * (1f + 0.15f * (combo - 1));
-        for (int i = 0; i < drops; i++)
-        {
-            float a = Rand(0f, Mathf.PI * 2f);
-            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-            Vector2 v = dir * speed * Rand(0.5f, 1.2f) + Vector2.up * Rand(1f, 3f);
-            float size = Rand(0.05f, 0.13f) * Mathf.Sqrt(radius / 0.5f);
-            Color c = Color.Lerp(body, Color.white, Rand(0f, 0.25f));
-            Emit(0, p + dir * radius * Rand(0.3f, 0.9f), v, size, 0f, Rand(0.6f, 1.1f), new Vector4(c.r, c.g, c.b, 1f), 0f, gravity: 14f, drag: 0.6f);
-        }
-
-        int stars = Mathf.Min(60, sparkles + hit.level + 3 * (combo - 1));
-        for (int i = 0; i < stars; i++)
-        {
-            float a = Rand(0f, Mathf.PI * 2f);
-            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-            Color c = Color.Lerp(accent, Color.white, 0.5f);
-            Emit(1, p + dir * radius * Rand(0.2f, 1f), dir * Rand(1.5f, 4.5f) * (1f + 0.1f * hit.level), Rand(0.18f, 0.4f) * (1f + 0.05f * hit.level), 0f,
-                Rand(0.4f, 0.8f), Hdr(c, Rand(2f, 3.5f)), 1f, gravity: -1f, drag: 2.5f, spin: Rand(-6f, 6f));
-        }
-
-        _trauma = Mathf.Min(1f, _trauma + 0.12f + 0.05f * hit.level + 0.12f * (combo - 1));
-        if (backdrop != null) backdrop.Pulse(body, Mathf.Min(0.9f, 0.18f + 0.08f * hit.level + 0.12f * (combo - 1)));
-        if (hit.level >= 8 || combo >= 5) { _flash = Mathf.Max(_flash, 0.35f); _flashColor = body; }
+        Emit(4, hit.position, Vector2.zero, 1.2f * radius, 1.6f * radius, PopDelay + 0.2f, Hdr(Color.Lerp(body, Color.white, 0.3f), 0.4f), 1f, behind: true);
+        _pops.Add(new Pop { hit = hit, at = Time.time + PopDelay });
 
         if (bannerCombo > 0 && combo >= bannerCombo)
         {
@@ -218,8 +216,59 @@ public class SlimeFx : MonoBehaviour
         bool slow = (slowMotionCombo > 0 && combo >= slowMotionCombo) || (slowMotionLevel > 0 && hit.level >= slowMotionLevel);
         if (slow && slowMotionScale < 1f && slowMotionTime > 0f && (_ownsTimeScale || Mathf.Approximately(Time.timeScale, 1f))) _slowTimer = 0f;
 
+    }
+
+    // Éclat : le nouveau slime (presque rond) « claque » ; tout part de sa surface, les ondes passent derrière lui.
+    void Burst(SlimeScore.Hit hit, Vector2 p)
+    {
+        var design = skin != null ? skin.Design(hit.level) : null;
+        Color body = design != null ? design.body : (hit.blob != null ? hit.blob.debugColor : Color.white);
+        Color accent = design != null ? design.accent : Color.white;
+        float radius = _fusion != null ? 0.5f * _fusion.LevelDiameter(hit.level) : 1f;
+        int combo = Mathf.Max(1, hit.combo);
+
+        Emit(4, p, Vector2.zero, 1.05f * radius, 1.7f * radius, 0.3f, Hdr(Color.Lerp(body, Color.white, 0.4f), 1.2f), 1f, behind: true);
+        Emit(2, p, Vector2.zero, 0.95f * radius, ringSize * radius * (1f + 0.15f * (combo - 1)), 0.55f, Hdr(Color.Lerp(body, Color.white, 0.35f), 1.7f), 1f, param: 0.16f, behind: true);
+        if (combo >= 3 || hit.level >= 6)
+            Emit(2, p, Vector2.zero, 0.95f * radius, ringSize * 1.5f * radius, 0.75f, Hdr(accent, 1.8f), 1f, param: 0.08f, delay: 0.1f, behind: true);
+
+        int drops = Mathf.Min(60, droplets + hit.level + 3 * (combo - 1));
+        float speed = dropletSpeed * Mathf.Sqrt(radius / 0.5f) * (1f + 0.15f * (combo - 1));
+        for (int i = 0; i < drops; i++)
+        {
+            float a = Rand(0f, Mathf.PI * 2f);
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Vector2 v = dir * speed * Rand(0.5f, 1.2f) + Vector2.up * Rand(1f, 3f);
+            float size = Rand(0.05f, 0.12f) * Mathf.Sqrt(radius / 0.5f);
+            Color c = Color.Lerp(body, Color.white, Rand(0f, 0.25f));
+            Emit(0, p + dir * radius * Rand(0.9f, 1.05f), v, size, 0f, Rand(0.5f, 0.9f), new Vector4(c.r, c.g, c.b, 1f), 0f, gravity: 14f, drag: 0.6f);
+        }
+
+        int stars = Mathf.Min(50, sparkles + hit.level + 3 * (combo - 1));
+        for (int i = 0; i < stars; i++)
+        {
+            float a = Rand(0f, Mathf.PI * 2f);
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Color c = Color.Lerp(accent, Color.white, 0.5f);
+            Emit(1, p + dir * radius * Rand(0.95f, 1.15f), dir * Rand(1.5f, 4f) * (1f + 0.1f * hit.level), Rand(0.15f, 0.32f) * (1f + 0.05f * hit.level), 0f,
+                Rand(0.4f, 0.75f), Hdr(c, Rand(2f, 3.2f)), 1f, gravity: -1f, drag: 2.5f, spin: Rand(-6f, 6f));
+        }
+
+        _trauma = Mathf.Min(1f, _trauma + 0.1f + 0.05f * hit.level + 0.12f * (combo - 1));
+        if (backdrop != null) backdrop.Pulse(body, Mathf.Min(0.9f, 0.18f + 0.08f * hit.level + 0.12f * (combo - 1)));
+        if (hit.level >= 8 || combo >= 5) { _flash = Mathf.Max(_flash, 0.25f); _flashColor = body; }
+
         int maxLevel = _fusion != null ? _fusion.MaxLevel : 99;
         if (confettiLevel > 0 && ((hit.record && hit.level >= confettiLevel) || hit.level >= maxLevel)) Confetti(hit.level >= maxLevel ? 160 : 90);
+        Popped?.Invoke(hit, p);
+    }
+
+    static Vector2 Center(BLOB blob)
+    {
+        Vector2 c = Vector2.zero;
+        int n = blob.CapsuleCount;
+        for (int i = 0; i < n; i++) c += blob.Capsule(i).position;
+        return c / n;
     }
 
     void Confetti(int count)
@@ -262,6 +311,14 @@ public class SlimeFx : MonoBehaviour
         Prepare();
         for (int i = 0; i < _hits.Count; i++) Merge(_hits[i]);
         _hits.Clear();
+        for (int i = 0; i < _pops.Count; i++)
+        {
+            if (Time.time < _pops[i].at) continue;
+            var hit = _pops[i].hit;
+            _pops.RemoveAt(i--);
+            bool alive = hit.blob != null && hit.blob.isActiveAndEnabled && hit.blob.CapsuleCount > 0;
+            Burst(hit, alive ? Center(hit.blob) : hit.position);
+        }
 
         float dt = Time.deltaTime, udt = Time.unscaledDeltaTime;
         for (int i = _particles.Count - 1; i >= 0; i--)
@@ -323,9 +380,15 @@ public class SlimeFx : MonoBehaviour
 
     void Build()
     {
+        BuildLayer(true, _behindMesh);
+        BuildLayer(false, _mesh);
+    }
+
+    void BuildLayer(bool behind, Mesh mesh)
+    {
         _verts.Clear(); _uv0.Clear(); _uv1.Clear(); _uv2.Clear(); _tris.Clear();
 
-        if (aimDots && dropper != null && skin != null && _fusion != null)
+        if (!behind && aimDots && dropper != null && skin != null && _fusion != null)
         {
             var d = skin.Design(dropper.CurrentLevel);
             Color c = d != null ? d.body : Color.white;
@@ -342,7 +405,7 @@ public class SlimeFx : MonoBehaviour
         for (int i = 0; i < _particles.Count; i++)
         {
             var p = _particles[i];
-            if (p.age < 0f) continue;
+            if (p.age < 0f || p.behind != behind) continue;
             float u = p.age / p.life;
             float size = p.type == 0 ? p.size * (1f - u * u) : Mathf.Lerp(p.size, p.endSize, p.type == 2 || p.type == 4 ? 1f - (1f - u) * (1f - u) : u);
             Vector4 col = p.color;
@@ -351,14 +414,14 @@ public class SlimeFx : MonoBehaviour
             Quad(p.type, p.position, size, p.rotation, col, p.additive, param, p.type == 3 ? Mathf.Abs(Mathf.Cos(p.rotation * 1.3f)) : 1f);
         }
 
-        _mesh.Clear();
+        mesh.Clear();
         if (_verts.Count == 0) return;
-        _mesh.SetVertices(_verts);
-        _mesh.SetUVs(0, _uv0);
-        _mesh.SetUVs(1, _uv1);
-        _mesh.SetUVs(2, _uv2);
-        _mesh.SetIndices(_tris, MeshTopology.Triangles, 0, false);
-        _mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 10000f);
+        mesh.SetVertices(_verts);
+        mesh.SetUVs(0, _uv0);
+        mesh.SetUVs(1, _uv1);
+        mesh.SetUVs(2, _uv2);
+        mesh.SetIndices(_tris, MeshTopology.Triangles, 0, false);
+        mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 10000f);
     }
 
     // Quadrilatère centré, tourné de 'rotation' ; 'squash' écrase la hauteur (confetti qui tourne sur lui-même).
@@ -382,10 +445,13 @@ public class SlimeFx : MonoBehaviour
 
     void OnBeginCamera(ScriptableRenderContext context, Camera cam)
     {
-        if (_material == null || _mesh == null || _mesh.vertexCount == 0) return;
+        if (_material == null || _mesh == null) return;
         if (cam.cameraType != CameraType.Game && cam.cameraType != CameraType.SceneView) return;
-        var rp = new RenderParams(_material) { camera = cam, layer = gameObject.layer, worldBounds = new Bounds(Vector3.zero, Vector3.one * 10000f) };
-        Graphics.RenderMesh(rp, _mesh, 0, Matrix4x4.identity);
+        var bounds = new Bounds(Vector3.zero, Vector3.one * 10000f);
+        if (_behindMesh.vertexCount > 0)
+            Graphics.RenderMesh(new RenderParams(_behindMaterial) { camera = cam, layer = gameObject.layer, worldBounds = bounds }, _behindMesh, 0, Matrix4x4.identity);
+        if (_mesh.vertexCount > 0)
+            Graphics.RenderMesh(new RenderParams(_material) { camera = cam, layer = gameObject.layer, worldBounds = bounds }, _mesh, 0, Matrix4x4.identity);
     }
 
     void OnGUI()

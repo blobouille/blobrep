@@ -92,13 +92,19 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
 4. Sensation (gélatine, sons, effets), puis idées retenues une par une. Commencé (2026-10-22), objet « Habillage » de
    `Slime/reservoir` :
-   - `SlimeSkin` : un design par niveau (11, inspirés de Slime Rancher sans copie : Goutte, Menthe, Petit pois, Citron, Miel,
-     Tigrou, Braise, Bonbon, Cristal, Nébuleuse, Roi ; couleurs dans l'ordre du dégradé de BlobFusion) = couleurs, motif,
+   - `SlimeSkin` : un design par niveau (11, inspirés de Slime Rancher sans copie : Goutte bleu, Pousse vert, Bonbon rose,
+     Citron jaune, Cristal violet, Tigrou orange, Braise rouge, Miel or, Lagon turquoise, Nébuleuse indigo, Roi irisé ; les 5
+     premiers, les plus fréquents, très différents (avant : dégradé bleu → or, jugé trop proche) ; mêmes couleurs dans
+     `BlobFusion.levelColors`) = couleurs, motif,
      accessoire, style de visage, lueur. La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
      dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
      regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
-     éclair blanc et accessoires qui poussent à la naissance. Vitrine des designs dans la Scene view
-   - `SlimeFx` : fusion = halo, onde lumineuse, gouttes de gelée, étincelles ; plus fort avec le niveau et la chaîne :
+     éclair et accessoires qui poussent à l'éclat de la fusion. Yeux agrandis (2026-10-22). Vitrine des designs dans la
+     Scene view
+   - `SlimeFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
+     douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
+     étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
+     Plus fort avec le niveau et la chaîne :
      tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
      éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
    - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son

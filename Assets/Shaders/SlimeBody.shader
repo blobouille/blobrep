@@ -245,12 +245,12 @@ Shader "Slime/Body"
                 float3 ink = float3(0.12, 0.06, 0.10);
                 float3 white = float3(1.0, 1.0, 1.0);
                 float side = q.x < 0.0 ? -1.0 : 1.0;
-                float2 e = float2(abs(q.x), q.y) - float2(0.29, 0.07) - float2(look.x * side, look.y);
+                float2 e = float2(abs(q.x), q.y) - float2(0.31, 0.07) - float2(look.x * side, look.y);
 
                 // Joues roses
                 if (blushOn > 0.5 || expr == 1)
                 {
-                    float b = SdEllipse(float2(abs(q.x), q.y) - float2(0.43, -0.09), float2(0.09, 0.045));
+                    float b = SdEllipse(float2(abs(q.x), q.y) - float2(0.48, -0.11), float2(0.09, 0.045));
                     col = lerp(col, float3(1.0, 0.45, 0.55), saturate(0.5 - b / 0.04) * 0.45);
                 }
 
@@ -259,31 +259,31 @@ Shader "Slime/Body"
                 if (closedArc)
                 {
                     // ^ ^ (heureux) ou ‿ ‿ (serein)
-                    float2 a = expr == 1 ? e - float2(0.0, -0.05) : float2(e.x, -e.y) - float2(0.0, -0.06);
-                    eye = Fill(SdArc(a, 1.0, 0.09, 0.024));
+                    float2 a = expr == 1 ? e - float2(0.0, -0.06) : float2(e.x, -e.y) - float2(0.0, -0.075);
+                    eye = Fill(SdArc(a, 1.0, 0.115, 0.028));
                 }
                 else if (expr == 3)
                 {
                     // > <
                     float2 c = float2(e.x * side, e.y);
-                    float d = min(SdSegment(c, float2(-0.07 * side, 0.06), float2(0.06 * side, 0.0)),
-                                  SdSegment(c, float2(-0.07 * side, -0.06), float2(0.06 * side, 0.0)));
-                    eye = Fill(d - 0.022);
+                    float d = min(SdSegment(c, float2(-0.09 * side, 0.08), float2(0.08 * side, 0.0)),
+                                  SdSegment(c, float2(-0.09 * side, -0.08), float2(0.08 * side, 0.0)));
+                    eye = Fill(d - 0.027);
                 }
                 else
                 {
-                    float2 r = expr == 2 ? float2(0.12, 0.14) : float2(0.1, 0.13);
+                    float2 r = expr == 2 ? float2(0.155, 0.18) : float2(0.135, 0.165);
                     float open = 1.0 - blink;
                     float2 er = float2(r.x, max(r.y * open, 0.012));
                     float d = SdEllipse(e, er);
-                    if (style == 5 && expr == 0) d = max(d, e.y - 0.035); // paupières mi-closes (roi)
+                    if (style == 5 && expr == 0) d = max(d, e.y - 0.045); // paupières mi-closes (roi)
                     eye = Fill(d);
                     if (open > 0.3)
                     {
-                        float2 g = e - float2(-0.035, 0.05) * open;
-                        float star = style == 3 ? exp(-abs(g.x) * 60.0 - abs(g.y) * 9.0) + exp(-abs(g.y) * 60.0 - abs(g.x) * 9.0) : 0.0;
+                        float2 g = e - float2(-0.045, 0.062) * open;
+                        float star = style == 3 ? exp(-abs(g.x) * 46.0 - abs(g.y) * 7.0) + exp(-abs(g.y) * 46.0 - abs(g.x) * 7.0) : 0.0;
                         float tw = style == 3 ? 0.7 + 0.3 * sin(t * 5.0 + side) : 1.0;
-                        glint = saturate(Fill(length(g) - 0.035) + star * tw) + Fill(length(e - float2(0.035, -0.045)) - 0.016);
+                        glint = saturate(Fill(length(g) - 0.047) + star * tw) + Fill(length(e - float2(0.048, -0.06)) - 0.022);
                         glint *= eye;
                     }
                 }
@@ -294,12 +294,12 @@ Shader "Slime/Body"
                 if (style == 2 && expr != 1)
                 {
                     float2 c = float2(abs(q.x), q.y);
-                    float d = SdSegment(c, float2(0.19, 0.26), float2(0.38, 0.31));
+                    float d = SdSegment(c, float2(0.19, 0.3), float2(0.43, 0.36));
                     col = lerp(col, ink, Fill(d - 0.025));
                 }
 
                 // Bouche
-                float2 m = q - float2(0.0, -0.14);
+                float2 m = q - float2(0.0, -0.16);
                 float mouth = 0.0, tongue = 0.0;
                 if (expr == 1 || (expr == 0 && style == 2))
                 {

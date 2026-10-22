@@ -326,7 +326,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::monde_settings
   gameSpeed: 1
-  gravite: {x: 0, y: -15}
+  gravite: {x: 0, y: -10}
   simulationSubSteps: 5
   simulationWorkers: 1
   continuousAllowed: 1
@@ -492,10 +492,11 @@ MonoBehaviour:
   skin: {fileID: 1688171909}
   backdrop: {fileID: 1688171910}
   shader: {fileID: 4800000, guid: 9c1c4961a3d70324d9240ae98291e320, type: 3}
-  droplets: 10
+  popAt: 0.8
+  droplets: 6
   dropletSpeed: 5
-  sparkles: 5
-  ringSize: 2.6
+  sparkles: 4
+  ringSize: 2.3
   shake: 0.35
   slowMotionCombo: 4
   slowMotionLevel: 9
@@ -522,8 +523,8 @@ MonoBehaviour:
   shader: {fileID: 4800000, guid: f24393dc7f09b8e4d88a8ae3acee88b7, type: 3}
   designs:
   - name: Goutte
-    body: {r: 0.4, g: 0.8, b: 1, a: 1}
-    shade: {r: 0.13, g: 0.4, b: 0.85, a: 1}
+    body: {r: 0.36, g: 0.7, b: 1, a: 1}
+    shade: {r: 0.12, g: 0.36, b: 0.86, a: 1}
     accent: {r: 0.92, g: 0.98, b: 1, a: 1}
     pattern: 1
     accessory: 0
@@ -531,53 +532,53 @@ MonoBehaviour:
     face: 0
     blush: 1
     glow: 0
-  - name: Menthe
-    body: {r: 0.38, g: 0.93, b: 0.74, a: 1}
-    shade: {r: 0.05, g: 0.56, b: 0.52, a: 1}
-    accent: {r: 0.8, g: 1, b: 0.9, a: 1}
+  - name: Pousse
+    body: {r: 0.5, g: 0.88, b: 0.3, a: 1}
+    shade: {r: 0.16, g: 0.52, b: 0.14, a: 1}
+    accent: {r: 0.85, g: 1, b: 0.6, a: 1}
     pattern: 0
     accessory: 1
-    accessoryColor: {r: 0.4, g: 0.82, b: 0.22, a: 1}
+    accessoryColor: {r: 0.22, g: 0.62, b: 0.18, a: 1}
     face: 4
     blush: 1
     glow: 0
-  - name: Petit pois
-    body: {r: 0.55, g: 0.88, b: 0.3, a: 1}
-    shade: {r: 0.2, g: 0.53, b: 0.15, a: 1}
-    accent: {r: 0.86, g: 1, b: 0.62, a: 1}
-    pattern: 2
-    accessory: 0
-    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
+  - name: Bonbon
+    body: {r: 1, g: 0.52, b: 0.76, a: 1}
+    shade: {r: 0.84, g: 0.2, b: 0.52, a: 1}
+    accent: {r: 1, g: 1, b: 1, a: 1}
+    pattern: 7
+    accessory: 5
+    accessoryColor: {r: 0.96, g: 0.2, b: 0.38, a: 1}
     face: 0
     blush: 1
-    glow: 0
+    glow: 0.8
   - name: Citron
-    body: {r: 0.92, g: 0.97, b: 0.32, a: 1}
-    shade: {r: 0.5, g: 0.7, b: 0.08, a: 1}
-    accent: {r: 1, g: 1, b: 0.7, a: 1}
+    body: {r: 1, g: 0.92, b: 0.28, a: 1}
+    shade: {r: 0.85, g: 0.58, b: 0.05, a: 1}
+    accent: {r: 1, g: 1, b: 0.75, a: 1}
     pattern: 3
     accessory: 0
     accessoryColor: {r: 1, g: 1, b: 1, a: 1}
     face: 3
     blush: 0
     glow: 0.8
-  - name: Miel
-    body: {r: 1, g: 0.78, b: 0.22, a: 1}
-    shade: {r: 0.85, g: 0.44, b: 0.04, a: 1}
-    accent: {r: 1, g: 0.94, b: 0.62, a: 1}
-    pattern: 4
-    accessory: 2
-    accessoryColor: {r: 0.32, g: 0.18, b: 0.08, a: 1}
+  - name: Cristal
+    body: {r: 0.68, g: 0.4, b: 0.98, a: 1}
+    shade: {r: 0.32, g: 0.1, b: 0.66, a: 1}
+    accent: {r: 0.86, g: 0.97, b: 1, a: 1}
+    pattern: 8
+    accessory: 6
+    accessoryColor: {r: 0.62, g: 0.92, b: 1, a: 1}
     face: 0
-    blush: 1
-    glow: 0.3
+    blush: 0
+    glow: 0.7
   - name: Tigrou
-    body: {r: 1, g: 0.58, b: 0.18, a: 1}
-    shade: {r: 0.84, g: 0.28, b: 0.05, a: 1}
+    body: {r: 1, g: 0.52, b: 0.12, a: 1}
+    shade: {r: 0.82, g: 0.26, b: 0.04, a: 1}
     accent: {r: 0.4, g: 0.13, b: 0.04, a: 1}
     pattern: 5
     accessory: 3
-    accessoryColor: {r: 1, g: 0.55, b: 0.16, a: 1}
+    accessoryColor: {r: 1, g: 0.52, b: 0.12, a: 1}
     face: 1
     blush: 0
     glow: 0
@@ -591,26 +592,26 @@ MonoBehaviour:
     face: 2
     blush: 0
     glow: 2.2
-  - name: Bonbon
-    body: {r: 1, g: 0.52, b: 0.76, a: 1}
-    shade: {r: 0.84, g: 0.2, b: 0.52, a: 1}
-    accent: {r: 1, g: 1, b: 1, a: 1}
-    pattern: 7
-    accessory: 5
-    accessoryColor: {r: 0.96, g: 0.2, b: 0.38, a: 1}
+  - name: Miel
+    body: {r: 1, g: 0.8, b: 0.24, a: 1}
+    shade: {r: 0.86, g: 0.48, b: 0.04, a: 1}
+    accent: {r: 1, g: 0.94, b: 0.62, a: 1}
+    pattern: 4
+    accessory: 2
+    accessoryColor: {r: 0.32, g: 0.18, b: 0.08, a: 1}
     face: 0
     blush: 1
-    glow: 0.8
-  - name: Cristal
-    body: {r: 0.74, g: 0.38, b: 0.96, a: 1}
-    shade: {r: 0.35, g: 0.1, b: 0.66, a: 1}
-    accent: {r: 0.86, g: 0.97, b: 1, a: 1}
-    pattern: 8
-    accessory: 6
-    accessoryColor: {r: 0.62, g: 0.92, b: 1, a: 1}
-    face: 3
-    blush: 0
-    glow: 0.7
+    glow: 0.3
+  - name: Lagon
+    body: {r: 0.28, g: 0.86, b: 0.84, a: 1}
+    shade: {r: 0.04, g: 0.48, b: 0.58, a: 1}
+    accent: {r: 0.82, g: 1, b: 0.98, a: 1}
+    pattern: 2
+    accessory: 0
+    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
+    face: 0
+    blush: 1
+    glow: 0
   - name: "N\xE9buleuse"
     body: {r: 0.3, g: 0.25, b: 0.8, a: 1}
     shade: {r: 0.08, g: 0.05, b: 0.32, a: 1}
@@ -636,12 +637,13 @@ MonoBehaviour:
   outlineWidth: 0.05
   faceSize: 1.15
   faceShrink: 0.35
-  uprightTime: 0.8
+  uprightTime: 0
   blinkInterval: 3.5
   watchDrop: 1
   impactSpeed: 2.5
   fallSpeed: 5
   happyTime: 1.6
+  mergeFlash: 0.45
   curiosity: 2
   drawPreviews: 1
   gallery: 1
@@ -768,10 +770,10 @@ MonoBehaviour:
   maxBlobs: 0
   seed: 1
   maxDropLevel: 4
-  smallBias: 0
+  smallBias: 0.2
   halfWidth: 3.4
   moveSpeed: 5
-  dropInterval: 0.3
+  dropInterval: 1
   dropKey: 4
   leftKey: 0
   rightKey: 1
@@ -807,10 +809,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlobFusion
   growth: 1.3
-  maxSides: 24
+  maxSides: 32
   maxLevel: 10
   sizeStiffness: 1
-  mergeTime: 0.2
+  mergeTime: 0.35
   mergeCurve:
     serializedVersion: 2
     m_Curve:
@@ -835,19 +837,19 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  startStiffness: 0.5
-  waist: 0.05
+  startStiffness: 0.867
+  waist: 0.337
   levelColors:
-  - {r: 0.25, g: 1, b: 0.73, a: 1}
-  - {r: 0.25, g: 1, b: 0.37000006, a: 1}
-  - {r: 0.55200005, g: 1, b: 0.19999999, a: 1}
-  - {r: 1, g: 0.968, b: 0.19999999, a: 1}
-  - {r: 1, g: 0.632, b: 0.19999999, a: 1}
-  - {r: 1, g: 0.34, b: 0.25, a: 1}
-  - {r: 1, g: 0.35000002, b: 0.5450001, a: 1}
-  - {r: 1, g: 0.35000002, b: 0.818, a: 1}
-  - {r: 0.87000006, g: 0.35000002, b: 1, a: 1}
-  - {r: 0.59200007, g: 0.39999998, b: 1, a: 1}
+  - {r: 0.5, g: 0.88, b: 0.3, a: 1}
+  - {r: 1, g: 0.52, b: 0.76, a: 1}
+  - {r: 1, g: 0.92, b: 0.28, a: 1}
+  - {r: 0.68, g: 0.4, b: 0.98, a: 1}
+  - {r: 1, g: 0.52, b: 0.12, a: 1}
+  - {r: 0.8, g: 0.17, b: 0.12, a: 1}
+  - {r: 1, g: 0.8, b: 0.24, a: 1}
+  - {r: 0.28, g: 0.86, b: 0.84, a: 1}
+  - {r: 0.3, g: 0.25, b: 0.8, a: 1}
+  - {r: 0.98, g: 0.98, b: 1, a: 1}
 --- !u!114 &1967278713
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -910,17 +912,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d959d9bbdd123f4383e516f3374a45b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BLOB
-  sides: 3
+  sides: 32
   diameter: 1
-  debugColor: {r: 0, g: 1, b: 1, a: 1}
+  debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
   capsuleRadius: 0.5
   capsuleSpacing: 0
   density: 1
-  jointFrequency: 0
-  jointDamping: 10
-  jointLinearFrequency: 0
-  jointLinearDamping: 10
-  friction: 0.03
+  jointFrequency: 64
+  jointDamping: 5
+  jointLinearFrequency: 64
+  jointLinearDamping: 5
+  friction: 0.5
   bounciness: 0
   fastCollisions: 0
   heavyKey: 3

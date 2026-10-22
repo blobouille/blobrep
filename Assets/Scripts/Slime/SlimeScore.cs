@@ -87,7 +87,7 @@ public class SlimeScore : MonoBehaviour, ILevelPhysics
         if (LevelSimulation.FastForwarding) return;
         _popups.Add(new Popup
         {
-            position = position,
+            position = position + Vector2.up * (0.5f * merged.diameter + 0.4f), // au-dessus du nouveau slime : la fusion reste visible
             text = Combo > 1 ? $"+{points}  ×{(100 + (Combo - 1) * comboPercent) / 100f:0.#}" : $"+{points}",
             color = merged.debugColor,
             born = Time.time,

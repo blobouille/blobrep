@@ -46,11 +46,12 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
              "Niveau 0 : couleur du blob modèle. Les slimes lâchés plus gros prennent la couleur de leur niveau.")]
     public Color[] levelColors =
     {
-        // Dégradé de teinte depuis le cyan du modèle : turquoise, vert, jaune, orange, rouge, rose, magenta, violet.
-        Color.HSVToRGB(0.44f, 0.75f, 1f), Color.HSVToRGB(0.36f, 0.75f, 1f), Color.HSVToRGB(0.26f, 0.8f, 1f),
-        Color.HSVToRGB(0.16f, 0.8f, 1f), Color.HSVToRGB(0.09f, 0.8f, 1f), Color.HSVToRGB(0.02f, 0.75f, 1f),
-        Color.HSVToRGB(0.95f, 0.65f, 1f), Color.HSVToRGB(0.88f, 0.65f, 1f), Color.HSVToRGB(0.80f, 0.65f, 1f),
-        Color.HSVToRGB(0.72f, 0.6f, 1f)
+        // Mêmes couleurs que les designs de SlimeSkin : les petits (les plus fréquents) très différents les uns des autres.
+        // Vert, rose, jaune, violet, orange, rouge, or, turquoise, indigo, blanc irisé.
+        new Color(0.50f, 0.88f, 0.30f), new Color(1.00f, 0.52f, 0.76f), new Color(1.00f, 0.92f, 0.28f),
+        new Color(0.68f, 0.40f, 0.98f), new Color(1.00f, 0.52f, 0.12f), new Color(0.80f, 0.17f, 0.12f),
+        new Color(1.00f, 0.80f, 0.24f), new Color(0.28f, 0.86f, 0.84f), new Color(0.30f, 0.25f, 0.80f),
+        new Color(0.98f, 0.98f, 1.00f)
     };
 
     struct Fusing
