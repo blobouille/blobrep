@@ -116,6 +116,7 @@ public class BLOB : MonoBehaviour, ICameraTarget, ILevelPhysics, ILevelTick, ITr
 
     public int CapsuleCount => _bodies.IsCreated ? _bodies.Length : 0;
     public PhysicsBody Capsule(int i) => _bodies[i];
+    public PhysicsShape CapsuleShapeAt(int i) => _shapes[i];
     public int JointCount => _joints.IsCreated ? _joints.Length : 0;
     // Joint(j) relie la capsule j-1 à la capsule j (ancre A au bout +Y de j-1, ancre B au bout -Y de j). Invalide une fois cassé.
     public PhysicsJoint Joint(int j) => _joints[j];

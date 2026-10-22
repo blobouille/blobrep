@@ -64,7 +64,7 @@ public class SlimeSound : MonoBehaviour
     AudioListener _listener;
     readonly List<Request> _requests = new List<Request>();
     System.Random _rand = new System.Random(5);
-    int _impactsThisFrame;
+    int _impactsThisFrame, _splitsThisFrame;
 
     void OnEnable()
     {
@@ -133,6 +133,18 @@ public class SlimeSound : MonoBehaviour
         if ((record && level >= 4) || level >= maxLevel) Play(_fanfare, bigVolume, 0f, 0f);
     }
 
+    // Division d'un slime (fin de niveau réussi) : « bloup » aigu, cloche qui monte à chaque génération. Peu par image (des
+    // dizaines de slimes se divisent ensemble).
+    public void Split(int level, int generation, float x)
+    {
+        if (_splitsThisFrame >= 3 || _fusion == null) return;
+        _splitsThisFrame++;
+        Play(_bloop, mergeVolume * 0.6f, 9f - level * semitonesPerLevel + Jitter(), x);
+        Play(_ding, comboVolume * 0.5f, Ladder[Mathf.Min(generation, Ladder.Length - 1)], x);
+    }
+
+    public void PlayFanfare() => Play(_fanfare, bigVolume, 0f, 0f);
+
     void OnImpact(BLOB blob, Vector2 point, Vector2 normal, float speed)
     {
         if (speed < softImpact || _impactsThisFrame >= 3 || _fusion == null) return;
@@ -145,6 +157,7 @@ public class SlimeSound : MonoBehaviour
     void Update()
     {
         _impactsThisFrame = 0;
+        _splitsThisFrame = 0;
         for (int i = 0; i < _requests.Count; i++)
         {
             var r = _requests[i];

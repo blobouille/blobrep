@@ -31,12 +31,16 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(0f, 1f)] public float smallBias = 0f;
 
     [Header("Lâcher")]
-    [Tooltip("Demi-largeur de la zone de lâcher pour le premier slime, en m, centrée sur l'objet. Réduite automatiquement pour\n" +
-             "les plus gros (leur bord s'arrête au même endroit).")]
-    [Min(0f)] public float halfWidth = 3f;
+    [Tooltip("Demi-largeur intérieure du réservoir à la hauteur du lâcher, en m : de l'axe de l'objet à la face intérieure de la\n" +
+             "paroi (verre dessiné compris). Le point de lâcher s'arrête à cette distance − rayon du slime − 'wallGap' : un slime\n" +
+             "lâché au bord longe la paroi sans la toucher, quelle que soit sa taille.")]
+    [Min(0f)] public float halfWidth = 3.8f;
+    [Tooltip("Espace laissé entre le bord du slime et la paroi quand on lâche tout au bord, en m.")]
+    [Min(0f)] public float wallGap = 0.15f;
     [Tooltip("Vitesse du point de lâcher, en km/h, flèche tenue.")]
     [SpeedKmh] [Min(0f)] public float moveSpeed = 5f;
-    [Tooltip("Délai (s) entre deux lâchers quand la touche est tenue (rafale). Un appui bref lâche un seul blob.")]
+    [Tooltip("Délai minimum (s) entre deux lâchers, appuis répétés comme touche tenue (rafale). Un appui pendant ce délai\n" +
+             "est ignoré.")]
     [Min(0.01f)] public float dropInterval = 0.3f;
     public FlipperKey dropKey = FlipperKey.Space;
     public FlipperKey leftKey = FlipperKey.LeftArrow;
@@ -48,6 +52,9 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Dessin de debug : slime à lâcher et suivant (cercles), zone de lâcher et ligne de visée.\n" +
              "À décocher quand SlimeSkin dessine les slimes.")]
     public bool debugDraw = true;
+    [Tooltip("Dessine les formes physiques des slimes (capsules) par-dessus l'habillage. Touche H en jeu pour basculer.")]
+    public bool showHitboxes = false;
+    public Color hitboxColor = new Color(1f, 1f, 1f, 0.9f);
     public Color previewColor = new Color(1f, 1f, 1f, 0.5f);
     [Tooltip("Position de l'aperçu du slime suivant (celui d'après le prochain), en m par rapport à l'objet.")]
     public Vector2 nextPreviewOffset = new Vector2(6f, -2f);
@@ -62,7 +69,6 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     public int NextLevel => _next;
     float _offset;     // position du point de lâcher par rapport à l'objet, en m
     float _cooldown;
-    bool _wasDown;
 
     // Mesures (affichage) : coût de Box2D par pas, moyenne glissante.
     float _stepMs, _fps;
@@ -73,6 +79,11 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     // Slime lâché et son niveau (pendant LevelTick : les effets s'en servent, sans écrire dans la simulation).
     public event System.Action<BLOB, int> Dropped;
 
+    // Nombre de lâchers depuis le départ ; limite donnée par SlimeGoal (0 = sans limite).
+    public int Drops { get; private set; }
+    [System.NonSerialized] public int dropLimit;
+    public int DropsLeft => dropLimit > 0 ? Mathf.Max(0, dropLimit - Drops) : int.MaxValue;
+
     public int Count => _blobs.Count;
     // Blobs vivants, dans l'ordre de création.
     public IReadOnlyList<BLOB> Blobs => _blobs;
@@ -80,14 +91,13 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnEnable()
     {
         _fusion = GetComponent<BlobFusion>();
-        _rng = (uint)seed * 2654435761u ^ 0x9E3779B9u;
-        if (_rng == 0u) _rng = 1u;
+        _rng = StartRng();
         _current = RollLevel();
         _next = RollLevel();
         _spawned = 0;
+        Drops = 0;
         _offset = 0f;
         _cooldown = 0f;
-        _wasDown = false;
         _stepMs = 0f;
     }
 
@@ -113,8 +123,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
         bool down = LevelInput.IsDown(dropKey);
         _cooldown -= dt;
-        if (down && (!_wasDown || _cooldown <= 0f)) Drop();
-        _wasDown = down;
+        if (down && _cooldown <= 0f && DropsLeft > 0) Drop();
 
         // Les blobs créés ici ne sont pas dans la liste de LevelSimulation : leur pas est fait ici, dans l'ordre de création.
         for (int i = 0; i < _blobs.Count; i++) _blobs[i].LevelTick();
@@ -128,6 +137,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         _cooldown = dropInterval;
         if (template == null || (maxBlobs > 0 && _blobs.Count >= maxBlobs)) return;
         var blob = SpawnLevel(DropPoint, _current);
+        Drops++;
         Dropped?.Invoke(blob, _current);
         _current = _next;
         _next = RollLevel();
@@ -137,16 +147,33 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
     // Suite aléatoire déterministe : xorshift32 (entiers, même résultat partout ; pas UnityEngine.Random, partagé et non garanti).
     // Tirée seulement au départ et à chaque lâcher, dans LevelTick : rejouée à l'identique.
-    int RollLevel()
+    int RollLevel() => Roll(ref _rng);
+
+    uint StartRng()
+    {
+        uint rng = (uint)seed * 2654435761u ^ 0x9E3779B9u;
+        return rng == 0u ? 1u : rng;
+    }
+
+    // Niveaux des 'count' premiers slimes lâchés (même graine, même tirage qu'en jeu), sans toucher à la partie en cours.
+    public void PredictSequence(int count, System.Collections.Generic.List<int> levels)
+    {
+        if (_fusion == null) _fusion = GetComponent<BlobFusion>();
+        levels.Clear();
+        uint rng = StartRng();
+        for (int i = 0; i < count; i++) levels.Add(Roll(ref rng));
+    }
+
+    int Roll(ref uint rng)
     {
         int max = _fusion != null ? Mathf.Min(maxDropLevel, _fusion.MaxLevel) : 0;
-        _rng ^= _rng << 13;
-        _rng ^= _rng >> 17;
-        _rng ^= _rng << 5;
+        rng ^= rng << 13;
+        rng ^= rng >> 17;
+        rng ^= rng << 5;
         if (max <= 0) return 0;
         float keep = 1f - smallBias, total = 0f, weight = 1f;
         for (int level = 0; level <= max; level++) { total += weight; weight *= keep; }
-        float pick = (_rng >> 8) * (1f / 16777216f) * total;
+        float pick = (rng >> 8) * (1f / 16777216f) * total;
         weight = 1f;
         for (int level = 0; level < max; level++)
         {
@@ -157,8 +184,8 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         return max;
     }
 
-    // Zone de lâcher pour ce niveau : le bord du slime s'arrête au même endroit que celui du premier.
-    float HalfWidth(int level) => Mathf.Max(0f, halfWidth + 0.5f * (LevelDiameter(0) - LevelDiameter(level)));
+    // Zone de lâcher pour ce niveau : le bord du slime s'arrête à 'wallGap' de la paroi.
+    float HalfWidth(int level) => Mathf.Max(0f, halfWidth - 0.5f * LevelDiameter(level) - wallGap);
 
     float LevelDiameter(int level) => _fusion != null ? _fusion.LevelDiameter(level) : template.diameter;
     Color LevelColor(int level) => _fusion != null ? _fusion.LevelColor(level) : template.debugColor;
@@ -187,6 +214,12 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         return blob;
     }
 
+    // Retire tous les blobs (fin de niveau), du dernier créé au premier.
+    public void RemoveAll()
+    {
+        for (int i = _blobs.Count - 1; i >= 0; i--) Remove(_blobs[i]);
+    }
+
     // Retire un blob : sa physique est détruite tout de suite, son objet en fin d'image.
     public void Remove(BLOB blob)
     {
@@ -205,21 +238,39 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 #if ENABLE_INPUT_SYSTEM
         var kb = Keyboard.current;
         if (kb != null && kb.rKey.wasPressedThisFrame) LevelSimulation.RunBeforeNextStep(LevelRestart.Restart);
+        if (kb != null && kb.hKey.wasPressedThisFrame) showHitboxes = !showHitboxes;
 #else
         if (Input.GetKeyDown(KeyCode.R)) LevelSimulation.RunBeforeNextStep(LevelRestart.Restart);
+        if (Input.GetKeyDown(KeyCode.H)) showHitboxes = !showHitboxes;
 #endif
     }
 
     void LateUpdate()
     {
-        if (!Application.isPlaying || template == null || !debugDraw) return;
+        if (!Application.isPlaying || template == null) return;
         var world = PhysicsWorld.defaultWorld;
+        if (showHitboxes) DrawHitboxes(world);
+        if (!debugDraw || DropsLeft == 0) return;
         DrawSlime(world, DropPoint, _current);
         DrawSlime(world, NextPreviewPoint, _next);
         float limit = HalfWidth(_current);
         Vector2 a = (Vector2)transform.position + new Vector2(-limit, 0f), b = (Vector2)transform.position + new Vector2(limit, 0f);
         world.DrawLine(a, b, previewColor, 0f);
         world.DrawLine(DropPoint, DropPoint + Vector2.down * 30f, new Color(1f, 1f, 1f, 0.12f), 0f);
+    }
+
+    void DrawHitboxes(PhysicsWorld world)
+    {
+        for (int i = 0; i < _blobs.Count; i++)
+        {
+            var blob = _blobs[i];
+            if (blob == null) continue;
+            for (int c = 0; c < blob.CapsuleCount; c++)
+            {
+                var shape = blob.CapsuleShapeAt(c);
+                if (shape.isValid) world.DrawGeometry(shape.capsuleGeometry, blob.Capsule(c).transform, hitboxColor, 0f, PhysicsWorld.DrawFillOptions.Outline);
+            }
+        }
     }
 
     public Vector2 NextPreviewPoint => (Vector2)transform.position + nextPreviewOffset;
@@ -236,7 +287,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         if (!Application.isPlaying) return;
         var cam = Camera.main;
-        if (cam != null)
+        if (cam != null && DropsLeft > 1)
         {
             Vector2 p = NextPreviewPoint - new Vector2(0f, 0.5f * LevelDiameter(_next) + 0.2f);
             Vector3 s = cam.WorldToScreenPoint(p);
@@ -249,7 +300,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
             $"Blobs : {_blobs.Count}   corps : {bodies}\n" +
             $"Physique : {_stepMs:F2} ms par pas = {_stepMs * 12f:F0} % du temps réel (120 pas/s ; au-delà de 100 %, le jeu ralentit)\n" +
             $"Images/s : {_fps:F0}\n" +
-            "Flèches = viser, Espace = lâcher (tenu = rafale), R = vider");
+            "Flèches = viser, Espace = lâcher (tenu = rafale), R = vider, H = formes physiques");
     }
 
     void OnDrawGizmos()
@@ -259,6 +310,8 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         Gizmos.color = previewColor;
         Vector3 p = transform.position;
         Gizmos.DrawLine(p + Vector3.left * halfWidth, p + Vector3.right * halfWidth);
+        Gizmos.DrawLine(p + new Vector3(-halfWidth, -1f), p + new Vector3(-halfWidth, 1f));
+        Gizmos.DrawLine(p + new Vector3(halfWidth, -1f), p + new Vector3(halfWidth, 1f));
         // Tailles possibles au lâcher (niveaux 0 à maxDropLevel), concentriques, à leur couleur.
         int max = _fusion != null ? Mathf.Min(maxDropLevel, _fusion.MaxLevel) : 0;
         for (int level = 0; level <= max; level++)

@@ -263,6 +263,42 @@ public class SlimeFx : MonoBehaviour
         Popped?.Invoke(hit, p);
     }
 
+    // Division d'un slime (fin de niveau réussi) : petit éclat à sa couleur, sans tremblement fort.
+    public void Split(Vector2 p, int level, float radius)
+    {
+        var design = skin != null ? skin.Design(level) : null;
+        Color body = design != null ? design.body : Color.white;
+        Color accent = design != null ? design.accent : Color.white;
+        Emit(4, p, Vector2.zero, 0.9f * radius, 1.6f * radius, 0.25f, Hdr(Color.Lerp(body, Color.white, 0.4f), 1.1f), 1f, behind: true);
+        Emit(2, p, Vector2.zero, 0.8f * radius, ringSize * radius, 0.4f, Hdr(Color.Lerp(body, Color.white, 0.35f), 1.5f), 1f, param: 0.14f, behind: true);
+        float scale = Mathf.Sqrt(radius / 0.5f);
+        for (int i = 0; i < 4 + level; i++)
+        {
+            float a = Rand(0f, Mathf.PI * 2f);
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Color c = Color.Lerp(body, Color.white, Rand(0f, 0.25f));
+            Emit(0, p + dir * radius, dir * dropletSpeed * scale * Rand(0.4f, 1f) + Vector2.up * Rand(1f, 3f), Rand(0.05f, 0.1f) * scale, 0f,
+                Rand(0.4f, 0.7f), new Vector4(c.r, c.g, c.b, 1f), 0f, gravity: 14f, drag: 0.6f);
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            float a = Rand(0f, Mathf.PI * 2f);
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Emit(1, p + dir * radius, dir * Rand(1.5f, 3.5f), Rand(0.15f, 0.28f), 0f, Rand(0.4f, 0.7f), Hdr(Color.Lerp(accent, Color.white, 0.5f), Rand(2f, 3f)), 1f,
+                gravity: -1f, drag: 2.5f, spin: Rand(-6f, 6f));
+        }
+        _trauma = Mathf.Min(0.6f, _trauma + 0.03f + 0.01f * level);
+        if (backdrop != null) backdrop.Pulse(body, 0.12f + 0.03f * level);
+    }
+
+    // Niveau réussi : pluie de confettis et éclair doré.
+    public void Celebrate()
+    {
+        Confetti(200);
+        _flash = Mathf.Max(_flash, 0.3f);
+        _flashColor = new Color(1f, 0.85f, 0.4f);
+    }
+
     static Vector2 Center(BLOB blob)
     {
         Vector2 c = Vector2.zero;
@@ -388,7 +424,7 @@ public class SlimeFx : MonoBehaviour
     {
         _verts.Clear(); _uv0.Clear(); _uv1.Clear(); _uv2.Clear(); _tris.Clear();
 
-        if (!behind && aimDots && dropper != null && skin != null && _fusion != null)
+        if (!behind && aimDots && dropper != null && skin != null && _fusion != null && dropper.DropsLeft > 0)
         {
             var d = skin.Design(dropper.CurrentLevel);
             Color c = d != null ? d.body : Color.white;

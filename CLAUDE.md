@@ -75,7 +75,32 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    c'est ce qui reconnaît deux slimes de même niveau). `BlobDropper` : suite aléatoire à graine fixe (`seed`, xorshift32 en
    entiers, tirée au départ et à chaque lâcher dans `LevelTick` ; pas `UnityEngine.Random`), niveaux 0 à `maxDropLevel` (3),
    `smallBias` pour favoriser les petits ; slime à lâcher dessiné au point de lâcher + « Suivant » à côté ; zone de lâcher
-   réduite pour les gros (leur bord s'arrête au même endroit). `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
+   selon le rayon (2026-10-22 : `halfWidth` = demi-largeur intérieure jusqu'au verre dessiné, 3,8 m ; tout au bord, un
+   slime de toute taille longe la paroi à `wallGap` 0,15 m sans la toucher, mesuré ; avant, son bord entrait dans le verre).
+   `dropInterval` vaut aussi pour les appuis répétés, plus seulement pour la touche tenue. H = formes physiques (capsules)
+   dessinées par-dessus l'habillage (`showHitboxes`). Objectif (`SlimeGoal`, 2026-10-22, case `useGoal`, appliquée au
+   prochain R) : `maxDrops` coups (30) et `targetScore` points (3 000, à caler sur de vraies parties ; une partie scriptée
+   bête en fait 4 790) qui vont ensemble. Score atteint = plus de lâcher, la chaîne en cours se FINIT (ses points comptent :
+   plus de fusion pendant `comboWindow` + `mergeTime`), puis réussi : la simulation retire les slimes et `SlimeFinale`
+   (Cosmetics, purement visuel, slimes virtuels dessinés par `SlimeSkin.DrawVirtual`) les fait se diviser en cascade
+   jusqu'au plus petit (éclat + son à chaque division, confettis, fanfare) ; les plus petits s'envolent par le haut ; panneau
+   après `celebrationTime` (3,5 s). Coups épuisés sans objectif : jugé quand rien n'a fusionné depuis `settleTime` (2,5 s),
+   « Raté… ». R = rejouer. Identique sur 2 essais (score, fusions, fin)
+   Objectif calculé (2026-10-22, `autoTarget`) : base = points SANS AUCUNE CHAÎNE en fusionnant parfaitement la suite à
+   graine (`BlobDropper.PredictSequence`, vérifiée identique au jeu ; paires de même niveau fusionnées comme une retenue
+   binaire : `SlimeGoal.PerfectPoints`) avec tous les coups, divisés par (1 + marge) ; marge : Facile 33 %, Moyen 16,5 %,
+   Difficile 5 % ; `comboShare` = part de l'objectif à faire en chaînes (0 = chaînes en bonus). Compté en POINTS : en coups
+   (points parfaits sur `maxDrops` / (1 + marge) coups), les paliers (un coup de plus ne complète pas toujours une fusion)
+   donnaient le même objectif à deux difficultés (graine 2, 30 coups : Moyen = Difficile = 2 340) ; en points : 1 805 /
+   2 060 / 2 286. L'inspecteur affiche coups nécessaires / donnés et la difficulté réelle d'un objectif saisi à la main.
+   « Parfait » = aucune fusion ratée : en vrai, on en rate
+   (slimes coincés loin de leur pareil), donc même Facile peut être dur ; à caler sur de vraies parties.
+   Parois = limites (`SlimeWallHold`, 2026-10-22) : un slime lâché au bord s'écrasait contre la paroi et partait en roulant
+   jusqu'à l'autre côté (mesuré : niveau 4, de x = 2,68 à −0,67 en 3 s, toujours lancé). Tant qu'il touche une paroi (face
+   intérieure = `halfWidth`, la collision y est aussi), la vitesse de son centre qui l'en éloigne est annulée
+   (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Mesuré : reste à
+   x = 2,70 ; partie scriptée identique au bit près (2 essais)
+   `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
    n(n+1)/2, fusions à moins de `comboWindow` (1,2 s, en pas de simulation) l'une de l'autre = chaîne, + `comboPercent` (50 %)
    par maillon ; points qui s'envolent (OnGUI, pas pendant le rejeu accéléré), score / meilleur / plus gros niveau. Vérifié :
    partie scriptée de 3600 pas (22 fusions, chaîne ×6, 2 735 points) identique au bit près, score compris, sur 3 essais
@@ -178,8 +203,10 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
 - `Scripts/Skater/` : skateur (abandonné)
 - `Scripts/Slime/` : le nouveau jeu. `BlobDropper` (lâcher, suite aléatoire, aperçu ; possède la liste des blobs et leur
   pas ; événement `Dropped`), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `Scored`
-  après chaque fusion comptée), `SlimeEscape` (sort les slimes enfermés dans un autre).
-- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound`) ; ils mettent
+  après chaque fusion comptée), `SlimeEscape` (sort les slimes enfermés dans un autre), `SlimeGoal` (coups max + objectif
+  de points calculé selon la difficulté, fin de niveau ; limite donnée à `BlobDropper.dropLimit`), `SlimeWallHold` (parois
+  qui retiennent au lieu de relancer).
+- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound`, `SlimeFinale`) ; ils mettent
   les événements de la simulation en file et ignorent le rejeu accéléré. `SlimeSkin.Impact` = chocs (vus à l'affichage)
   Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
 - Scènes : `Assets/Scenes/Slime/` (nouveau jeu), le reste = bancs de test hérités

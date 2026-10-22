@@ -108,9 +108,34 @@ public class SlimeSkin : MonoBehaviour
     // Choc détecté sur un slime : point de contact, normale (vers le slime), vitesse perdue (m/s).
     public event System.Action<BLOB, Vector2, Vector2, float> Impact;
 
+    // Dessin de slimes sans physique (fin de niveau…) : appelé pendant la construction du maillage, temps écoulé en argument ;
+    // y appeler DrawVirtual.
+    public event System.Action<float> DrawExtras;
+
+    // Slime sans physique, rond, dessiné par DrawVirtual (mêmes design, visage et accessoires que les vrais).
+    public class VirtualSlime
+    {
+        public int level;
+        public Vector2 center;
+        public float radius, scale = 1f;
+        internal Look look;
+    }
+
+    public VirtualSlime NewVirtual(int level, float radius) => new VirtualSlime { level = level, radius = radius, look = NewLook(level, radius) };
+
+    // Seulement pendant DrawExtras. Visage heureux, regard vers le haut.
+    public void DrawVirtual(VirtualSlime v, float dt)
+    {
+        v.look.level = v.level;
+        v.look.happy = 1f;
+        v.look.attention = v.center + Vector2.up * 4f;
+        v.look.attentionTime = 1f;
+        EmitRound(v.look, v.center, v.radius, dt, v.scale, Time.time);
+    }
+
     const float TAU = Mathf.PI * 2f;
 
-    class Look
+    internal class Look
     {
         public int level, seen, step;
         public float radius, rot, frame, seed;
@@ -342,6 +367,7 @@ public class SlimeSkin : MonoBehaviour
             }
             if (drawPreviews) DrawPreviews(dt);
         }
+        DrawExtras?.Invoke(dt);
         if (galleryInPlay) DrawGallery(dt);
         End();
 
@@ -542,10 +568,11 @@ public class SlimeSkin : MonoBehaviour
         Vector2 held = dropper.DropPoint + new Vector2(0f, 0.06f * Mathf.Sin(t * 2.2f));
         _held.attention = held + Vector2.down * 5f;
         _held.attentionTime = 1f;
-        EmitRound(_held, held, 0.5f * _fusion.LevelDiameter(cur), dt, Mathf.Lerp(0.3f, 1f, pop), t);
+        int left = dropper.DropsLeft;
+        if (left > 0) EmitRound(_held, held, 0.5f * _fusion.LevelDiameter(cur), dt, Mathf.Lerp(0.3f, 1f, pop), t);
         _nextLook.attention = held;
         _nextLook.attentionTime = 1f;
-        EmitRound(_nextLook, dropper.NextPreviewPoint, 0.5f * _fusion.LevelDiameter(next), dt, Mathf.Lerp(0.5f, 1f, pop), t + 1.3f);
+        if (left > 1) EmitRound(_nextLook, dropper.NextPreviewPoint, 0.5f * _fusion.LevelDiameter(next), dt, Mathf.Lerp(0.5f, 1f, pop), t + 1.3f);
     }
 
     void DrawGallery(float dt)

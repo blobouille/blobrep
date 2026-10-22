@@ -168,6 +168,7 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         for (int i = _fusing.Count - 1; i >= 0; i--)
         {
             var f = _fusing[i];
+            if (f.blob == null || !f.blob.isActiveAndEnabled) { _fusing.RemoveAt(i); continue; } // retiré (fin de niveau)
             f.time += dt;
             float u = Mathf.Clamp01(f.time / mergeTime);
             float e = u >= 1f ? 1f : Mathf.Clamp01(mergeCurve != null ? mergeCurve.Evaluate(u) : u);
@@ -185,6 +186,9 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             else _fusing[i] = f;
         }
     }
+
+    // Le blob est-il en train de prendre forme après une fusion (cacahuète ramenée au cercle) ?
+    public bool IsMerging(BLOB blob) => IsFusing(blob);
 
     bool IsFusing(BLOB blob)
     {
