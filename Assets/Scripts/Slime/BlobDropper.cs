@@ -59,8 +59,13 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     public bool showHitboxes = false;
     public Color hitboxColor = new Color(1f, 1f, 1f, 0.9f);
     public Color previewColor = new Color(1f, 1f, 1f, 0.5f);
-    [Tooltip("Position de l'aperçu du slime suivant (celui d'après le prochain), en m par rapport à l'objet.")]
+    [Tooltip("Sans caméra orthographique seulement : position de l'aperçu du slime suivant, en m par rapport à l'objet.")]
     public Vector2 nextPreviewOffset = new Vector2(6f, -2f);
+    [Tooltip("Position de l'aperçu du slime suivant À L'ÉCRAN (0 = gauche / bas, 1 = droite / haut) : reste visible quel que\n" +
+             "soit le format du téléphone. Purement visuel.")]
+    public Vector2 nextPreviewViewport = new Vector2(0.84f, 0.8f);
+    [Tooltip("Diamètre max de l'aperçu du slime suivant, en m (les plus gros sont dessinés réduits à cette taille).")]
+    [Min(0.1f)] public float nextPreviewDiameter = 1f;
 
     readonly List<BLOB> _blobs = new List<BLOB>();
     BlobFusion _fusion;
@@ -289,7 +294,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         if (showHitboxes) DrawHitboxes(world);
         if (!debugDraw || DropsLeft == 0) return;
         DrawSlime(world, DropPoint, _current);
-        DrawSlime(world, NextPreviewPoint, _next);
+        DrawSlime(world, NextPreviewPoint, _next, NextPreviewRadius);
         float limit = HalfWidth(_current);
         Vector2 a = (Vector2)transform.position + new Vector2(-limit, 0f), b = (Vector2)transform.position + new Vector2(limit, 0f);
         world.DrawLine(a, b, previewColor, 0f);
@@ -310,12 +315,24 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         }
     }
 
-    public Vector2 NextPreviewPoint => (Vector2)transform.position + nextPreviewOffset;
+    public Vector2 NextPreviewPoint
+    {
+        get
+        {
+            var cam = Camera.main;
+            if (cam == null || !cam.orthographic) return (Vector2)transform.position + nextPreviewOffset;
+            float h = cam.orthographicSize, w = h * cam.aspect;
+            Vector2 c = cam.transform.position;
+            return c + new Vector2((2f * nextPreviewViewport.x - 1f) * w, (2f * nextPreviewViewport.y - 1f) * h);
+        }
+    }
 
-    void DrawSlime(PhysicsWorld world, Vector2 center, int level)
+    public float NextPreviewRadius => 0.5f * Mathf.Min(LevelDiameter(_next), nextPreviewDiameter);
+
+    void DrawSlime(PhysicsWorld world, Vector2 center, int level, float r = -1f)
     {
         var color = LevelColor(level);
-        float r = 0.5f * LevelDiameter(level);
+        if (r < 0f) r = 0.5f * LevelDiameter(level);
         world.DrawCircle(center, r, new Color(color.r, color.g, color.b, 0.35f), 0f, PhysicsWorld.DrawFillOptions.Interior);
         world.DrawCircle(center, r, color, 0f, PhysicsWorld.DrawFillOptions.Outline);
     }
@@ -326,7 +343,7 @@ public class BlobDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         var cam = Camera.main;
         if (cam != null && DropsLeft > 1)
         {
-            Vector2 p = NextPreviewPoint - new Vector2(0f, 0.5f * LevelDiameter(_next) + 0.2f);
+            Vector2 p = NextPreviewPoint - new Vector2(0f, NextPreviewRadius + 0.2f);
             Vector3 s = cam.WorldToScreenPoint(p);
             GUI.Label(new Rect(s.x - 50f, Screen.height - s.y, 100f, 22f), "Suivant", _centered ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
         }

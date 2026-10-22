@@ -102,7 +102,8 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Marge de contact
    0,08 m (`contactMargin`) : à 0,03, un slime lâché pile contre la paroi gauche, repoussé en s'écrasant au sol, sortait de la
    marge en un pas et repartait en roulant de 2 m (mesuré, 2026-10-22) ; à 0,08 il reste collé, niveaux 0, 3 et 6, des deux
-   côtés. Mesuré : reste à
+   côtés. Marge + chemin d'un pas (vitesse × durée du pas) : tient aussi à 50 Hz ; tri grossier à 2 diamètres (à 1, un slime
+   écrasé contre la paroi gauche était écarté). Mesuré : reste à
    x = 2,70 ; partie scriptée identique au bit près (2 essais)
    `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
    n(n+1)/2, fusions à moins de `comboWindow` (1,2 s, en pas de simulation) l'une de l'autre = chaîne, + `comboPercent` (50 %)
@@ -171,7 +172,8 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Unity 6000.6, physique 2D bas niveau `Unity.U2D.Physics` (Box2D v3 : PhysicsWorld,
   PhysicsBody, PhysicsShape, PhysicsChain, joints)
 - PAS de Physics2D / Rigidbody2D / Collider2D classiques
-- Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 120 Hz, `fixedDeltaTime` ≈ 0,0083)
+- Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 50 Hz, `fixedDeltaTime` 0,02, 4 sous-pas ; choix de l'utilisateur du
+  2026-10-22 pour alléger, avant 120 Hz × 3. Mesures plus anciennes de ce fichier faites à 120 Hz)
 - Les `NativeList` doivent être détruits/libérés dans `OnDestroy` (sinon fuite mémoire)
 - Utiliser `XxxDefinition.defaultDefinition` pour les définitions (corps, formes, joints), puis modifier les champs
 - Unités des rotations (mesuré, Unity 6000.6) : `PhysicsBody.angularVelocity` et les angles des charnières (`angle`,

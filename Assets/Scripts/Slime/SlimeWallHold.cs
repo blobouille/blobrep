@@ -34,26 +34,29 @@ public class SlimeWallHold : MonoBehaviour, ILevelPhysics, ILevelTick
     public void LevelTick()
     {
         var blobs = _dropper.Blobs;
-        float axis = transform.position.x;
+        float axis = transform.position.x, dt = Time.fixedDeltaTime;
         for (int i = 0; i < blobs.Count; i++)
         {
             var blob = blobs[i];
             int n = blob.CapsuleCount;
             if (n == 0) continue;
-            // Tri grossier : une capsule + diamètre (la gelée ne s'étale pas au-delà).
+            // Tri grossier : une capsule + 2 diamètres (écrasé à l'atterrissage, le slime dépasse son diamètre ; avec 1 seul
+            // diamètre, la capsule 0, côté droit de l'anneau, écartait un slime écrasé contre la paroi GAUCHE).
             Vector2 p0 = blob.Capsule(0).position;
-            if (Mathf.Abs(p0.x - axis) + blob.diameter < _dropper.WallHalfWidth - contactMargin) continue;
+            if (Mathf.Abs(p0.x - axis) + 2f * blob.diameter < _dropper.WallHalfWidth - contactMargin) continue;
             if (_fusion != null && _fusion.IsMerging(blob)) continue;
 
             float rc = blob.CapsuleRadius, reach = _dropper.WallHalfWidth - contactMargin;
             int side = 0;
             for (int k = 0; k < n; k++)
             {
-                Vector2 p = blob.Capsule(k).position;
+                var body = blob.Capsule(k);
+                Vector2 p = body.position;
                 if (p.y > wallTop) continue;
-                float x = p.x - axis;
-                if (x + rc >= reach) { side = 1; break; }
-                if (-x + rc >= reach) { side = -1; break; }
+                // + chemin d'un pas : repoussé par la paroi pendant le dernier pas, il la touchait encore (quelle que soit la fréquence).
+                float x = p.x - axis, slip = dt * Mathf.Abs(body.linearVelocity.x);
+                if (x + rc + slip >= reach) { side = 1; break; }
+                if (-x + rc + slip >= reach) { side = -1; break; }
             }
             if (side == 0) continue;
 

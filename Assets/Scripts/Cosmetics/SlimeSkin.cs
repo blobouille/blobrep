@@ -595,7 +595,7 @@ public class SlimeSkin : MonoBehaviour
         if (left > 0) EmitRound(_held, held, 0.5f * _fusion.LevelDiameter(cur), dt, Mathf.Lerp(0.3f, 1f, pop), t);
         _nextLook.attention = held;
         _nextLook.attentionTime = 1f;
-        if (left > 1) EmitRound(_nextLook, dropper.NextPreviewPoint, 0.5f * _fusion.LevelDiameter(next), dt, Mathf.Lerp(0.5f, 1f, pop), t + 1.3f);
+        if (left > 1) EmitRound(_nextLook, dropper.NextPreviewPoint, dropper.NextPreviewRadius, dt, Mathf.Lerp(0.5f, 1f, pop), t + 1.3f);
     }
 
     void DrawGallery(float dt)

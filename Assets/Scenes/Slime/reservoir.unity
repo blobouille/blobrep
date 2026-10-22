@@ -327,7 +327,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::monde_settings
   gameSpeed: 1
   gravite: {x: 0, y: -10}
-  simulationSubSteps: 3
+  simulationSubSteps: 4
   simulationWorkers: 1
   continuousAllowed: 1
   drawOptions: 2
@@ -805,7 +805,7 @@ MonoBehaviour:
   halfWidth: 3.8
   wallGap: 0.02
   moveSpeed: 5
-  dropInterval: 1
+  dropInterval: 0.6
   dropKey: 4
   leftKey: 0
   rightKey: 1
@@ -897,7 +897,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlimeScore
   pointsPerMerge: 10
-  comboWindow: 1.2
+  comboWindow: 1.5
   comboPercent: 50
   popupTime: 1.2
 --- !u!114 &1967278714
