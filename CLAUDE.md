@@ -102,7 +102,7 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
    (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Marge de contact
    0,08 m (`contactMargin`) : à 0,03, un slime lâché pile contre la paroi gauche, repoussé en s'écrasant au sol, sortait de la
    marge en un pas et repartait en roulant de 2 m (mesuré, 2026-10-22) ; à 0,08 il reste collé, niveaux 0, 3 et 6, des deux
-   côtés. Marge + chemin d'un pas (vitesse × durée du pas) : tient aussi à 50 Hz ; tri grossier à 2 diamètres (à 1, un slime
+   côtés. Marge + chemin d'un pas (vitesse × durée du pas) : tient aussi à 50 et 60 Hz ; tri grossier à 2 diamètres (à 1, un slime
    écrasé contre la paroi gauche était écarté). Mesuré : reste à
    x = 2,70 ; partie scriptée identique au bit près (2 essais)
    `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
@@ -163,6 +163,57 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
      seul maillage trié ; 30 images/s quand rien ne bouge (`idleFrameInterval`)
    - À faire : commandes tactiles du réservoir (encore au clavier), défaite « un slime tombe » (en Sans fin on quitte par
      Menu), sons de la carte, zones suivantes
+   - Space Endless (essai du 2026-10-23, scène À PART `Slime/space endless`, copie du réservoir ; réservoir et carte
+     intouchés) : même jeu, slimes bien plus mous qui comblent l'espace (idée vue dans « sobosuba », Steam). Réglages dans
+     la scène seulement : gravité −4, joints du modèle 12 Hz (flexion) / 20 Hz (étirement), amortissement 1,5, fond nuit.
+     6 Hz de flexion : trop mou (le gros slime devient concave et enveloppe ses voisins). `SpaceEndless` : sans objectif,
+     graine au hasard (N = nouvelle partie), record à part. Pas encore relié à l'écran titre.
+     Gameplay de sobosuba (2026-10-23, bande-annonce regardée image par image) : boîte FERMÉE carrée 9 × 9 m à fond en arc
+     de cercle (flèche 2,5 m, rayon 5,3 m). Pas de lâcher mais un LANCER (`BlobLauncher`) : RÉSERVE = rangée qui FLOTTE
+     sous le plafond (gravité annulée, ressort vers une ligne à `rackDepth` 1,8 m sous le plafond : place au-dessus pour
+     faire rebondir un tir sur le plafond), chaque slime attiré vers le MILIEU ; les nouveaux apparaissent au bord, à gauche
+     puis à droite à tour de rôle, et filent s'y bousculer avec leur élan (2026-10-23 ; avant : plaqués au plafond et tirés
+     vers la paroi gauche, jugé absurde). On en attrape un, flèche slime → doigt (puissance en %),
+     relâcher = tir, vitesse ∝ longueur (max 16 km/h à 5 m). Chaque départ (tir, ou slime de la réserve mangé par une
+     fusion) fait arriver UN slime ; le slime né d'une fusion avec la réserve y reste : lancer un slime sur son pareil de
+     la réserve la fait passer à 4 (préparer le terrain) ; max `maxRack` 4 (sans plafond, elle grandissait sans fin en
+     mangeant la pile). Lâcher de `BlobDropper` neutralisé dans la scène (touches inutilisées, aperçus coupés), il garde
+     la liste des slimes, leur pas et la fusion ; grabber souris de debug coupé dans la scène (il tirait UNE capsule :
+     slimes qui se retournent). `SlimeFoam` : pression qui tient la SURFACE de chaque slime (ressort amorti sur l'aire du
+     polygone des capsules, 8 Hz, cible × 1,25) + flexion très molle (1,5 Hz, étirement 10 Hz) = ils s'aplatissent les
+     uns contre les autres et comblent l'espace ; freine aussi leur rotation (3/s). Gonflé à 1,4 : plus ronds, et un slime
+     restait coincé au plafond par frottement ; frottement 0,4. Coût ≈ 0,5–0,8 ms par pas (PC). Même suite de tirs = même
+     partie au bit près (vérifié, partie de 80 s, 2 essais) ; MAIS les tirs (analogiques) ne passent pas par `LevelInput` :
+     `FastForward` ne les rejoue pas (liste `Shots` gardée). Plus tard : tourner la boîte, formes de niveaux à remplir.
+     Slimes emmêlés (`SlimeUntangle`, 2026-10-23) : très mous (joints 10 Hz, amortissement 0,5, 32 capsules) et gonflés, leur
+     anneau s'étire, des trous s'ouvrent entre capsules et la pointe d'un voisin passe DEDANS, puis y reste (l'anneau la
+     retient de l'intérieur ; SlimeEscape ne surveille que les naissances de fusion). Détection tous les 2 pas (capsule d'un
+     slime dans le polygone des capsules d'un autre) → le moins enfoncé prend le groupe de l'autre, écartés à 5 km/h,
+     groupe rendu dès que dégagé (max 1,5 s). Mesuré, même partie de 1200 pas : sans, 2,3 paires emmêlées en moyenne (4 à
+     la fin) ; avec, 0 (11 démêlages). Identique au bit près (2 essais). Coût total ≈ 1,1–1,2 ms par pas (PC) avec 32
+     capsules par slime : à surveiller pour le mobile.
+     Vocabulaire (2026-10-23) : jeu « TERRESTRE » = le réservoir normal (`Slime/reservoir`), jeu « SPACE » = Space Endless.
+     Les correctifs du terrestre n'ont pas forcément lieu d'être en space : `SlimeWallHold` (parois qui retiennent) COUPÉ
+     dans la scène space (interaction bizarre au bord, les slimes doivent pouvoir s'en écarter). `SlimeFoam` : cible d'aire
+     toujours positive (avant, un slime retourné était TENU à l'envers) + dépliage : une capsule où l'anneau tourne vers
+     l'intérieur de plus de `foldAngle` 60° est poussée vers l'extérieur à 4 km/h (slime à moitié retourné, pincé entre
+     deux gros, signalé par l'utilisateur). Mesuré, partie de 1200 pas : aucun slime à l'envers, plis passagers 4 → 2
+     relevés, aucun à la fin ; identique au bit près (2 essais).
+     Slimes qui sautaient après une fusion (2026-10-23) : mesuré merge par merge (montée réelle d'un pas à l'autre), 5 sauts
+     > 2,5 m/s vers le haut par partie de 1200 pas, dus surtout à `SlimeUntangle` : il rendait les groupes de collision dès
+     qu'aucun CENTRE de capsule n'était dans l'autre, capsules encore à cheval → Box2D les séparait d'un coup. Rendus
+     maintenant seulement une fois dégagés de l'épaisseur des capsules : 1 saut restant. `SlimeEscape` de la scène space
+     adouci (1,2 m/s au lieu de 3, vers l'extérieur sans pente vers le haut ; réglages terrestres copiés). `SlimeSoftMerge`
+     (vitesse du né et de ses voisins limitée à 4 km/h pendant 0,8 s) : effet non mesurable (le coup part PENDANT le pas
+     physique), gardé. Reste : un tout petit né pincé entre deux gros gonflés peut jaillir comme un pépin (pression).
+     « Coup d'énergie » après fusion (suite, 2026-10-23) : à sa naissance, le slime fusionné occupe 1,4 à 1,9 × sa surface
+     finale (tracé sur ses deux parents) et doit rétrécir de 30–50 % ; sans pression pendant la mitose, la foule l'écrasait,
+     puis la pression revenait d'un coup (mesuré : un niveau 4 lancé à 3,5 m/s pile à la fin de sa mitose). `SlimeFoam` :
+     pression dès la naissance, surface cible en rampe (lissée) de sa surface de naissance à sa cible en `growTime` 1,2 s.
+     Banc propre sans tir (lit de 14 slimes, 6 paires posées vitesse nulle, 3 dispositions) : coup moyen 9–21 → 3–5,
+     pics 29–49 → 12–18 ; à 2 s pire (reste trop gros trop longtemps, coincé). Identique au bit près (2 essais).
+     Tester les réglages du monde par eval : `var w = PhysicsWorld.defaultWorld; w.contactSpeed = …` (affecter directement
+     `PhysicsWorld.defaultWorld.x` ne compile pas, et l'échec passe inaperçu dans une suite de commandes)
 6. Avatar à créer : le blob du joueur sur la carte, mélange de tous les accessoires et shaders possibles des slimes
    (en attendant : le Roi)
 
@@ -172,7 +223,7 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Unity 6000.6, physique 2D bas niveau `Unity.U2D.Physics` (Box2D v3 : PhysicsWorld,
   PhysicsBody, PhysicsShape, PhysicsChain, joints)
 - PAS de Physics2D / Rigidbody2D / Collider2D classiques
-- Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 50 Hz, `fixedDeltaTime` 0,02, 4 sous-pas ; choix de l'utilisateur du
+- Un seul monde : `PhysicsWorld.defaultWorld` (pas fixe : 60 Hz, `fixedDeltaTime` 1/60, 4 sous-pas ; choix de l'utilisateur du
   2026-10-22 pour alléger, avant 120 Hz × 3. Mesures plus anciennes de ce fichier faites à 120 Hz)
 - Les `NativeList` doivent être détruits/libérés dans `OnDestroy` (sinon fuite mémoire)
 - Utiliser `XxxDefinition.defaultDefinition` pour les définitions (corps, formes, joints), puis modifier les champs

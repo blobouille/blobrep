@@ -140,6 +140,7 @@ public class SlimeBackdrop : MonoBehaviour
         var tr = reservoir.transform;
         _line.Clear();
         for (int i = 0; i < center.Count; i++) _line.Add(tr.TransformPoint(center[i]));
+        if (reservoir.closed) _line.Add(_line[0]); // boîte fermée (Space Endless) : dernier côté
         int n = _line.Count;
         float half = 0.5f * reservoir.thickness;
 
@@ -148,6 +149,7 @@ public class SlimeBackdrop : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             Vector2 t = _line[Mathf.Min(n - 1, i + 1)] - _line[Mathf.Max(0, i - 1)];
+            if (reservoir.closed && (i == 0 || i == n - 1)) t = _line[1] - _line[n - 2];
             Vector2 nor = new Vector2(-t.y, t.x).normalized;
             if (i > 0) along += (_line[i] - _line[i - 1]).magnitude;
             Vector4 col = new Vector4(glass.r, glass.g, glass.b, glass.a);
