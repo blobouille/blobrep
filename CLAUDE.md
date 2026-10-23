@@ -11,6 +11,13 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
 (code, scènes, ancien CLAUDE.md complet avec toutes les mesures) est conservé par les tags git `blob-et-debut-skate` et
 `avant-slime`. Le code reste dans le projet (voir « Code existant »).
 
+Noms (décision du 2026-10-23) : le jeu et son univers (personnages réutilisables dans d'autres jeux) = « Gumori » (marque à
+déposer, classes 9 et 41) ; nom commercial de la micro-entreprise = « Gumori » aussi (une seule identité ; « Igueldan »
+gardé en réserve pour une future société). Libres à l'INPI le 2026-10-23, gumori.com aussi ; pseudo @gumori pris (variante
+@gumori.games, X : sans point ; compte Google « Gumori Games », gumori.games@gmail.com). Structure : micro-entreprise d'abord, société (EURL / SASU) plus tard si le jeu rapporte. Communication en anglais, sortie mondiale. Modèle : gratuit + publicité (surtout récompensée),
+récompenses au hasard gagnées en jouant seulement ; achats intégrés envisagés plus tard. Toute récompense de pub qui agit sur la
+partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistrée), sinon les replays divergent.
+
 ## Piliers
 - Satisfaction d'abord : déformations, tremblements, fusions, réactions en chaîne. La mollesse doit être une mécanique, pas
   un décor
