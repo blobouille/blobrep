@@ -636,6 +636,9 @@ MonoBehaviour:
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
+  rimWidth: 0.074
+  rimOpacity: 0.538
+  rimLighten: 0.35
   faceSize: 1.15
   faceShrink: 0.35
   uprightTime: 0
@@ -815,6 +818,8 @@ MonoBehaviour:
   hitboxColor: {r: 1, g: 1, b: 1, a: 0.9}
   previewColor: {r: 1, g: 1, b: 1, a: 0.5}
   nextPreviewOffset: {x: 6, y: -2}
+  nextPreviewViewport: {x: 0.84, y: 0.8}
+  nextPreviewDiameter: 1
 --- !u!4 &1967278711
 Transform:
   m_ObjectHideFlags: 0

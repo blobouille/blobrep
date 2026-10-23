@@ -137,7 +137,9 @@ partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistr�
      dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
      regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
      éclair et accessoires qui poussent à l'éclat de la fusion. Yeux agrandis (2026-10-22). Vitrine des designs dans la
-     Scene view
+     Scene view. Rebord translucide (2026-10-23, façon Slime Rancher) : pourtour de gelée plus claire de la couleur du slime,
+     où l'on devine le fond, épaisseur en fraction du rayon (`rimWidth` 0,074, `rimOpacity` 0,538, `rimLighten` 0,35,
+     réglés par l'utilisateur, mêmes valeurs dans toutes les scènes ; `_Rim` du shader, `rimWidth` 0 = sans)
    - `SlimeFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.

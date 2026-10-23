@@ -533,6 +533,9 @@ MonoBehaviour:
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
+  rimWidth: 0.074
+  rimOpacity: 0.538
+  rimLighten: 0.35
   faceSize: 1.15
   faceShrink: 0.35
   uprightTime: 0

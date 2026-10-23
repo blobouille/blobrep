@@ -69,6 +69,13 @@ public class SlimeSkin : MonoBehaviour
     [Range(2f, 20f)] public float pixelsPerSample = 6f;
     [Tooltip("Épaisseur du liseré sombre du contour, en m (absolu, même épaisseur pour tous).")]
     [Min(0f)] public float outlineWidth = 0.05f;
+    [Tooltip("Rebord translucide de la gelée (sa couleur, plus claire, on voit un peu le fond à travers) : épaisseur en fraction\n" +
+             "du rayon, donc proportionnelle à la taille du slime. 0 = aucun.")]
+    [Range(0f, 0.4f)] public float rimWidth = 0.074f;
+    [Tooltip("Opacité du rebord translucide : 1 = opaque comme le reste, plus bas = on voit davantage le fond à travers.")]
+    [Range(0f, 1f)] public float rimOpacity = 0.538f;
+    [Tooltip("Éclaircissement du rebord vers une gelée claire de la couleur du slime (0 = même couleur que le corps).")]
+    [Range(0f, 1f)] public float rimLighten = 0.35f;
     [Tooltip("Taille du visage du premier slime (1 = normal).")]
     [Min(0.1f)] public float faceSize = 1.15f;
     [Tooltip("Visage des gros : taille relative × (diamètre / premier)^-faceShrink. 0 = même proportion pour tous ;\n" +
@@ -179,6 +186,7 @@ public class SlimeSkin : MonoBehaviour
     BlobFusion _fusion;
     SlimeFx _fx;
     Material _material;
+    static readonly int RimId = Shader.PropertyToID("_Rim");
     Mesh _mesh;
     readonly Dictionary<BLOB, Look> _looks = new Dictionary<BLOB, Look>();
     readonly List<BLOB> _dead = new List<BLOB>();
@@ -1027,6 +1035,7 @@ public class SlimeSkin : MonoBehaviour
             End();
         }
         if (_indexCount == 0) return;
+        _material.SetVector(RimId, new Vector4(rimWidth, rimOpacity, rimLighten, 0f));
         var rp = new RenderParams(_material)
         {
             camera = cam,

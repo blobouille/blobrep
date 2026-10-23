@@ -60,6 +60,10 @@ Shader "Slime/Body"
 
             static const float TAU = 6.2831853;
 
+            CBUFFER_START(UnityPerMaterial)
+                float4 _Rim; // rebord translucide : x épaisseur (fraction du rayon), y opacité, z éclaircissement
+            CBUFFER_END
+
             float Hash21(float2 p)
             {
                 p = frac(p * float2(123.34, 456.21));
@@ -408,8 +412,21 @@ Shader "Slime/Body"
                 float bounce = smoothstep(0.78, 0.97, r) * smoothstep(0.1, 0.7, dot(L / max(r, 1e-4), normalize(float2(0.6, -0.8))));
                 col += lerp(body, 1.0, 0.5) * bounce * 0.35;
 
+                // Rebord translucide : pourtour de gelée plus claire où l'on devine le fond, limite du cœur à peine marquée.
+                float alpha = 1.0;
+                if (_Rim.x > 0.0)
+                {
+                    float inner = 1.0 - _Rim.x;
+                    float soft = _Rim.x * 0.3;
+                    float band = smoothstep(inner - soft, inner + soft, r);
+                    col = lerp(col, lerp(body, 1.0, 0.3) * 1.05, band * _Rim.z);
+                    float z = (r - inner) / (_Rim.x * 0.22);
+                    col = lerp(col, shade, exp(-z * z) * 0.12);
+                    alpha = lerp(1.0, _Rim.y, band);
+                }
+
                 col = lerp(col, float3(1.6, 1.6, 1.6), flash);
-                return float4(col, 1.0);
+                return float4(col * alpha, alpha);
             }
             ENDHLSL
         }
