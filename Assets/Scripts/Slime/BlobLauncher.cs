@@ -58,8 +58,10 @@ public class BlobLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
     public struct Shot { public int step, slot; public Vector2 velocity; }
     public readonly List<Shot> Shots = new List<Shot>();
 
-    // Slime tiré (pendant le pas) : pour le son et les effets, jamais pour la simulation.
+    // Slime tiré / arrivé dans la réserve par un bord (−1 gauche, 1 droite), pendant le pas : pour le son et les effets,
+    // jamais pour la simulation.
     public event System.Action<BLOB, Vector2> Launched;
+    public event System.Action<BLOB, float> Arrived;
 
     struct Request { public BLOB blob; public int slot; public Vector2 velocity; }
 
@@ -195,6 +197,7 @@ public class BlobLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
             b.linearVelocity = v;
         }
         _rack.Add(blob);
+        Arrived?.Invoke(blob, side);
         return true;
     }
 

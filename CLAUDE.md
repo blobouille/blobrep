@@ -235,7 +235,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Plus fort avec le niveau et la chaîne :
      tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
      éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
-   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, son de la gelée en temps réel)
+   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
      bit près (5 875 pas, 17 fusions, même score)
@@ -429,21 +429,35 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
 - Fusion = « bloup » (le son préféré de l'utilisateur) : sa note monte d'un cran dans la gamme à chaque maillon de chaîne et
   il gagne des couches (octave grave dès 2 maillons, harmonie dès 3), façon série de kills Valorant ; « doum » grave à
   l'éclat, sur la même note ; grondement (niveau 6+), cascade de bulles (chaîne de 3+), accord de fête doux (record dès le
-  niveau 4, niveau max). Gelée et nappe baissent un instant sous une fusion (`duckDepth`)
-- Gelée (temps réel, `SlimeSynth` sur le fil audio) : `SlimeSkin.Motions` donne pour chaque gumori à l'écran son
-  tremblement (vitesse de changement de forme de l'anneau : ovale + trèfle, 1/s), son étirement et sa vitesse. Les
-  `wobbleVoices` (4) plus agités (gros d'abord) ont une voix grave : volume selon le tremblement (`wobbleGate` 0,12 →
-  `wobbleFull` 2,5), filtre qui s'ouvre avec le mouvement (« wouh »), souffle selon la vitesse (trajet), note selon la
-  taille (mi 3 → do 2), clapotis. Mesuré : Space, un tir = tremblements de 1 à 3,7/s, retombés à 0,02–0,2 en ≈ 1 s ;
-  terrestre, 0,5 à 1,9 à l'atterrissage, éteint en 0,3 s. Le même système sonne donc tout seul plus flottant en basse
-  gravité (lien entre les deux jeux). Nappe d'ambiance grave (do sol ré) qui respire et gonfle un peu quand tout bouge
-  (`ambience`) ; mêmes réglages dans toutes les scènes pour l'instant (réglables par scène dans l'inspecteur)
-- Mesuré (PC, éditeur) : sortie ≈ −20 dB RMS (crêtes −9 à −12 dB) quand ça bouge, −37 à −46 dB au repos ; synthé 3,8 %
-  d'un cœur au pire (6 voix + nappe), sur le fil audio ; simulation intouchée (identique au bit près, terrestre et Space)
+  niveau 4, niveau max). Souffle et nappe baissent un instant sous une fusion (`duckDepth`)
+- Validé par l'utilisateur (2026-10-24) : fusion, chaîne, lancement, confettis / fête
+- Mouvement : `SlimeSkin.Motions` donne pour chaque gumori à l'écran son tremblement (vitesse de changement de forme de
+  l'anneau : ovale + trèfle, 1/s), son étirement et sa vitesse. ÉCARTÉ (2026-10-24, « bruit de moustique, abominable,
+  omniprésent ») : une voix TENUE à hauteur fixe (≈ 150 Hz + harmoniques) dont volume et filtre suivaient le tremblement.
+  Règle : jamais de son continu à hauteur définie pour le mouvement. À la place, tout discret (≈ 10 dB sous les fusions) :
+  - souffle d'air grave SANS hauteur (`SlimeSynth`, temps réel, bruit filtré) pour un gumori qui file (lancé, en chute) :
+    à partir de 4 km/h, max à 12,6 km/h ; plus grave et plus présent s'il est gros ; les 3 plus rapides seulement ;
+  - « blop » mou et grave à un gros rebond de forme (l'étirement passe un extrême, tremblement ≥ 1,2/s), 4 par seconde
+    max en tout ; rien sur les frémissements de la pile ;
+  - glissement doux d'un gumori qui arrive dans la réserve (Space, `BlobLauncher.Arrived` ; il y entre à ≈ 5 km/h, trop
+    lent pour le souffle) : plus long et plus grave s'il est gros.
+  Mesuré : Space, un tir = tremblements de 1 à 3,7/s, retombés à 0,02–0,2 en ≈ 1 s ; terrestre, 0,5 à 1,9 à l'atterrissage,
+  éteint en 0,3 s : le même système sonne tout seul plus flottant en basse gravité. Nappe d'ambiance (do sol ré qui
+  respire) COUPÉE par défaut (`ambience` 0 : tenue en permanence)
+- Mesuré (PC, enregistrement du mélange réel, un tir toutes les 1,6 s) : mélange −16 à −29 dB RMS par seconde, crête
+  ≥ −1 dB, aucune saturation ; mouvement seul −32 à −44 dB. Synthé 0,8 % d'un cœur (4 souffles), fil audio. Simulation
+  intouchée (identique au bit près, terrestre et Space)
+- Piège (2026-10-24) : un seul échantillon NaN dans un son (ex. `Mathf.Pow` d'un `sin(π)` légèrement négatif) rendait tout
+  le son NaN à la normalisation, puis tout le MÉLANGE pendant qu'il jouait (coupures, saturation). `Normalize` remplace
+  maintenant tout échantillon invalide par 0, `SlimeSynth` se remet à zéro s'il en produit. Mesurer le son par
+  `AudioListener.GetOutputData` depuis des commandes `eval` est faux (l'éditeur se fige ≈ 1,5 s par commande) : enregistrer
+  le mélange avec `Assets/Temp/SoundTap.cs` (banc ignoré par git, posé sur l'AudioListener en Play, tire / lâche lui-même,
+  WAV + rapport dans `SoundTap.Report`)
 - Téléphone : haut-parleurs quasi muets sous ≈ 200 Hz : tous les sons graves ont des harmoniques (on « entend » la basse
   quand même). Écouter au casque ET sur le haut-parleur
-- Je ne peux pas écouter : les réglages se font à l'oreille par l'utilisateur (volumes, `key`, `stepsPerLevel`, seuils de la
-  gelée…). Écoute hors jeu des sons ponctuels : `Captures/bancs/sound_wav.cs` (Play) → `Captures/sons/apercu.wav`
+- Je ne peux pas écouter : les réglages se font à l'oreille par l'utilisateur (volumes, `key`, `stepsPerLevel`, seuils du
+  mouvement…). Écoute hors jeu : sons ponctuels `Captures/bancs/sound_wav.cs` (Play) → `Captures/sons/apercu.wav` ; mélange
+  réel enregistré par `SoundTap` → `Captures/sons/space.wav`, `Captures/sons/terrestre.wav`
 
 ## Déterminisme
 - Pas de `Random` sans graine fixe explicite

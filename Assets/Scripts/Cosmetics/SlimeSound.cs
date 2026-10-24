@@ -9,10 +9,11 @@ using UnityEngine;
 // - fusion : « bloup » (plus grave pour les gros) ; la CHAÎNE fait monter sa note d'un cran par maillon et lui ajoute des
 //   couches (octave grave, puis harmonie), façon série de kills ; à l'éclat (SlimeFx) un « doum » grave et doux sur la même
 //   note ; gros gumori : grondement ; longue chaîne : cascade de bulles ; record ou niveau max : accord de fête ;
-// - gelée (SlimeSynth, temps réel) : chaque gumori qui bouge (trajet, tremblements une fois posé) a une voix grave qui suit
-//   ce qu'on voit (forme lue par SlimeSkin) : plus il tremble, plus fort ; plus il s'étire, plus le son s'ouvre ; plus il file
-//   vite, plus il souffle ; note selon sa taille ; seuls les plus agités sonnent ;
-// - ambiance : nappe grave qui respire, un peu plus présente quand tout bouge.
+// - mouvement (lu par SlimeSkin, ce qu'on voit) : un gumori qui file (lancé, en chute) souffle, bruit d'air grave SANS
+//   hauteur (SlimeSynth, temps réel), plus grave et plus présent s'il est gros ; un gros rebond de sa forme fait un « blop »
+//   mou et grave, jamais un son continu (un ton tenu qui ondulait sonnait comme un moustique : écarté) ; un gumori qui arrive
+//   dans la réserve (Space) glisse, plus long et plus grave s'il est gros ; tout cela discret, bien sous les fusions ;
+// - ambiance (coupée par défaut) : nappe grave qui respire, un peu plus présente quand tout bouge.
 // Purement audio : événements de la simulation mis en file, joués hors simulation ; rien pendant le rejeu accéléré.
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(960)]
@@ -35,6 +36,8 @@ public class SlimeSound : MonoBehaviour
     [Range(0f, 1f)] public float bigVolume = 0.7f;
     [Tooltip("Souffle d'un tir (scène Space).")]
     [Range(0f, 1f)] public float launchVolume = 0.5f;
+    [Tooltip("Glissement doux d'un gumori qui arrive dans la réserve (scène Space) : plus long et plus grave s'il est gros.")]
+    [Range(0f, 1f)] public float arrivalVolume = 0.35f;
 
     [Header("Hauteur et espace")]
     [Tooltip("Tonalité de tous les sons accordés (fusions, gelée, nappe), en demi-tons au-dessus de do.")]
@@ -57,26 +60,35 @@ public class SlimeSound : MonoBehaviour
     [Tooltip("Voix simultanées max des sons ponctuels (au-delà, la plus ancienne est coupée).")]
     [Range(4, 32)] public int voices = 16;
 
-    [Header("Gelée qui bouge (temps réel)")]
-    [Tooltip("Volume des voix de gelée. 0 = coupé.")]
-    [Range(0f, 1f)] public float wobbleVolume = 0.5f;
-    [Tooltip("Tremblement (changement de forme par seconde, 1/s) en dessous duquel un gumori est silencieux : les petits\n" +
-             "frémissements d'une pile au repos.")]
-    [Min(0f)] public float wobbleGate = 0.12f;
-    [Tooltip("Tremblement (1/s) au volume max.")]
-    [Min(0.01f)] public float wobbleFull = 2.5f;
-    [Tooltip("Vitesse (km/h) d'un gumori qui file au souffle max (trajet). 0 = la vitesse ne fait aucun son.")]
-    [SpeedKmh] [Min(0f)] public float travelFull = 8f;
-    [Tooltip("Gumori qui sonnent en même temps (les plus agités, les gros d'abord).")]
-    [Range(1, SlimeSynth.MaxVoices)] public int wobbleVoices = 4;
-    [Tooltip("Part de clapotis mouillé dans les voix de gelée.")]
-    [Range(0f, 1f)] public float slosh = 0.3f;
-    [Tooltip("Baisse des voix de gelée et de la nappe pendant un son de fusion (pour qu'il ressorte), 0 = aucune.")]
+    [Header("Gumori qui filent (temps réel)")]
+    [Tooltip("Souffle d'air grave, sans hauteur, d'un gumori qui file (lancé, en chute, qui arrive dans la réserve) : plus\n" +
+             "grave et plus présent s'il est gros. 0 = coupé.")]
+    [Range(0f, 1f)] public float travelVolume = 0.18f;
+    [Tooltip("Vitesse (km/h) en dessous de laquelle un gumori ne souffle pas (bousculades de la pile).")]
+    [SpeedKmh] [Min(0f)] public float travelGate = 1.1f;
+    [Tooltip("Vitesse (km/h) du souffle au max.")]
+    [SpeedKmh] [Min(0.1f)] public float travelFull = 3.5f;
+    [Tooltip("Gumori qui soufflent en même temps (les plus rapides, les gros d'abord).")]
+    [Range(1, SlimeSynth.MaxVoices)] public int travelVoices = 3;
+
+    [Header("Gelée qui tremble")]
+    [Tooltip("« Blop » mou et grave à chaque gros rebond de la forme d'un gumori (pas de son continu) : plus grave s'il est\n" +
+             "gros. 0 = coupé.")]
+    [Range(0f, 1f)] public float jiggleVolume = 0.15f;
+    [Tooltip("Tremblement (changement de forme par seconde, 1/s) en dessous duquel un rebond ne fait aucun son : seuls les\n" +
+             "vrais rebonds (chocs, tirs) sonnent, pas les frémissements de la pile.")]
+    [Min(0f)] public float jiggleGate = 1.2f;
+    [Tooltip("Tremblement (1/s) d'un blop au volume max.")]
+    [Min(0.01f)] public float jiggleFull = 3f;
+    [Tooltip("Blops max par seconde, tous gumori confondus.")]
+    [Range(1f, 20f)] public float jigglesPerSecond = 4f;
+    [Tooltip("Baisse du souffle et de la nappe pendant un son de fusion (pour qu'il ressorte), 0 = aucune.")]
     [Range(0f, 1f)] public float duckDepth = 0.45f;
 
     [Header("Ambiance")]
-    [Tooltip("Nappe grave et douce, dans la gamme des fusions ; elle respire et gonfle un peu quand tout bouge. 0 = coupée.")]
-    [Range(0f, 1f)] public float ambience = 0.15f;
+    [Tooltip("Nappe grave et douce (do sol ré), dans la gamme des fusions ; elle respire et gonfle un peu quand tout bouge.\n" +
+             "0 = coupée (défaut : une nappe tenue en permanence lassait).")]
+    [Range(0f, 1f)] public float ambience;
 
     const int Rate = 44100;
     static readonly int[] Penta = { 0, 2, 4, 7, 9 };
@@ -94,12 +106,19 @@ public class SlimeSound : MonoBehaviour
         public float score;
     }
 
+    // Suivi de la forme d'un gumori : un rebond = l'étirement qui passe un maximum ou un minimum.
+    struct Jiggle
+    {
+        public float stretch, peak, quietUntil, seen;
+        public int dir;
+    }
+
     BlobFusion _fusion;
     SlimeScore _score;
     SlimeFx _fx;
     BlobLauncher _launcher;
-    AudioClip _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh;
-    AudioClip[] _splats, _softSplats;
+    AudioClip _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh, _glide;
+    AudioClip[] _splats, _softSplats, _blops;
     AudioSource[] _sources;
     float[] _started;
     GameObject _voices;
@@ -111,9 +130,11 @@ public class SlimeSound : MonoBehaviour
     readonly bool[] _kept = new bool[SlimeSynth.MaxVoices];
     readonly float[] _freeAt = new float[SlimeSynth.MaxVoices];
     static readonly System.Comparison<Candidate> ByScore = (a, b) => b.score.CompareTo(a.score);
+    readonly Dictionary<int, Jiggle> _jiggles = new Dictionary<int, Jiggle>();
+    readonly List<int> _gone = new List<int>();
     System.Random _rand = new System.Random(5);
     int _impactsThisFrame, _splitsThisFrame;
-    float _duckTime;
+    float _duckTime, _jiggleTokens;
 
     void OnEnable()
     {
@@ -130,7 +151,11 @@ public class SlimeSound : MonoBehaviour
         _fx = FindAnyObjectByType<SlimeFx>();
         if (_fx != null) _fx.Popped += OnPopped;
         _launcher = FindAnyObjectByType<BlobLauncher>();
-        if (_launcher != null) _launcher.Launched += OnLaunched;
+        if (_launcher != null)
+        {
+            _launcher.Launched += OnLaunched;
+            _launcher.Arrived += OnArrived;
+        }
 
         Synthesize();
         _voices = new GameObject("Voix (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
@@ -144,13 +169,14 @@ public class SlimeSound : MonoBehaviour
             source.dopplerLevel = 0f;
             _sources[i] = source;
         }
-        var live = new GameObject("Gelée (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
+        var live = new GameObject("Souffle (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
         live.transform.SetParent(_voices.transform);
         var liveSource = live.AddComponent<AudioSource>();
         liveSource.playOnAwake = false;
         liveSource.spatialBlend = 0f;
         _synth = live.AddComponent<SlimeSynth>();
         System.Array.Clear(_owner, 0, _owner.Length);
+        _jiggles.Clear();
         if (FindAnyObjectByType<AudioListener>() == null && Camera.main != null) _listener = Camera.main.gameObject.AddComponent<AudioListener>();
     }
 
@@ -160,12 +186,18 @@ public class SlimeSound : MonoBehaviour
         if (_score != null) _score.Scored -= OnScored;
         if (skin != null) skin.Impact -= OnImpact;
         if (_fx != null) _fx.Popped -= OnPopped;
-        if (_launcher != null) _launcher.Launched -= OnLaunched;
+        if (_launcher != null)
+        {
+            _launcher.Launched -= OnLaunched;
+            _launcher.Arrived -= OnArrived;
+        }
         if (_voices != null) Destroy(_voices);
         if (_listener != null) Destroy(_listener);
-        foreach (var clip in new[] { _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh }) if (clip != null) Destroy(clip);
+        foreach (var clip in new[] { _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh, _glide }) if (clip != null) Destroy(clip);
         if (_splats != null) foreach (var clip in _splats) Destroy(clip);
         if (_softSplats != null) foreach (var clip in _softSplats) Destroy(clip);
+        if (_blops != null) foreach (var clip in _blops) Destroy(clip);
+        _jiggles.Clear();
         _requests.Clear();
         _synth = null;
     }
@@ -190,6 +222,12 @@ public class SlimeSound : MonoBehaviour
             kind = 2, level = _fusion != null ? _fusion.LevelOf(blob) : 0, x = blob.transform.position.x,
             strength = Mathf.Clamp01(velocity.magnitude / max)
         });
+    }
+
+    void OnArrived(BLOB blob, float side)
+    {
+        if (LevelSimulation.FastForwarding || blob == null) return;
+        _requests.Add(new Request { kind = 3, level = _fusion != null ? _fusion.LevelOf(blob) : 0, x = blob.transform.position.x });
     }
 
     // Éclat de la fusion (pendant LateUpdate de SlimeFx, hors simulation) : joué tout de suite.
@@ -260,6 +298,12 @@ public class SlimeSound : MonoBehaviour
                 Play(_plop, dropVolume, 3f - r.level * semitonesPerLevel * 0.6f + Jitter(), r.x);
                 continue;
             }
+            if (r.kind == 3)
+            {
+                float size = Mathf.Clamp01(r.level / 10f);
+                Play(_glide, arrivalVolume * Mathf.Lerp(0.6f, 1f, size), 2f - r.level * semitonesPerLevel * 0.6f + Jitter() * 0.3f, r.x);
+                continue;
+            }
             if (r.kind == 2)
             {
                 Play(_whoosh, launchVolume * (0.3f + 0.7f * r.strength), -r.level * semitonesPerLevel * 0.5f + Jitter() * 0.5f, r.x);
@@ -276,42 +320,40 @@ public class SlimeSound : MonoBehaviour
         _requests.Clear();
     }
 
-    void LateUpdate() => UpdateJelly();
+    void LateUpdate() => UpdateMotion();
 
-    // ---- Gelée (temps réel) ----
+    // ---- Mouvement (ce qu'on voit) ----
 
-    // Choisit les gumori les plus agités (les gros d'abord) et donne leurs cibles aux voix de SlimeSynth. Une voix garde son
-    // gumori tant qu'il reste parmi les choisis ; libérée, elle se tait avant d'en prendre un autre.
-    void UpdateJelly()
+    // Souffle : les gumori les plus rapides (les gros d'abord) prennent une voix de SlimeSynth, qu'ils gardent tant qu'ils
+    // restent parmi les choisis ; libérée, elle se tait avant d'en prendre un autre. Blops : à chaque rebond de forme.
+    void UpdateMotion()
     {
         if (_synth == null) return;
-        float now = Time.unscaledTime;
-        _duckTime = Mathf.Max(0f, _duckTime - Time.unscaledDeltaTime);
+        float now = Time.unscaledTime, dt = Time.unscaledDeltaTime;
+        _duckTime = Mathf.Max(0f, _duckTime - dt);
         _synth.duck = 1f - duckDepth * Mathf.SmoothStep(0f, 1f, _duckTime / 0.35f);
-        _synth.slosh = slosh;
         _synth.padRoot = 130.81f * Mathf.Pow(2f, key / 12f);
+        _jiggleTokens = Mathf.Min(2f, _jiggleTokens + jigglesPerSecond * dt);
 
         var motions = skin != null ? skin.Motions : null;
         int count = motions != null ? motions.Count : 0;
-        float span = Mathf.Max(0.01f, wobbleFull - wobbleGate), total = 0f;
+        float total = 0f;
         _candidates.Clear();
         for (int i = 0; i < count; i++)
         {
             var m = motions[i];
-            float energy = Mathf.Clamp01((m.wobble - wobbleGate) / span) + Travel(m.speed);
-            total += energy;
-            if (energy > 0.01f) _candidates.Add(new Candidate { index = i, score = energy * (0.6f + m.radius) });
+            float travel = Travel(m.speed);
+            total += travel + Mathf.Clamp01(m.wobble / Mathf.Max(0.01f, jiggleFull));
+            if (travel > 0f) _candidates.Add(new Candidate { index = i, score = travel * (0.6f + m.radius) });
+            Bounce(m, now);
         }
+        if (Time.frameCount % 30 == 0) ForgetGone(now);
         _candidates.Sort(ByScore);
-        int chosen = Mathf.Min(_candidates.Count, Mathf.Min(wobbleVoices, SlimeSynth.MaxVoices));
+        int chosen = Mathf.Min(_candidates.Count, Mathf.Min(travelVoices, SlimeSynth.MaxVoices));
 
         float sum = 0f;
-        for (int c = 0; c < chosen; c++)
-        {
-            var m = motions[_candidates[c].index];
-            sum += Mathf.Pow(Mathf.Clamp01((m.wobble - wobbleGate) / span), 1.3f) + 0.5f * Travel(m.speed);
-        }
-        float norm = wobbleVolume * master * (sum > 1f ? 1f / Mathf.Sqrt(sum) : 1f);
+        for (int c = 0; c < chosen; c++) sum += Mathf.Pow(Travel(motions[_candidates[c].index].speed), 1.5f);
+        float norm = travelVolume * master * (sum > 1f ? 1f / Mathf.Sqrt(sum) : 1f);
 
         System.Array.Clear(_kept, 0, _kept.Length);
         for (int c = 0; c < chosen; c++)
@@ -324,29 +366,62 @@ public class SlimeSound : MonoBehaviour
                     if (_owner[k] == 0 && now >= _freeAt[k]) { v = k; break; }
                 if (v < 0) continue;
                 _owner[v] = m.id;
-                _synth.snap[v] = true;
             }
             _kept[v] = true;
-            float w = Mathf.Clamp01((m.wobble - wobbleGate) / span), travel = Travel(m.speed);
-            float size = Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(m.radius / 2f));
-            int n = MergeDegree(m.level, 1);
-            _synth.freq[v] = 164.81f * Mathf.Pow(2f, Shift(n) / 12f) * (1f + 0.08f * m.stretch);
-            _synth.open[v] = Mathf.Clamp01(0.5f * m.stretch + 0.6f * w + 0.25f * travel);
-            _synth.tone[v] = norm * size * Mathf.Pow(w, 1.3f);
-            _synth.air[v] = norm * size * 0.5f * travel;
+            float travel = Travel(m.speed), size = Mathf.Clamp01(m.radius / 2.4f);
+            _synth.air[v] = norm * Mathf.Pow(travel, 1.5f) * Mathf.Lerp(0.55f, 1.1f, size);
+            _synth.cutoff[v] = (150f + 650f * travel) * Mathf.Lerp(1.3f, 0.55f, size);
             _synth.pan[v] = Pan(m.center.x);
         }
         for (int v = 0; v < SlimeSynth.MaxVoices; v++)
         {
             if (_kept[v]) continue;
-            if (_owner[v] != 0) { _owner[v] = 0; _freeAt[v] = now + 0.12f; }
-            _synth.tone[v] = 0f;
+            if (_owner[v] != 0) { _owner[v] = 0; _freeAt[v] = now + 0.15f; }
             _synth.air[v] = 0f;
         }
         _synth.pad = 0.3f * ambience * master * (0.75f + 0.25f * Mathf.Clamp01(total / 3f));
     }
 
-    float Travel(float speed) => travelFull > 0f ? Mathf.Clamp01((speed - 0.25f) / travelFull) : 0f;
+    float Travel(float speed) => Mathf.Clamp01((speed - travelGate) / Mathf.Max(0.01f, travelFull - travelGate));
+
+    // Rebond de forme : l'étirement passe un maximum ou un minimum. Sonne si le plus fort tremblement depuis le rebond
+    // précédent dépasse le seuil ; une fois par demi-oscillation au plus, peu par seconde en tout.
+    void Bounce(SlimeSkin.Motion m, float now)
+    {
+        bool known = _jiggles.TryGetValue(m.id, out var j);
+        j.seen = now;
+        j.peak = Mathf.Max(j.peak, m.wobble);
+        if (!known) j.stretch = m.stretch;
+        float delta = m.stretch - j.stretch;
+        if (Mathf.Abs(delta) > 0.004f)
+        {
+            int dir = delta > 0f ? 1 : -1;
+            if (j.dir != 0 && dir != j.dir) Blop(m, ref j, now);
+            j.dir = dir;
+            j.stretch = m.stretch;
+        }
+        _jiggles[m.id] = j;
+    }
+
+    void Blop(SlimeSkin.Motion m, ref Jiggle j, float now)
+    {
+        float amount = (j.peak - jiggleGate) / Mathf.Max(0.01f, jiggleFull - jiggleGate);
+        j.peak = 0f;
+        if (amount <= 0f || now < j.quietUntil || _jiggleTokens < 1f || jiggleVolume <= 0f) return;
+        _jiggleTokens -= 1f;
+        j.quietUntil = now + 0.22f;
+        float size = Mathf.Clamp01(m.radius / 2.4f);
+        Play(_blops[_rand.Next(_blops.Length)], jiggleVolume * (0.3f + 0.7f * Mathf.Clamp01(amount)) * Mathf.Lerp(0.6f, 1f, size),
+            3f - m.level * semitonesPerLevel * 0.8f + Jitter() * 0.5f, m.center.x);
+    }
+
+    void ForgetGone(float now)
+    {
+        _gone.Clear();
+        foreach (var pair in _jiggles)
+            if (now - pair.Value.seen > 1f) _gone.Add(pair.Key);
+        for (int i = 0; i < _gone.Count; i++) _jiggles.Remove(_gone[i]);
+    }
 
     float Pan(float x)
     {
@@ -381,12 +456,14 @@ public class SlimeSound : MonoBehaviour
         _plop = Clip("plop", Plop());
         _splats = new[] { Clip("splotch 1", Splat(11u, 1f)), Clip("splotch 2", Splat(23u, 1f)), Clip("splotch 3", Splat(37u, 1f)) };
         _softSplats = new[] { Clip("splotch doux 1", Splat(13u, 0.2f)), Clip("splotch doux 2", Splat(29u, 0.2f)), Clip("splotch doux 3", Splat(41u, 0.2f)) };
+        _blops = new[] { Clip("blop 1", Blop(61u, 120f)), Clip("blop 2", Blop(67u, 104f)), Clip("blop 3", Blop(71u, 136f)) };
         _bloop = Clip("bloup", Bloop());
         _doum = Clip("doum", Doum());
         _boom = Clip("grondement", Boom());
         _bubbles = Clip("bulles", Bubbles());
         _fanfare = Clip("fête", Fanfare());
         _whoosh = Clip("fwoump", Whoosh());
+        _glide = Clip("glisse", Glide());
     }
 
     static AudioClip Clip(string name, float[] data)
@@ -406,10 +483,15 @@ public class SlimeSound : MonoBehaviour
         return (attack > 0f ? 1f - Mathf.Exp(-t / attack) : 1f) * Mathf.Exp(-t / decay);
     }
 
+    // Un échantillon invalide (NaN, infini) rendrait tout le son invalide, puis tout le mélange : remplacé par 0.
     static void Normalize(float[] d, float peak)
     {
         float max = 1e-6f;
-        for (int i = 0; i < d.Length; i++) max = Mathf.Max(max, Mathf.Abs(d[i]));
+        for (int i = 0; i < d.Length; i++)
+        {
+            if (float.IsNaN(d[i]) || float.IsInfinity(d[i])) d[i] = 0f;
+            max = Mathf.Max(max, Mathf.Abs(d[i]));
+        }
         float k = peak / max;
         int fade = Mathf.Min(d.Length, Rate / 200);
         for (int i = 0; i < d.Length; i++)
@@ -590,6 +672,42 @@ public class SlimeSound : MonoBehaviour
                 float ph = 2f * Mathf.PI * notes[k] * t;
                 d[i] += amp * Env(t, 0.06f, 0.9f) * (Mathf.Sin(ph) + 0.3f * Mathf.Sin(2f * ph) + 0.08f * Mathf.Sin(3f * ph));
             }
+        }
+        return d;
+    }
+
+    // Rebond de gelée : petit coup grave et mou qui retombe, avec un « ouw » de bruit filtré (ce qui s'entend sur un téléphone).
+    static float[] Blop(uint seed, float freq)
+    {
+        var d = Buffer(0.3f);
+        var noise = new Noise(seed);
+        var ouw = new Filter();
+        float phase = 0f;
+        for (int i = 0; i < d.Length; i++)
+        {
+            float t = (float)i / Rate;
+            phase += 2f * Mathf.PI * freq * (1f + 0.6f * Mathf.Exp(-t / 0.02f)) / Rate;
+            ouw.Run(noise.Next(), 220f + 380f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.12f)), 0.5f);
+            d[i] = (Mathf.Sin(phase) + 0.3f * Mathf.Sin(2f * phase)) * Env(t, 0.004f, 0.07f) + 0.35f * ouw.band * Env(t, 0.01f, 0.05f);
+        }
+        return d;
+    }
+
+    // Arrivée dans la réserve : souffle grave qui enfle et retombe pendant qu'il glisse, petite masse sourde dessous.
+    static float[] Glide()
+    {
+        var d = Buffer(0.9f);
+        var noise = new Noise(83u);
+        float lp1 = 0f, lp2 = 0f, phase = 0f;
+        for (int i = 0; i < d.Length; i++)
+        {
+            float t = (float)i / Rate;
+            float g = 1f - Mathf.Exp(-2f * Mathf.PI * (180f + 300f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.7f))) / Rate);
+            lp1 += g * (noise.Next() - lp1);
+            lp2 += g * (lp1 - lp2);
+            float env = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.85f))), 1.5f);
+            phase += 2f * Mathf.PI * 72f / Rate;
+            d[i] = (lp2 * 3f + 0.15f * Mathf.Sin(phase)) * env;
         }
         return d;
     }

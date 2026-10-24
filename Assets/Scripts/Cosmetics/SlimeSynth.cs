@@ -1,34 +1,30 @@
 using UnityEngine;
 
-// Synthèse en temps réel (fil audio) pour SlimeSound : voix de gelée qui suivent le mouvement des gumori, et nappe
-// d'ambiance. Le fil principal écrit des CIBLES à chaque image ; elles sont lissées ici à chaque échantillon (aucun
-// craquement). Ajouté par SlimeSound en Play, après une AudioSource qui joue du silence en boucle, jamais enregistré.
-// Voix : son riche (4 harmoniques) dans un filtre passe-bas résonant, fermé quand le gumori est rond (grave et doux), ouvert
-// quand il s'étire (« wouh ») ; plus un bruit filtré : clapotis mouillé quand il tremble, souffle quand il file.
+// Synthèse en temps réel (fil audio) pour SlimeSound : souffle des gumori qui filent, et nappe d'ambiance (coupée par défaut).
+// Le fil principal écrit des CIBLES à chaque image ; elles sont lissées ici (aucun craquement). Ajouté par SlimeSound en
+// Play, après une AudioSource qui joue du silence en boucle, jamais enregistré.
+// Souffle : bruit d'air SANS hauteur (pas de ton : un ton tenu qui ondule sonnait comme un moustique, écarté le 2026-10-24),
+// filtré grave ; plus le gumori va vite, plus il s'ouvre ; plus il est gros, plus il est grave.
 [AddComponentMenu("")]
 public class SlimeSynth : MonoBehaviour
 {
-    public const int MaxVoices = 6;
+    public const int MaxVoices = 4;
 
-    // Cibles : volume du ton (tremblement), volume du souffle (vitesse), fréquence (Hz), ouverture du filtre (0–1),
-    // panoramique (−1 à 1), saut de fréquence sans glisser (voix qui change de gumori).
-    public readonly float[] tone = new float[MaxVoices], air = new float[MaxVoices], freq = new float[MaxVoices],
-        open = new float[MaxVoices], pan = new float[MaxVoices];
-    public readonly bool[] snap = new bool[MaxVoices];
-    // Part de clapotis dans les voix, volume de la nappe, sa note de base (Hz), atténuation pendant les fusions (1 = aucune).
-    public float slosh = 0.3f, pad, padRoot = 130.81f, duck = 1f;
+    // Cibles : volume du souffle, fréquence de coupure (Hz), panoramique (−1 à 1).
+    public readonly float[] air = new float[MaxVoices], cutoff = new float[MaxVoices], pan = new float[MaxVoices];
+    // Volume de la nappe, sa note de base (Hz), atténuation pendant les fusions (1 = aucune).
+    public float pad, padRoot = 130.81f, duck = 1f;
 
     const int Table = 2048;
     static readonly float[] Sine = BuildSine();
     static readonly float[] PadRatio = { 1f, 1.0016f, 1.5f, 1.4983f, 2.25f, 2.2462f, 0.5f };
     static readonly float[] PadGain = { 0.5f, 0.5f, 0.32f, 0.32f, 0.16f, 0.16f, 0.35f };
 
-    readonly float[] _tone = new float[MaxVoices], _air = new float[MaxVoices], _freq = new float[MaxVoices],
-        _open = new float[MaxVoices], _pan = new float[MaxVoices], _phase = new float[MaxVoices],
-        _low = new float[MaxVoices], _band = new float[MaxVoices], _nLow = new float[MaxVoices], _nBand = new float[MaxVoices],
+    readonly float[] _air = new float[MaxVoices], _cut = new float[MaxVoices], _pan = new float[MaxVoices],
+        _lp1 = new float[MaxVoices], _lp2 = new float[MaxVoices], _g = new float[MaxVoices], _norm = new float[MaxVoices],
         _gl = new float[MaxVoices], _gr = new float[MaxVoices];
     readonly float[] _padPhase = new float[PadRatio.Length];
-    float _rate = 48000f, _kFast, _kSlow, _kPad, _pad, _duck = 1f, _breath;
+    float _rate = 48000f, _kFast, _kPad, _pad, _duck = 1f, _breath;
     uint _noise = 0x9E3779B9u;
     AudioClip _silence;
 
@@ -39,7 +35,7 @@ public class SlimeSynth : MonoBehaviour
         return t;
     }
 
-    // Phase en tours, positive (jusqu'à quelques tours : les harmoniques).
+    // Phase en tours, positive.
     static float Sin(float phase)
     {
         float x = phase * Table;
@@ -52,9 +48,9 @@ public class SlimeSynth : MonoBehaviour
     void Start()
     {
         _rate = AudioSettings.outputSampleRate;
-        _kFast = 1f - Mathf.Exp(-1f / (0.035f * _rate));
-        _kSlow = 1f - Mathf.Exp(-1f / (0.12f * _rate));
+        _kFast = 1f - Mathf.Exp(-1f / (0.06f * _rate));
         _kPad = 1f - Mathf.Exp(-1f / (1.5f * _rate));
+        for (int v = 0; v < MaxVoices; v++) _cut[v] = 200f;
         var source = GetComponent<AudioSource>();
         if (source == null) return;
         _silence = AudioClip.Create("silence", 1024, 1, Mathf.Max(8000, (int)_rate), false);
@@ -82,10 +78,14 @@ public class SlimeSynth : MonoBehaviour
     void OnAudioFilterRead(float[] data, int channels)
     {
         int frames = data.Length / channels;
-        float inv = 1f / _rate, w = 2f * Mathf.PI * inv;
-        float padTarget = pad, duckTarget = duck, sloshAmount = slosh, padRoot0 = padRoot;
+        float inv = 1f / _rate;
+        float padTarget = pad, duckTarget = duck, padRoot0 = padRoot;
+        // Coupure et placement : lents, une fois par tampon. Le bruit filtré plus bas a moins d'énergie : compensé.
         for (int v = 0; v < MaxVoices; v++)
         {
+            _cut[v] += (Mathf.Clamp(cutoff[v], 60f, 2000f) - _cut[v]) * 0.25f;
+            _g[v] = 1f - Mathf.Exp(-2f * Mathf.PI * _cut[v] * inv);
+            _norm[v] = 5f * Mathf.Sqrt(400f / _cut[v]);
             _pan[v] += (pan[v] - _pan[v]) * 0.3f;
             _gl[v] = 0.7071f * Mathf.Sqrt(1f - _pan[v]);
             _gr[v] = 0.7071f * Mathf.Sqrt(1f + _pan[v]);
@@ -95,28 +95,13 @@ public class SlimeSynth : MonoBehaviour
             float l = 0f, r = 0f;
             for (int v = 0; v < MaxVoices; v++)
             {
-                float tTone = tone[v], tAir = air[v];
-                if (_tone[v] < 1e-5f && _air[v] < 1e-5f && tTone < 1e-5f && tAir < 1e-5f) continue;
-                if (snap[v]) { _freq[v] = freq[v]; _open[v] = open[v]; snap[v] = false; }
-                _tone[v] += (tTone - _tone[v]) * _kFast;
-                _air[v] += (tAir - _air[v]) * _kFast;
-                _freq[v] += (freq[v] - _freq[v]) * _kSlow;
-                _open[v] += (open[v] - _open[v]) * _kSlow;
-
-                float ph = _phase[v] + _freq[v] * inv;
-                ph -= (int)ph;
-                _phase[v] = ph;
-                float src = 0.5f * (Sin(ph) + 0.55f * Sin(2f * ph) + 0.3f * Sin(3f * ph) + 0.15f * Sin(4f * ph));
-                float g = Mathf.Min(0.9f, w * _freq[v] * (1.1f + 5f * _open[v]));
-                _low[v] += g * _band[v];
-                _band[v] += g * (src - _low[v] - 0.7f * _band[v]);
-                float s = _low[v] * _tone[v];
-
-                float gn = Mathf.Min(0.9f, w * (180f + 700f * Mathf.Min(1f, 2f * _air[v]) + 400f * _open[v]));
-                _nLow[v] += gn * _nBand[v];
-                _nBand[v] += gn * (Noise() - _nLow[v] - 1.2f * _nBand[v]);
-                s += _nBand[v] * (sloshAmount * _tone[v] + _air[v]) * 0.6f;
-
+                float target = air[v];
+                if (_air[v] < 1e-5f && target < 1e-5f) continue;
+                _air[v] += (target - _air[v]) * _kFast;
+                float g = _g[v];
+                _lp1[v] += g * (Noise() - _lp1[v]);
+                _lp2[v] += g * (_lp1[v] - _lp2[v]);
+                float s = _lp2[v] * _norm[v] * _air[v];
                 l += s * _gl[v];
                 r += s * _gr[v];
             }
@@ -141,6 +126,12 @@ public class SlimeSynth : MonoBehaviour
                 r += pr * breath;
             }
 
+            if (float.IsNaN(l) || float.IsNaN(r))
+            {
+                System.Array.Clear(_lp1, 0, MaxVoices);
+                System.Array.Clear(_lp2, 0, MaxVoices);
+                l = r = 0f;
+            }
             _duck += (duckTarget - _duck) * _kFast;
             l = SoftClip(l * _duck);
             r = SoftClip(r * _duck);
