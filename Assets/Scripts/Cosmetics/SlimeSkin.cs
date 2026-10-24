@@ -2,47 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public enum SlimePattern { None, Bubbles, Spots, Rings, Honeycomb, Stripes, Cracks, Sparkles, Facets, Galaxy, Rainbow }
-public enum SlimeAccessory { None, Leaf, Antennae, Ears, Horns, Bow, Crystals, Halo, Crown }
-public enum SlimeFace { Smile, Cat, Fierce, Starry, Serene, Royal }
-
-[System.Serializable]
-public class SlimeDesign
-{
-    public string name;
-    [Tooltip("Couleur principale de la gelée (haut du slime).")]
-    public Color body;
-    [Tooltip("Ombre : bas du slime et liseré du contour.")]
-    public Color shade;
-    [Tooltip("Couleur du motif (bulles, pois, rayures, fissures…) et de ses lueurs.")]
-    public Color accent;
-    public SlimePattern pattern;
-    public SlimeAccessory accessory;
-    public Color accessoryColor;
-    public SlimeFace face;
-    [Tooltip("Joues roses.")]
-    public bool blush;
-    [Tooltip("Lueur du motif et des accessoires : 0 = aucune ; au-delà de 1, ça brille (bloom).")]
-    [Range(0f, 4f)] public float glow;
-
-    public SlimeDesign() { }
-
-    public SlimeDesign(string name, Color body, Color shade, Color accent, SlimePattern pattern, SlimeAccessory accessory,
-        Color accessoryColor, SlimeFace face, bool blush, float glow)
-    {
-        this.name = name;
-        this.body = body;
-        this.shade = shade;
-        this.accent = accent;
-        this.pattern = pattern;
-        this.accessory = accessory;
-        this.accessoryColor = accessoryColor;
-        this.face = face;
-        this.blush = blush;
-        this.glow = glow;
-    }
-}
-
 // Habillage des slimes : la gelée suit exactement l'anneau physique (contour lissé entre les capsules), avec motif, visage et
 // accessoires dessinés dans un repère qui se déforme avec elle (un slime écrasé a les yeux écrasés). Un design par niveau.
 // Vivant : clignements, regard qui suit le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc,
@@ -59,8 +18,10 @@ public class SlimeSkin : MonoBehaviour
     [Tooltip("Lâcher (BlobDropper + BlobFusion) dont on habille les slimes. Vide = celui de la scène.")]
     public BlobDropper dropper;
     public Shader shader;
-    [Tooltip("Un design par niveau (0 = le plus petit). Au-delà de la liste : le dernier.")]
+    [Tooltip("Un design par niveau (0 = le plus petit), dans l'ordre des familles de couleur. Au-delà de la liste : le dernier.")]
     public List<SlimeDesign> designs = DefaultDesigns();
+    [Tooltip("Autres gumori de la collection (pas encore en jeu) : montrés dans la vitrine, à la taille de leur famille.")]
+    public List<SlimeDesign> variants = SlimeDesign.Variants();
 
     [Header("Allure")]
     [Tooltip("Points max du contour dessiné par slime (lissé entre les capsules). Plus = plus rond, plus coûteux.")]
@@ -107,6 +68,10 @@ public class SlimeSkin : MonoBehaviour
     public bool gallery = true;
     [Tooltip("Vitrine aussi en Play, avec les noms.")]
     public bool galleryInPlay;
+    [Tooltip("Vitrine : une ligne avec la version shiny de chaque niveau.")]
+    public bool galleryShiny = true;
+    [Tooltip("Vitrine : les autres gumori de la collection (variantes).")]
+    public bool galleryVariants = true;
     [Tooltip("Coin haut gauche de la vitrine, en m.")]
     public Vector2 galleryOrigin = new Vector2(-17f, 15f);
     [Tooltip("Largeur max d'une ligne de la vitrine, en m.")]
@@ -168,6 +133,8 @@ public class SlimeSkin : MonoBehaviour
         public Vector2 center, velocity, look, attention;
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
         public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
+        public SlimeDesign design; // design imposé (vitrine), sinon celui du niveau
+        public bool shiny;
         // Vitesses des derniers pas vus (choc = vitesse perdue sur ImpactWindow pas, quelle que soit la cadence d'affichage).
         public readonly Vector2[] pastVelocity = new Vector2[8];
         public readonly int[] pastStep = new int[8];
@@ -192,7 +159,14 @@ public class SlimeSkin : MonoBehaviour
     readonly List<BLOB> _dead = new List<BLOB>();
     readonly List<Pending> _pending = new List<Pending>();
     readonly Look _held = new Look(), _nextLook = new Look();
-    readonly Look[] _galleryLooks = new Look[32];
+    readonly Look[] _galleryLooks = new Look[64];
+    struct GalleryEntry
+    {
+        public SlimeDesign design;
+        public int level;
+        public bool shiny, newRow;
+    }
+    readonly List<GalleryEntry> _gallery = new List<GalleryEntry>();
     System.Random _rand = new System.Random(7);
     int _frame, _builtFrame = -1, _heldLevel = -1, _nextLevel = -1, _seedCounter;
     bool _searched;
@@ -233,31 +207,19 @@ public class SlimeSkin : MonoBehaviour
 
     public SlimeDesign Design(int level) => designs.Count == 0 ? null : designs[Mathf.Clamp(level, 0, designs.Count - 1)];
 
-    public static List<SlimeDesign> DefaultDesigns() => new List<SlimeDesign>
+    SlimeDesign Resolve(Look look)
     {
-        new SlimeDesign("Goutte", new Color(0.36f, 0.70f, 1.00f), new Color(0.12f, 0.36f, 0.86f), new Color(0.92f, 0.98f, 1.00f),
-            SlimePattern.Bubbles, SlimeAccessory.None, Color.white, SlimeFace.Smile, true, 0f),
-        new SlimeDesign("Pousse", new Color(0.50f, 0.88f, 0.30f), new Color(0.16f, 0.52f, 0.14f), new Color(0.85f, 1.00f, 0.60f),
-            SlimePattern.None, SlimeAccessory.Leaf, new Color(0.22f, 0.62f, 0.18f), SlimeFace.Serene, true, 0f),
-        new SlimeDesign("Bonbon", new Color(1.00f, 0.52f, 0.76f), new Color(0.84f, 0.20f, 0.52f), new Color(1.00f, 1.00f, 1.00f),
-            SlimePattern.Sparkles, SlimeAccessory.Bow, new Color(0.96f, 0.20f, 0.38f), SlimeFace.Smile, true, 0.8f),
-        new SlimeDesign("Citron", new Color(1.00f, 0.92f, 0.28f), new Color(0.85f, 0.58f, 0.05f), new Color(1.00f, 1.00f, 0.75f),
-            SlimePattern.Rings, SlimeAccessory.None, Color.white, SlimeFace.Starry, false, 0.8f),
-        new SlimeDesign("Cristal", new Color(0.68f, 0.40f, 0.98f), new Color(0.32f, 0.10f, 0.66f), new Color(0.86f, 0.97f, 1.00f),
-            SlimePattern.Facets, SlimeAccessory.Crystals, new Color(0.62f, 0.92f, 1.00f), SlimeFace.Smile, false, 0.7f),
-        new SlimeDesign("Tigrou", new Color(1.00f, 0.52f, 0.12f), new Color(0.82f, 0.26f, 0.04f), new Color(0.40f, 0.13f, 0.04f),
-            SlimePattern.Stripes, SlimeAccessory.Ears, new Color(1.00f, 0.52f, 0.12f), SlimeFace.Cat, false, 0f),
-        new SlimeDesign("Braise", new Color(0.80f, 0.17f, 0.12f), new Color(0.34f, 0.03f, 0.06f), new Color(1.00f, 0.72f, 0.18f),
-            SlimePattern.Cracks, SlimeAccessory.Horns, new Color(0.30f, 0.09f, 0.09f), SlimeFace.Fierce, false, 2.2f),
-        new SlimeDesign("Miel", new Color(1.00f, 0.80f, 0.24f), new Color(0.86f, 0.48f, 0.04f), new Color(1.00f, 0.94f, 0.62f),
-            SlimePattern.Honeycomb, SlimeAccessory.Antennae, new Color(0.32f, 0.18f, 0.08f), SlimeFace.Smile, true, 0.3f),
-        new SlimeDesign("Lagon", new Color(0.28f, 0.86f, 0.84f), new Color(0.04f, 0.48f, 0.58f), new Color(0.82f, 1.00f, 0.98f),
-            SlimePattern.Spots, SlimeAccessory.None, Color.white, SlimeFace.Smile, true, 0f),
-        new SlimeDesign("Nébuleuse", new Color(0.30f, 0.25f, 0.80f), new Color(0.08f, 0.05f, 0.32f), new Color(1.00f, 0.55f, 0.92f),
-            SlimePattern.Galaxy, SlimeAccessory.Halo, new Color(1.00f, 0.90f, 0.55f), SlimeFace.Serene, false, 1.2f),
-        new SlimeDesign("Roi", new Color(0.98f, 0.98f, 1.00f), new Color(0.55f, 0.45f, 0.90f), new Color(1.00f, 1.00f, 1.00f),
-            SlimePattern.Rainbow, SlimeAccessory.Crown, new Color(1.00f, 0.80f, 0.20f), SlimeFace.Royal, true, 0.5f),
-    };
+        var d = look.design ?? Design(look.level);
+        return d != null && look.shiny ? d.Shiny : d;
+    }
+
+    public static List<SlimeDesign> DefaultDesigns() => SlimeDesign.Levels();
+
+    void OnValidate()
+    {
+        foreach (var d in designs) d?.ResetShinyCache();
+        foreach (var d in variants) d?.ResetShinyCache();
+    }
 
     void OnEnable()
     {
@@ -502,7 +464,7 @@ public class SlimeSkin : MonoBehaviour
                 _sp[i * k + j] = CatmullRom(p0, p1, p2, p3, u);
             }
         }
-        EmitSlime(Design(look.level), look, c, count, rot, blob.diameter);
+        EmitSlime(Resolve(look), look, c, count, rot, blob.diameter);
     }
 
     void EnsureSamples(int count)
@@ -582,7 +544,7 @@ public class SlimeSkin : MonoBehaviour
             Vector2 u = Units(count)[i];
             _sp[i] = center + new Vector2(u.x * r * (1f + breathe), u.y * r * (1f - breathe));
         }
-        EmitSlime(Design(look.level), look, center, count, 0f, 2f * r);
+        EmitSlime(Resolve(look), look, center, count, 0f, 2f * r);
     }
 
     float _heldPopTime = 1f;
@@ -606,49 +568,66 @@ public class SlimeSkin : MonoBehaviour
         if (left > 1) EmitRound(_nextLook, dropper.NextPreviewPoint, dropper.NextPreviewRadius, dt, Mathf.Lerp(0.5f, 1f, pop), t + 1.3f);
     }
 
+    // Vitrine : une ligne par niveau, puis leurs versions shiny, puis les variantes (à la taille de leur famille).
+    void BuildGallery()
+    {
+        _gallery.Clear();
+        int max = Mathf.Min(_fusion.MaxLevel, designs.Count - 1);
+        for (int level = 0; level <= max; level++) _gallery.Add(new GalleryEntry { design = Design(level), level = level, newRow = level == 0 });
+        if (galleryShiny)
+            for (int level = 0; level <= max; level++) _gallery.Add(new GalleryEntry { design = Design(level), level = level, shiny = true, newRow = level == 0 });
+        if (galleryVariants)
+            for (int i = 0; i < variants.Count; i++)
+                if (variants[i] != null)
+                    _gallery.Add(new GalleryEntry { design = variants[i], level = Mathf.Min((int)variants[i].family, _fusion.MaxLevel), newRow = i == 0 });
+        if (_gallery.Count > _galleryLooks.Length) _gallery.RemoveRange(_galleryLooks.Length, _gallery.Count - _galleryLooks.Length);
+    }
+
     void DrawGallery(float dt)
     {
         if (_fusion == null) return;
-        int max = Mathf.Min(_fusion.MaxLevel, _galleryLooks.Length - 1);
+        BuildGallery();
         float t = Time.realtimeSinceStartup;
-        for (int level = 0; level <= max; level++)
+        float x = 0f, y = 0f, row = 0f;
+        for (int i = 0; i < _gallery.Count; i++)
         {
-            GalleryPlace(level, out var center, out float radius);
-            var look = _galleryLooks[level] ??= NewLook(level, radius);
-            look.level = level;
-            look.happy = level % 3 == 1 ? 1f : 0f;
-            EmitRound(look, center, radius, dt, 1f, t + level);
+            var e = _gallery[i];
+            GalleryNext(e, ref x, ref y, ref row, out var center, out float radius);
+            var look = _galleryLooks[i] ??= NewLook(e.level, radius);
+            look.level = e.level;
+            look.design = e.design;
+            look.shiny = e.shiny;
+            look.happy = i % 3 == 1 ? 1f : 0f;
+            EmitRound(look, center, radius, dt, 1f, t + i);
         }
     }
 
-    void GalleryPlace(int level, out Vector2 center, out float radius)
+    void GalleryNext(GalleryEntry e, ref float x, ref float y, ref float row, out Vector2 center, out float radius)
     {
-        float x = 0f, y = 0f, row = 0f;
-        radius = 0f;
-        center = Vector2.zero;
-        for (int l = 0; l <= level; l++)
-        {
-            float d = _fusion.LevelDiameter(l);
-            if (x > 0f && x + d > galleryWidth) { x = 0f; y += row + 1.2f; row = 0f; }
-            radius = 0.5f * d;
-            center = galleryOrigin + new Vector2(x + radius, -y - radius);
-            x += d + 0.5f;
-            row = Mathf.Max(row, d);
-        }
+        float d = _fusion.LevelDiameter(e.level);
+        if (x > 0f && (e.newRow || x + d > galleryWidth)) { x = 0f; y += row + (e.newRow ? 2f : 1.2f); row = 0f; }
+        radius = 0.5f * d;
+        center = galleryOrigin + new Vector2(x + radius, -y - radius);
+        x += d + 0.5f;
+        row = Mathf.Max(row, d);
     }
+
+    static readonly string[] RarityNames = { "commun", "rare", "ultra rare", "spécial" };
 
     void OnGUI()
     {
         if (!Application.isPlaying || !galleryInPlay || _fusion == null) return;
         var cam = Camera.main;
         if (cam == null) return;
-        int max = Mathf.Min(_fusion.MaxLevel, _galleryLooks.Length - 1);
-        for (int level = 0; level <= max; level++)
+        _label ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+        float x = 0f, y = 0f, row = 0f;
+        for (int i = 0; i < _gallery.Count; i++)
         {
-            GalleryPlace(level, out var center, out float radius);
+            var e = _gallery[i];
+            GalleryNext(e, ref x, ref y, ref row, out var center, out float radius);
             Vector3 s = cam.WorldToScreenPoint(center + Vector2.down * (radius + 0.3f));
-            var d = Design(level);
-            GUI.Label(new Rect(s.x - 60f, Screen.height - s.y - 10f, 120f, 20f), $"{level} · {d?.name}", _label ??= new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold });
+            string text = e.shiny ? $"{e.design.name} ✦ shiny" : $"{e.design.name} · {RarityNames[(int)e.design.rarity]}";
+            GUI.Label(new Rect(s.x - 80f, Screen.height - s.y - 10f, 160f, 20f), text, _label);
         }
     }
 
@@ -748,10 +727,11 @@ public class SlimeSkin : MonoBehaviour
         float aa = 1.5f * _pixel;
         _flash = look.flash;
         _k2 = new Vector4(look.look.x, look.look.y, Blink(look), Expression(look));
-        _k3 = new Vector4(d.shade.r, d.shade.g, d.shade.b, (float)d.face);
+        _k3 = new Vector4(d.shade.r, d.shade.g, d.shade.b, (int)d.eyes + 8 * (int)d.mouth + 64 * (int)d.attitude);
         _k4 = new Vector4(d.accent.r, d.accent.g, d.accent.b, d.glow);
         _k5 = new Vector4(look.seed, faceScale, d.blush ? 1f : 0f, outlineWidth / (outlineWidth + aa));
         Color32 body = d.body;
+        float surface = (int)d.pattern + 32 * (int)d.sheen; // motif + 32 × reflet
         float frame = look.frame;
         float radius = 0.5f * diameter;
         float accScale = ElasticOut(look.pop);
@@ -767,9 +747,9 @@ public class SlimeSkin : MonoBehaviour
             _dd[k] = new Vector2(rd.x * u.x - rd.y * u.y, rd.y * u.x + rd.x * u.y);
             _dl[k] = new Vector2(rl.x * u.x - rl.y * u.y, rl.y * u.x + rl.x * u.y);
         }
-        int center = AddVertex(c, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, (float)d.pattern), body);
+        int center = AddVertex(c, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, surface), body);
         for (int k = 0; k < n; k++)
-            AddVertex(_sp[k], new Vector4(_dd[k].x, _dd[k].y, 0f, 0f), new Vector4(_dl[k].x, _dl[k].y, _flash, (float)d.pattern), body);
+            AddVertex(_sp[k], new Vector4(_dd[k].x, _dd[k].y, 0f, 0f), new Vector4(_dl[k].x, _dl[k].y, _flash, surface), body);
         for (int k = 0; k < n; k++) Tri(center, center + 1 + k, center + 1 + (k + 1) % n);
 
         float w = outlineWidth, ew = _k5.w;
@@ -777,7 +757,7 @@ public class SlimeSkin : MonoBehaviour
         for (int k = 0; k < n; k++)
         {
             Vector2 dd = _dd[k];
-            var u1 = new Vector4(_dl[k].x, _dl[k].y, _flash, (float)d.pattern);
+            var u1 = new Vector4(_dl[k].x, _dl[k].y, _flash, surface);
             AddVertex(_sp[k] - _sn[k] * w, new Vector4(dd.x, dd.y, 1f, 0f), u1, body);
             AddVertex(_sp[k], new Vector4(dd.x, dd.y, 1f, ew), u1, body);
             AddVertex(_sp[k] + _sn[k] * aa, new Vector4(dd.x, dd.y, 1f, 1f), u1, body);
@@ -808,10 +788,11 @@ public class SlimeSkin : MonoBehaviour
     {
         if (scale <= 0.01f) return;
         float size = radius * scale;
-        Color col = d.accessoryColor;
-        switch (d.accessory)
+        if (!front) EmitBack(d, n, rot, frame, size, aa);
+        Color col = d.headColor;
+        switch (d.head)
         {
-            case SlimeAccessory.Leaf:
+            case SlimeHead.Leaf:
                 if (front) return;
                 {
                     Anchor(100f, n, rot, frame, out var p, out var nor);
@@ -824,7 +805,7 @@ public class SlimeSkin : MonoBehaviour
                     Leaf(p, nor, size, new Vector2(0f, 0.2f), 0.85f + sway, 0.42f, 0.15f, col * 0.9f, aa);
                 }
                 break;
-            case SlimeAccessory.Antennae:
+            case SlimeHead.Antennae:
                 if (front) return;
                 for (int s = -1; s <= 1; s += 2)
                 {
@@ -839,7 +820,7 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, tip, col * 1.15f, d.glow, aa);
                 }
                 break;
-            case SlimeAccessory.Ears:
+            case SlimeHead.Ears:
                 if (front) return;
                 for (int s = -1; s <= 1; s += 2)
                 {
@@ -853,7 +834,7 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, new Vector2(0f, 0.02f), new Color(1f, 0.62f, 0.68f), 0f, aa);
                 }
                 break;
-            case SlimeAccessory.Horns:
+            case SlimeHead.Horns:
                 if (front) return;
                 for (int s = -1; s <= 1; s += 2)
                 {
@@ -864,7 +845,7 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, new Vector2(0.02f * s, 0.02f), col, d.glow * 0.6f, aa);
                 }
                 break;
-            case SlimeAccessory.Bow:
+            case SlimeHead.Bow:
                 if (!front) return;
                 {
                     Anchor(62f, n, rot, frame, out var p, out var nor);
@@ -880,7 +861,7 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, Vector2.zero, col * 0.85f, 0f, aa);
                 }
                 break;
-            case SlimeAccessory.Crystals:
+            case SlimeHead.Crystals:
                 if (front) return;
                 for (int i = 0; i < 3; i++)
                 {
@@ -895,7 +876,7 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, Rotate(new Vector2(0f, len * 0.3f + 0.15f), tilt) - new Vector2(0f, 0.15f), col, d.glow + 0.5f, aa);
                 }
                 break;
-            case SlimeAccessory.Halo:
+            case SlimeHead.Halo:
                 if (!front) return;
                 {
                     Anchor(90f, n, rot, frame, out var p, out var nor);
@@ -919,7 +900,7 @@ public class SlimeSkin : MonoBehaviour
                     }
                 }
                 break;
-            case SlimeAccessory.Crown:
+            case SlimeHead.Crown:
                 if (!front) return;
                 {
                     Anchor(90f, n, rot, frame, out var p, out var nor);
@@ -937,8 +918,101 @@ public class SlimeSkin : MonoBehaviour
                     Gem(p, nor, size, new Vector2(0.40f, 0.42f), 0.035f, Color.white, aa);
                 }
                 break;
+            case SlimeHead.Flower:
+                if (front) return;
+                {
+                    Anchor(96f, n, rot, frame, out var p, out var nor);
+                    float sway = 0.06f * Mathf.Sin(Time.time * 1.8f);
+                    Vector2 top = new Vector2(0.03f + sway * 0.5f, 0.42f);
+                    _poly.Clear();
+                    _poly.Add(new Vector2(-0.035f, -0.15f)); _poly.Add(new Vector2(0.035f, -0.15f));
+                    _poly.Add(top + new Vector2(0.02f, 0f)); _poly.Add(top + new Vector2(-0.02f, 0f));
+                    Polygon(p, nor, size, new Vector2(0f, 0.1f), StemGreen * 0.8f, 0f, aa);
+                    Leaf(p, nor, size, new Vector2(0.01f, 0.14f), -0.95f + sway, 0.36f, 0.12f, StemGreen, aa);
+                    Leaf(p, nor, size, new Vector2(0f, 0.2f), 1.0f + sway, 0.3f, 0.1f, StemGreen * 0.9f, aa);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        Vector2 pc = top + Dir(TAU * i / 5f + Mathf.PI * 0.5f + sway) * 0.1f;
+                        Circle(pc, 0.085f, 12);
+                        Polygon(p, nor, size, pc, col, 0f, aa);
+                    }
+                    Circle(top, 0.06f, 12);
+                    Polygon(p, nor, size, top, FlowerHeart, 0.3f, aa);
+                }
+                break;
+            case SlimeHead.RoundEars:
+                if (front) return;
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    Anchor(90f - 40f * s, n, rot, frame, out var p, out var nor);
+                    Circle(new Vector2(0f, 0.06f), 0.2f, 18);
+                    Polygon(p, nor, size, new Vector2(0f, 0.06f), col, 0f, aa);
+                    Circle(new Vector2(0f, 0.07f), 0.11f, 14);
+                    Polygon(p, nor, size, new Vector2(0f, 0.07f), Color.Lerp(col, EarPink, 0.55f), 0f, aa);
+                }
+                break;
+            case SlimeHead.Cherry:
+                if (front) return;
+                {
+                    Anchor(84f, n, rot, frame, out var p, out var nor);
+                    float sway = 0.04f * Mathf.Sin(Time.time * 2.2f);
+                    _poly.Clear();
+                    _poly.Add(new Vector2(-0.015f, 0.18f)); _poly.Add(new Vector2(0.015f, 0.18f));
+                    _poly.Add(new Vector2(0.11f + sway, 0.5f)); _poly.Add(new Vector2(0.08f + sway, 0.51f));
+                    Polygon(p, nor, size, new Vector2(0.05f, 0.34f), CherryStem, 0f, aa);
+                    Circle(new Vector2(0f, 0.14f), 0.16f, 18);
+                    Polygon(p, nor, size, new Vector2(0f, 0.14f), col, 0f, aa);
+                    Circle(new Vector2(-0.06f, 0.2f), 0.04f, 10);
+                    Polygon(p, nor, size, new Vector2(-0.06f, 0.2f), Color.white, 0.4f, aa);
+                }
+                break;
         }
     }
+
+    // Case « dos » : derrière le corps, de part et d'autre (s = −1 gauche, +1 droite). Dans le repère local d'un point du bord,
+    // « vers le haut du slime » vaut −s le long de la tangente.
+    void EmitBack(SlimeDesign d, int n, float rot, float frame, float size, float aa)
+    {
+        Color col = d.backColor;
+        switch (d.back)
+        {
+            case SlimeBack.BatWings:
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    Anchor(90f - 62f * s, n, rot, frame, out var p, out var nor);
+                    float flap = 0.16f * Mathf.Sin(Time.time * 5f) * s;
+                    _poly.Clear();
+                    for (int i = 0; i < BatWing.Length; i++)
+                    {
+                        Vector2 q = Rotate(BatWing[i] - new Vector2(0f, -0.05f), flap) + new Vector2(0f, -0.05f);
+                        _poly.Add(new Vector2(-s * q.x, q.y));
+                    }
+                    Vector2 f = Rotate(new Vector2(0.12f, 0.15f) - new Vector2(0f, -0.05f), flap) + new Vector2(0f, -0.05f);
+                    Polygon(p, nor, size, new Vector2(-s * f.x, f.y), col, d.glow * 0.15f, aa);
+                }
+                break;
+            case SlimeBack.FairyWings:
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    Anchor(90f - 58f * s, n, rot, frame, out var p, out var nor);
+                    float flap = 0.14f * Mathf.Sin(Time.time * 7f);
+                    Leaf(p, nor, size, new Vector2(0f, -0.08f), s * (0.55f + flap), 0.62f, 0.2f, col, aa);
+                    Leaf(p, nor, size, new Vector2(0f, -0.1f), s * (-0.35f - flap * 0.6f), 0.42f, 0.14f, col * 0.92f, aa);
+                }
+                break;
+        }
+    }
+
+    // Aile de chauve-souris (x = vers le haut du slime, y = vers l'extérieur), bord inférieur festonné.
+    static readonly Vector2[] BatWing =
+    {
+        new Vector2(-0.10f, -0.14f), new Vector2(0.20f, -0.14f), new Vector2(0.46f, 0.28f), new Vector2(0.44f, 0.64f),
+        new Vector2(0.27f, 0.48f), new Vector2(0.17f, 0.62f), new Vector2(0.05f, 0.42f), new Vector2(-0.06f, 0.50f),
+        new Vector2(-0.12f, 0.22f)
+    };
+
+    static readonly Color StemGreen = SlimeDesign.Hex("#4FA83A"), FlowerHeart = SlimeDesign.Hex("#FFD23F"),
+        EarPink = SlimeDesign.Hex("#FFB3C1"), CherryStem = SlimeDesign.Hex("#5E7A2A");
 
     // Feuille : base 'b', inclinaison 'tilt' (rad, depuis la verticale), longueur et demi-largeur en rayons du slime.
     void Leaf(Vector2 p, Vector2 nor, float size, Vector2 b, float tilt, float length, float width, Color col, float aa)

@@ -1,7 +1,7 @@
 // Corps des slimes (SlimeSkin) : un seul maillage pour tous les slimes, reconstruit à chaque image. Tout est dans les sommets :
 // TEXCOORD0 xy = repère du décor (rayon 1, suit la déformation), z = partie, w = bord ; TEXCOORD1 xy = repère de la lumière (même
-// forme, tourné vers le haut du monde), z = éclair, w = motif ; TEXCOORD2 = regard, clignement, expression ; TEXCOORD3 = ombre +
-// style de visage ; TEXCOORD4 = accent + lueur ; TEXCOORD5 = graine, taille du visage, bord. Parties : 0 corps (motif + visage),
+// forme, tourné vers le haut du monde), z = éclair, w = motif + 32 × reflet ; TEXCOORD2 = regard, clignement, expression ;
+// TEXCOORD3 = ombre + visage (yeux + 8 × bouche + 64 × attitude) ; TEXCOORD4 = accent + lueur ; TEXCOORD5 = graine, taille du visage, bord. Parties : 0 corps (motif + visage),
 // 1 liseré du contour, 2 accessoire, 3 anneau lumineux. Couleurs > 1 = lueur (bloom).
 Shader "Slime/Body"
 {
@@ -82,6 +82,12 @@ Shader "Slime/Body"
             {
                 float w = max(fwidth(d), 1e-5);
                 return saturate(0.5 - d / w);
+            }
+
+            // 1 pour un corps très foncé (noir), 0 sinon : son visage et son contour passent au clair.
+            float Dark(float3 body)
+            {
+                return 1.0 - smoothstep(0.025, 0.05, dot(body, float3(0.2126, 0.7152, 0.0722)));
             }
 
             float SdEllipse(float2 p, float2 r)
@@ -201,13 +207,17 @@ Shader "Slime/Body"
                     float stripe = smoothstep(thr, thr + 0.06, s) * belly;
                     col = lerp(col, accent, stripe * 0.9);
                 }
-                else if (pattern == 6) // fissures de braise
+                else if (pattern == 6) // magma : fissures courbes (repère tordu, qui coule lentement), cœur doux et halo
                 {
-                    float3 v = Voronoi(p * 3.3 + seed);
-                    float crack = 1.0 - smoothstep(0.015, 0.075, v.y);
+                    float2 w = p * 2.4 + seed;
+                    w += 0.3 * float2(sin(w.y * 1.7 + t * 0.35), sin(w.x * 1.9 - t * 0.3));
+                    float3 v = Voronoi(w);
+                    float crack = 1.0 - smoothstep(0.0, 0.14, v.y);
+                    crack *= crack;
+                    float halo = exp(-v.y * 9.0) * 0.45;
                     float pulse = 0.65 + 0.35 * sin(t * 3.0 + v.z * 6.0 + r * 4.0);
-                    col = lerp(col, shade, smoothstep(0.35, 0.0, v.y) * 0.35);
-                    col = lerp(col, accent * (1.0 + glow * pulse), crack * lerp(0.5, 1.0, faceMask));
+                    col = lerp(col, shade, smoothstep(0.45, 0.0, v.y) * 0.3);
+                    col = lerp(col, accent * (1.0 + glow * pulse), saturate(crack + halo * 0.5) * lerp(0.5, 1.0, faceMask));
                     col += accent * glow * 0.12 * pulse * exp(-r * r * 3.0);
                 }
                 else if (pattern == 7) // paillettes
@@ -239,14 +249,58 @@ Shader "Slime/Body"
                     col = lerp(col, col * rainbow * 1.15, 0.8);
                     col += float3(1.0, 1.0, 1.0) * Glitter(p, 8.0, 0.35, seed, t) * (1.0 + glow);
                 }
+                else if (pattern == 11) // anneaux lunaires : un anneau au front, un de chaque côté, qui luisent
+                {
+                    float d1 = abs(length(p - float2(0.0, 0.6)) - 0.15) - 0.035;
+                    float d2 = abs(SdEllipse(float2(abs(p.x), p.y) - float2(0.72, -0.3), float2(0.1, 0.17))) - 0.03;
+                    float d = min(d1, d2);
+                    float pulse = 0.75 + 0.25 * sin(t * 2.0 + seed);
+                    col += accent * glow * 0.35 * pulse * exp(-max(d, 0.0) * 16.0);
+                    col = lerp(col, accent * (1.0 + glow * pulse), Fill(d));
+                }
+                else if (pattern == 12) // vermicelles de couleur
+                {
+                    float2 g = p * 5.0 + seed;
+                    float2 cell = floor(g);
+                    float on = step(Hash21(cell), 0.65);
+                    float2 q = frac(g) - 0.5 - 0.2 * (Hash22(cell + 2.3) - 0.5);
+                    float a = Hash21(cell + 5.1) * TAU;
+                    float2 dir = float2(cos(a), sin(a)) * 0.12;
+                    float d = SdSegment(q, -dir, dir) - 0.05;
+                    float k = Hash21(cell + 8.7) * 5.0;
+                    float3 sc = k < 1.0 ? float3(1.0, 0.25, 0.45) : k < 2.0 ? float3(0.15, 0.4, 1.0) : k < 3.0 ? float3(1.0, 0.75, 0.08)
+                              : k < 4.0 ? float3(0.2, 0.75, 0.25) : float3(0.6, 0.25, 1.0);
+                    col = lerp(col, sc, Fill(d) * on * lerp(0.35, 1.0, faceMask));
+                }
                 return col;
             }
 
-            // Visage : 'q' en unités du visage (centré, repère du décor / taille du visage).
-            float3 Face(float2 q, int style, int expr, float2 look, float blink, float3 col, float3 shade, float t, float blushOn)
+            // Reflet par-dessus tout le gumori : 1 holo (carte brillante : arc-en-ciel en bandes qui passent), 2 étincelles.
+            float3 Sheen(int sheen, float2 p, float3 col, float seed, float faceMask, float t)
+            {
+                if (sheen == 1)
+                {
+                    float d = dot(p, float2(0.8, 0.6));
+                    float sweep = smoothstep(0.55, 1.0, sin(d * 2.4 - t * 1.2 + seed) * 0.5 + 0.5);
+                    float lines = 0.7 + 0.3 * sin((p.x - p.y * 0.7) * 42.0);
+                    float3 rainbow = Hue(frac(d * 0.8 + p.y * 0.3 + t * 0.08));
+                    col += rainbow * (0.1 + 0.4 * sweep) * lines * lerp(0.35, 1.0, faceMask);
+                }
+                else if (sheen == 2)
+                {
+                    float g = Glitter(p, 9.0, 0.4, seed + 9.0, t) + Glitter(p + 0.21, 15.0, 0.3, seed + 4.0, t * 1.2) * 0.6;
+                    col += float3(1.2, 1.2, 1.2) * g * lerp(0.5, 1.0, faceMask);
+                }
+                return col;
+            }
+
+            // Visage : 'q' en unités du visage (centré, repère du décor / taille du visage). Cases indépendantes : yeux (0 ronds,
+            // 1 étoilés, 2 lumineux), bouche (0 sourire, 1 chat, 2 grand sourire, 3 en coin, 4 croc), attitude au repos (0 calme,
+            // 1 rêveur, 2 fier, 3 féroce). 'ink' = encre du visage (claire sur un corps très foncé), 'eyeGlow' = yeux lumineux.
+            float3 Face(float2 q, int eyes, int mouthStyle, int attitude, int expr, float2 look, float blink, float3 col, float3 ink,
+                        float3 eyeGlow, float t, float blushOn)
             {
                 if (abs(q.x) > 0.75 || abs(q.y) > 0.6) return col;
-                float3 ink = float3(0.12, 0.06, 0.10);
                 float3 white = float3(1.0, 1.0, 1.0);
                 float side = q.x < 0.0 ? -1.0 : 1.0;
                 float2 e = float2(abs(q.x), q.y) - float2(0.31, 0.07) - float2(look.x * side, look.y);
@@ -258,15 +312,16 @@ Shader "Slime/Body"
                     col = lerp(col, float3(1.0, 0.45, 0.55), saturate(0.5 - b / 0.04) * 0.45);
                 }
 
-                float eye = 0.0, glint = 0.0;
-                bool closedArc = expr == 1 || (expr == 0 && style == 4);
+                float eye = 0.0, glint = 0.0, pupil = 0.0;
+                bool closedArc = expr == 1 || (expr == 0 && attitude == 1);
+                bool cross = !closedArc && expr == 3;
                 if (closedArc)
                 {
-                    // ^ ^ (heureux) ou ‿ ‿ (serein)
+                    // ^ ^ (heureux) ou ‿ ‿ (rêveur)
                     float2 a = expr == 1 ? e - float2(0.0, -0.06) : float2(e.x, -e.y) - float2(0.0, -0.075);
                     eye = Fill(SdArc(a, 1.0, 0.115, 0.028));
                 }
-                else if (expr == 3)
+                else if (cross)
                 {
                     // > <
                     float2 c = float2(e.x * side, e.y);
@@ -280,32 +335,38 @@ Shader "Slime/Body"
                     float open = 1.0 - blink;
                     float2 er = float2(r.x, max(r.y * open, 0.012));
                     float d = SdEllipse(e, er);
-                    if (style == 5 && expr == 0) d = max(d, e.y - 0.045); // paupières mi-closes (roi)
+                    if (attitude == 2 && expr == 0) d = max(d, e.y - 0.045); // paupières mi-closes (fier)
                     eye = Fill(d);
                     if (open > 0.3)
                     {
                         float2 g = e - float2(-0.045, 0.062) * open;
-                        float star = style == 3 ? exp(-abs(g.x) * 46.0 - abs(g.y) * 7.0) + exp(-abs(g.y) * 46.0 - abs(g.x) * 7.0) : 0.0;
-                        float tw = style == 3 ? 0.7 + 0.3 * sin(t * 5.0 + side) : 1.0;
+                        float star = eyes == 1 ? exp(-abs(g.x) * 46.0 - abs(g.y) * 7.0) + exp(-abs(g.y) * 46.0 - abs(g.x) * 7.0) : 0.0;
+                        float tw = eyes == 1 ? 0.7 + 0.3 * sin(t * 5.0 + side) : 1.0;
                         glint = saturate(Fill(length(g) - 0.047) + star * tw) + Fill(length(e - float2(0.048, -0.06)) - 0.022);
                         glint *= eye;
+                        pupil = Fill(SdEllipse(e - float2(0.0, -0.01), float2(0.045, 0.1 * open))) * eye;
                     }
                 }
-                col = lerp(col, ink, eye);
+                if (eyes == 2 && !closedArc && !cross)
+                {
+                    col = lerp(col, eyeGlow, eye);
+                    col = lerp(col, float3(0.06, 0.03, 0.08), pupil);
+                }
+                else col = lerp(col, ink, eye);
                 col = lerp(col, white * 1.2, glint);
 
                 // Sourcils (féroce)
-                if (style == 2 && expr != 1)
+                if (attitude == 3 && expr != 1)
                 {
                     float2 c = float2(abs(q.x), q.y);
                     float d = SdSegment(c, float2(0.19, 0.3), float2(0.43, 0.36));
                     col = lerp(col, ink, Fill(d - 0.025));
                 }
 
-                // Bouche
+                // Bouche : expressions d'abord (heureux, surpris, grimace), sinon la bouche choisie.
                 float2 m = q - float2(0.0, -0.16);
-                float mouth = 0.0, tongue = 0.0;
-                if (expr == 1 || (expr == 0 && style == 2))
+                float mouth = 0.0, tongue = 0.0, fang = 0.0;
+                if (expr == 1 || (expr == 0 && mouthStyle == 2))
                 {
                     float d = max(SdEllipse(m - float2(0.0, 0.02), float2(0.13, 0.11)), m.y - 0.02);
                     mouth = Fill(d);
@@ -322,12 +383,12 @@ Shader "Slime/Body"
                     float y = 0.02 * sin(m.x * 60.0);
                     mouth = Fill(max(abs(m.y - y) - 0.016, abs(m.x) - 0.1));
                 }
-                else if (style == 1)
+                else if (mouthStyle == 1)
                 {
                     float2 w = float2(abs(m.x) - 0.045, m.y + 0.01);
                     mouth = Fill(SdArc(float2(w.x, -w.y), 1.2, 0.045, 0.016));
                 }
-                else if (style == 5)
+                else if (mouthStyle == 3)
                 {
                     float2 w = m - float2(0.03, 0.02);
                     mouth = Fill(SdArc(float2(w.x, -w.y), 0.8, 0.09, 0.018));
@@ -336,9 +397,15 @@ Shader "Slime/Body"
                 {
                     float2 w = m - float2(0.0, 0.08);
                     mouth = Fill(SdArc(float2(w.x, -w.y), 0.75, 0.12, 0.02));
+                    if (mouthStyle == 4) // petit croc qui dépasse, effilé vers le bas
+                    {
+                        float k = saturate((-m.y - 0.035) / 0.045);
+                        fang = Fill(SdSegment(m, float2(0.055, -0.035), float2(0.06, -0.08)) - lerp(0.022, 0.006, k));
+                    }
                 }
                 col = lerp(col, ink, mouth);
                 col = lerp(col, float3(1.0, 0.42, 0.5), tongue);
+                col = lerp(col, white * 1.1, fang);
                 return col;
             }
 
@@ -363,6 +430,7 @@ Shader "Slime/Body"
                     float lit = saturate(dot(normalize(L + 1e-5), normalize(float2(-0.45, 0.9))));
                     float3 rim = shade * lerp(0.55, 0.8, saturate(L.y * 0.5 + 0.5));
                     rim = lerp(rim, lerp(body, 1.0, 0.45) * 1.15, pow(lit, 4.0) * 0.7);
+                    rim = lerp(rim, lerp(accent, float3(0.42, 0.38, 0.58), 0.65), Dark(body)); // sinon invisible sur fond nuit
                     rim = lerp(rim, float3(1.6, 1.6, 1.6), flash);
                     return float4(rim * a, a);
                 }
@@ -389,7 +457,8 @@ Shader "Slime/Body"
                 float2 p = i.deco.xy;
                 float2 L = i.light.xy;
                 float r = length(L);
-                int pattern = (int)round(i.light.w);
+                uint code = (uint)round(i.light.w);
+                int pattern = (int)(code % 32u);
                 float seed = i.misc.x;
                 float faceScale = i.misc.y;
                 float2 fq = (p - float2(0.0, -0.02)) / faceScale;
@@ -401,7 +470,13 @@ Shader "Slime/Body"
                 col = lerp(col, shade * 0.85, smoothstep(0.7, 1.0, r) * 0.45);
 
                 col = Pattern(pattern, p, col, shade, accent, glow, seed, faceMask, t);
-                col = Face(fq, (int)round(i.shade.w), (int)round(i.face.w), i.face.xy, i.face.z, col, shade, t, i.misc.z);
+                uint faceCode = (uint)round(i.shade.w);
+                float bodyLuma = dot(body, float3(0.2126, 0.7152, 0.0722));
+                float3 ink = lerp(float3(0.015, 0.008, 0.015), float3(0.12, 0.06, 0.10), smoothstep(0.12, 0.35, bodyLuma)); // plus noire sur un corps moyen
+                ink = lerp(ink, lerp(body, float3(1.0, 0.96, 1.0), 0.85), Dark(body));
+                col = Face(fq, (int)(faceCode % 8u), (int)((faceCode / 8u) % 8u), (int)(faceCode / 64u), (int)round(i.face.w), i.face.xy, i.face.z, col, ink,
+                           accent * (1.0 + glow * 0.6), t, i.misc.z);
+                col = Sheen((int)(code / 32u), p, col, seed, faceMask, t);
 
                 // Reflets : grand reflet doux en haut à gauche, petit point vif, lumière renvoyée en bas à droite.
                 float2 h = L - float2(-0.36, 0.44);

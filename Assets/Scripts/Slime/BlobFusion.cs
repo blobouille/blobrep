@@ -46,12 +46,12 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
              "Niveau 0 : couleur du blob modèle. Les slimes lâchés plus gros prennent la couleur de leur niveau.")]
     public Color[] levelColors =
     {
-        // Mêmes couleurs que les designs de SlimeSkin : les petits (les plus fréquents) très différents les uns des autres.
-        // Vert, rose, jaune, violet, orange, rouge, or, turquoise, indigo, blanc irisé.
-        new Color(0.50f, 0.88f, 0.30f), new Color(1.00f, 0.52f, 0.76f), new Color(1.00f, 0.92f, 0.28f),
-        new Color(0.68f, 0.40f, 0.98f), new Color(1.00f, 0.52f, 0.12f), new Color(0.80f, 0.17f, 0.12f),
-        new Color(1.00f, 0.80f, 0.24f), new Color(0.28f, 0.86f, 0.84f), new Color(0.30f, 0.25f, 0.80f),
-        new Color(0.98f, 0.98f, 1.00f)
+        // Familles de couleur des gumori (mêmes que SlimeSkin, en linéaire), à partir du niveau 1 (le niveau 0, orange, est
+        // la couleur du modèle) : violet, rose, bleu, jaune, rouge, crème, chocolat, vert, noir, spécial.
+        new Color(0.254f, 0.026f, 0.479f), new Color(1.000f, 0.266f, 0.552f), new Color(0.018f, 0.093f, 0.578f),
+        new Color(1.000f, 0.565f, 0.023f), new Color(0.745f, 0.030f, 0.050f), new Color(0.965f, 0.896f, 0.768f),
+        new Color(0.195f, 0.060f, 0.018f), new Color(0.258f, 0.672f, 0.042f), new Color(0.016f, 0.012f, 0.024f),
+        new Color(0.991f, 0.991f, 1.000f)
     };
 
     struct Fusing

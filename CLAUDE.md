@@ -45,6 +45,80 @@ partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistr�
   par slime calculé seulement à l'affichage, jamais dans la simulation). Le blob actuel (anneau de 32 capsules + joints) est
   trop lourd pour 30 slimes à l'écran : à mesurer (étape 1)
 
+## Création et design des gumori (décision du 2026-10-24)
+Vocabulaire : les personnages s'appellent des « gumori » (invariable : un gumori, des gumori). Ne plus utiliser les anciens
+noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
+- 10 gumori + 1 spécial (le dernier, libre : irisé, doré… ce qu'on veut). Plus tard, beaucoup de variantes (skins) par
+  gumori, SANS jamais changer l'ordre des fusions : un joueur ne réapprend rien
+- Ce qui dit le niveau : la TAILLE et surtout la COULEUR. Chaque niveau = une FAMILLE de couleur, pas une couleur exacte :
+  une fourchette de teinte + une fourchette de luminosité (ex. bleu ≈ 205–235°, moyen-foncé). Un variant peut être bleu nuit,
+  glacier, électrique… avec motifs et accessoires de toute couleur, mais la couleur de sa famille couvre la majorité du corps
+  (≈ 70 %) et le contour reste
+- Familles = couleurs que presque toutes les langues nomment (sortie mondiale : « un gumori bleu » partout)
+- Deux niveaux qui se suivent (tailles proches, +20 à 27 %) doivent être OPPOSÉS : luminosité inversée (clair ↔ foncé,
+  lisible pour les daltoniens, en niveaux de gris, en plein soleil) et si possible température (chaud ↔ froid). Les familles
+  proches (rouge / rose / orange, bleu / violet / turquoise, crème / jaune) séparées par plusieurs niveaux : la taille tranche.
+  Pas d'arc-en-ciel dans l'ordre (voisins trop semblables)
+- Les petits niveaux sont les plus vus en NOMBRE mais les moins vus en TAILLE (détails peu lisibles) : aux tout premiers,
+  les familles simples par nature ; les grandes classiques, riches en variantes (rouge, jaune, bleu, rose), juste après
+  (assez grandes pour leurs détails, encore fréquentes) ; les plus grands = la vitrine des designs les plus sophistiqués
+- Ordre retenu, validé sur la planche de test du 2026-10-24 (`Captures/bancs/palette.js` → `Captures/palette/`) :
+  1 orange #FFA63D (clair, chaud) · 2 violet pourpre #8A2DB8 (foncé) · 3 rose #FF8DC4 (clair) · 4 bleu #2456C8 (foncé,
+  froid) · 5 jaune #FFC62A (clair, chaud) · 6 rouge #E0303F (foncé, chaud) · 7 crème #FBF3E3 (très clair) · 8 chocolat au
+  lait #7A4524 (foncé, chaud) · 9 vert pomme #8BD63A (clair) · 10 noir réglisse #221C2B (très foncé) · 11 spécial
+  (couleurs de référence ; 3 nuances par famille dans le script = première idée des fourchettes)
+  Pourquoi : niveaux impairs clairs, pairs foncés. Couleurs VIVES aux tout premiers niveaux (les plus nombreux à l'écran) :
+  chocolat / crème en premier, essayé, faisait « pas des couleurs » (peu saturées, lues comme neutres) ; un petit orange
+  plutôt qu'un petit violet (choix de l'utilisateur). Classiques (rose, bleu, jaune, rouge) aux niveaux 3 à 6 ; crème,
+  chocolat, noir aux grands niveaux, où leurs détails (chantilly, biscuit, réglisse…) se voient. Turquoise RETIRÉ (essayé en
+  famille) : beaucoup le nomment « bleu clair », il faisait doublon ; le cyan n'est pas non plus une nuance de CORPS du bleu
+  (trop clair, casse sa luminosité foncée) : seulement en accent / motif. Noir pris comme 10e famille (couleur de base,
+  ressemble à rien d'autre ; le chocolat passe « au lait » pour s'en détacher). Les couleurs de base vraiment utilisables
+  sont ≈ 9 à 10 : 10 familles + spécial, c'est le maximum.
+  Mesuré (OKLab ΔE, pire nuance contre pire nuance, 5 modes : normal, deutéranopie, protanopie, tritanopie, gris) : niveaux
+  voisins ≥ 0,16 partout. À 2 niveaux d'écart, faible pour violet / bleu et rouge / chocolat en daltonisme rouge-vert, et
+  plusieurs paires en gris / tritanopie : la taille (+26 à 54 %) départage. Crème à surveiller sur fond clair
+- Appliqué au jeu (2026-10-24) : `SlimeDesign.Levels()` (un design par niveau), mêmes couleurs dans `BlobFusion.levelColors`,
+  toutes les scènes. Purement visuel : aucun effet sur la simulation ni les replays
+
+### Règles de création des skins (décision du 2026-10-24)
+- TOUT est fait par le code : aucune texture, aucun sprite, aucun fichier image. Formes des accessoires = polygones calculés
+  (`SlimeSkin`), motifs / visages / reflets = fonctions du shader `Slime/Body` (distances signées). Rien d'autre n'est permis
+- Un gumori = une combinaison de CASES, un élément par case, chaque élément obtenable séparément (collection, futur avatar
+  personnalisé). Données : `Cosmetics/SlimeDesign.cs` (enums des cases + catalogue). Cases actuelles :
+  - Couleur du corps (« couleur du fond ») : famille + nuance (`body`, `shade`), toujours dans la fourchette de la famille
+  - Motif (effets sur la gelée) : bulles, pois, ondes, alvéoles, rayures, magma, paillettes, cristal, galaxie, arc-en-ciel,
+    anneaux lunaires, vermicelles ; couleur `accent`, `glow` = lueur
+  - Reflet (par-dessus tout, façon carte brillante) : holo, étincelles
+  - Tête : pousse, pousse de fleur, antennes, oreilles de chat, oreilles d'ourson, cornes, nœud, cristaux, auréole, couronne,
+    cerise
+  - Dos (derrière le corps, sur les côtés) : ailes de chauve-souris, ailes de fée
+  - Yeux : ronds, étoilés, lumineux ; Bouche : sourire, chat, grand sourire, en coin, croc ; Attitude au repos : calme,
+    rêveur (yeux fermés), fier (paupières mi-closes), féroce (sourcils) ; Joues roses
+  Les expressions de jeu (joie après fusion, surprise en chute, grimace au choc, clignements) passent par-dessus toutes les
+  cases : même vie pour tous
+- TOUT doit se combiner avec tout, sans bug : cases indépendantes (tête en haut, dos sur les côtés, motif atténué sous le
+  visage), contraste automatique (encre du visage plus noire sur un corps moyen, claire sur un corps noir ; contour clair pour
+  un corps noir, sinon invisible sur fond nuit). Tout nouvel élément est vérifié sur un corps clair ET un corps noir
+- Nouveau thème de skin demandé : s'il apporte un élément réutilisable, l'AJOUTER comme élément d'une case (ou créer une
+  case : aura, traînée, effet de fusion…), jamais un design figé d'un bloc. Valeurs d'enum toujours ajoutées à la FIN
+  (enregistrées dans les scènes par leur numéro)
+- DA commune : rond, mou, gélatineux, kawaii (grands yeux brillants, joues, petite bouche) ; les variations sont dans les
+  cases, jamais dans cette base. Couleurs écrites en sRGB (#RRGGBB, comme une palette), converties par `SlimeDesign.Hex`
+- Rareté selon la sophistication (pas besoin de remplir toutes les cases) : commun = couleur + visage + au plus un élément
+  simple ; rare = motif et / ou accessoire ; ultra rare = effets lumineux, plusieurs cases, reflet ; spécial = le dernier
+  niveau. Ex. vert commun, vert rare, vert ultra rare. Le design de chaque NIVEAU (celui vu en jeu) est choisi pour sa
+  lisibilité, sa rareté n'est qu'indicative
+- Shiny : MÊME gumori (mêmes cases), recoloré dans SA famille (autre nuance ; motif, accessoires libres) + étincelles s'il
+  n'a pas de reflet ; très rare. Couleurs `shiny…` de chaque design. Pas encore tiré en jeu : le jour où il l'est, tirage par
+  une suite à graine SÉPARÉE de celle des lâchers (sinon la suite des niveaux change et les replays divergent)
+- Designs actuels par niveau : Clémentine (orange, pois), Raisin (violet, bulles), Bonbon (rose, paillettes + nœud), Bulle
+  (bleu), Citron (jaune, ondes, yeux étoilés), Braise (rouge, magma adouci : fissures courbes qui coulent, + cornes, féroce),
+  Chantilly (crème, vermicelles + cerise), Ourson (chocolat, oreilles d'ourson), Bourgeon (vert, pousse de fleur, rêveur),
+  Lune (noir façon Pokémon ténèbres : anneaux lunaires lumineux, yeux lumineux, croc, ailes de chauve-souris), Roi (spécial).
+  Variantes (collection, pas encore en jeu) : Tigrou (orange), Cristal (violet, holo), Fée (rose, ailes de fée, holo), Lagon
+  (bleu, pois cyan), Abeille (jaune), Nébuleuse (noir, galaxie + auréole). Vitrine (Scene view) : niveaux, leurs shiny, variantes
+
 ## Roadmap (étape actuelle en gras)
 1. Strict minimum (scène `Slime/reservoir`) : un réservoir (rectangle ouvert en haut), on lâche des blobs d'en haut
    (`BlobDropper`), rien d'autre. But : voir comment ils s'empilent et combien on peut en mettre avant de ralentir.
@@ -129,11 +203,9 @@ partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistr�
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
 4. Sensation (gélatine, sons, effets), puis idées retenues une par une. Commencé (2026-10-22), objet « Habillage » de
    `Slime/reservoir` :
-   - `SlimeSkin` : un design par niveau (11, inspirés de Slime Rancher sans copie : Goutte bleu, Pousse vert, Bonbon rose,
-     Citron jaune, Cristal violet, Tigrou orange, Braise rouge, Miel or, Lagon turquoise, Nébuleuse indigo, Roi irisé ; les 5
-     premiers, les plus fréquents, très différents (avant : dégradé bleu → or, jugé trop proche) ; mêmes couleurs dans
-     `BlobFusion.levelColors`) = couleurs, motif,
-     accessoire, style de visage, lueur. La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
+   - `SlimeSkin` : un design par niveau (11 ; depuis le 2026-10-24, découpés en cases combinables et dans l'ordre des
+     familles de couleur : voir « Création et design des gumori » ; mêmes couleurs dans `BlobFusion.levelColors`).
+     La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
      dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
      regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
      éclair et accessoires qui poussent à l'éclat de la fusion. Yeux agrandis (2026-10-22). Vitrine des designs dans la

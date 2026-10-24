@@ -420,116 +420,381 @@ MonoBehaviour:
   dropper: {fileID: 0}
   shader: {fileID: 4800000, guid: f24393dc7f09b8e4d88a8ae3acee88b7, type: 3}
   designs:
-  - name: Goutte
-    body: {r: 0.36, g: 0.7, b: 1, a: 1}
-    shade: {r: 0.12, g: 0.36, b: 0.86, a: 1}
-    accent: {r: 0.92, g: 0.98, b: 1, a: 1}
-    pattern: 1
-    accessory: 0
-    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
-    face: 0
-    blush: 1
-    glow: 0
-  - name: Pousse
-    body: {r: 0.5, g: 0.88, b: 0.3, a: 1}
-    shade: {r: 0.16, g: 0.52, b: 0.14, a: 1}
-    accent: {r: 0.85, g: 1, b: 0.6, a: 1}
-    pattern: 0
-    accessory: 1
-    accessoryColor: {r: 0.22, g: 0.62, b: 0.18, a: 1}
-    face: 4
-    blush: 1
-    glow: 0
-  - name: Bonbon
-    body: {r: 1, g: 0.52, b: 0.76, a: 1}
-    shade: {r: 0.84, g: 0.2, b: 0.52, a: 1}
-    accent: {r: 1, g: 1, b: 1, a: 1}
-    pattern: 7
-    accessory: 5
-    accessoryColor: {r: 0.96, g: 0.2, b: 0.38, a: 1}
-    face: 0
-    blush: 1
-    glow: 0.8
-  - name: Citron
-    body: {r: 1, g: 0.92, b: 0.28, a: 1}
-    shade: {r: 0.85, g: 0.58, b: 0.05, a: 1}
-    accent: {r: 1, g: 1, b: 0.75, a: 1}
-    pattern: 3
-    accessory: 0
-    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
-    face: 3
-    blush: 0
-    glow: 0.8
-  - name: Cristal
-    body: {r: 0.68, g: 0.4, b: 0.98, a: 1}
-    shade: {r: 0.32, g: 0.1, b: 0.66, a: 1}
-    accent: {r: 0.86, g: 0.97, b: 1, a: 1}
-    pattern: 8
-    accessory: 6
-    accessoryColor: {r: 0.62, g: 0.92, b: 1, a: 1}
-    face: 0
-    blush: 0
-    glow: 0.7
-  - name: Tigrou
-    body: {r: 1, g: 0.52, b: 0.12, a: 1}
-    shade: {r: 0.82, g: 0.26, b: 0.04, a: 1}
-    accent: {r: 0.4, g: 0.13, b: 0.04, a: 1}
-    pattern: 5
-    accessory: 3
-    accessoryColor: {r: 1, g: 0.52, b: 0.12, a: 1}
-    face: 1
-    blush: 0
-    glow: 0
-  - name: Braise
-    body: {r: 0.8, g: 0.17, b: 0.12, a: 1}
-    shade: {r: 0.34, g: 0.03, b: 0.06, a: 1}
-    accent: {r: 1, g: 0.72, b: 0.18, a: 1}
-    pattern: 6
-    accessory: 4
-    accessoryColor: {r: 0.3, g: 0.09, b: 0.09, a: 1}
-    face: 2
-    blush: 0
-    glow: 2.2
-  - name: Miel
-    body: {r: 1, g: 0.8, b: 0.24, a: 1}
-    shade: {r: 0.86, g: 0.48, b: 0.04, a: 1}
-    accent: {r: 1, g: 0.94, b: 0.62, a: 1}
-    pattern: 4
-    accessory: 2
-    accessoryColor: {r: 0.32, g: 0.18, b: 0.08, a: 1}
-    face: 0
-    blush: 1
-    glow: 0.3
-  - name: Lagon
-    body: {r: 0.28, g: 0.86, b: 0.84, a: 1}
-    shade: {r: 0.04, g: 0.48, b: 0.58, a: 1}
-    accent: {r: 0.82, g: 1, b: 0.98, a: 1}
+  - name: "Cl\xE9mentine"
+    family: 0
+    rarity: 0
+    body: {r: 1.0000001, g: 0.38132608, b: 0.04666509, a: 1}
+    shade: {r: 0.7454043, g: 0.11953845, b: 0.010329825, a: 1}
     pattern: 2
-    accessory: 0
-    accessoryColor: {r: 1, g: 1, b: 1, a: 1}
-    face: 0
-    blush: 1
+    accent: {r: 1.0000001, g: 0.76052463, b: 0.4341537, a: 1}
     glow: 0
-  - name: "N\xE9buleuse"
-    body: {r: 0.3, g: 0.25, b: 0.8, a: 1}
-    shade: {r: 0.08, g: 0.05, b: 0.32, a: 1}
-    accent: {r: 1, g: 0.55, b: 0.92, a: 1}
-    pattern: 9
-    accessory: 7
-    accessoryColor: {r: 1, g: 0.9, b: 0.55, a: 1}
-    face: 4
-    blush: 0
-    glow: 1.2
-  - name: Roi
-    body: {r: 0.98, g: 0.98, b: 1, a: 1}
-    shade: {r: 0.55, g: 0.45, b: 0.9, a: 1}
-    accent: {r: 1, g: 1, b: 1, a: 1}
-    pattern: 10
-    accessory: 8
-    accessoryColor: {r: 1, g: 0.8, b: 0.2, a: 1}
-    face: 5
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
     blush: 1
+    shinyBody: {r: 1.0000001, g: 0.25415215, b: 0.07227187, a: 1}
+    shinyShade: {r: 0.64447975, g: 0.05951125, b: 0.02315337, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.9046613, b: 0.5775805, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Raisin
+    family: 1
+    rarity: 0
+    body: {r: 0.25415215, g: 0.026241226, b: 0.47932026, a: 1}
+    shade: {r: 0.06847818, g: 0.006512092, b: 0.17144112, a: 1}
+    pattern: 1
+    accent: {r: 0.79129803, g: 0.5775805, b: 1.0000001, a: 1}
+    glow: 0
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 1
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 0.14412849, g: 0.04970657, b: 0.6307572, a: 1}
+    shinyShade: {r: 0.03433981, g: 0.009721219, b: 0.19461785, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.6724433, b: 0.91309875, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Bonbon
+    family: 2
+    rarity: 1
+    body: {r: 1.0000001, g: 0.26635566, b: 0.5520115, a: 1}
+    shade: {r: 0.7454043, g: 0.05951125, b: 0.21223079, a: 1}
+    pattern: 7
+    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    glow: 0.8
+    sheen: 0
+    head: 5
+    headColor: {r: 0.88792324, g: 0.03310477, b: 0.11443539, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 1.0000001, g: 0.21223079, b: 0.4341537, a: 1}
+    shinyShade: {r: 0.5840785, g: 0.04518621, b: 0.20155628, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.7835379, b: 0.25415215, a: 1}
+    shinyHead: {r: 0.27049786, g: 0.07036011, b: 1.0000001, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Bulle
+    family: 3
+    rarity: 0
+    body: {r: 0.017641958, g: 0.09305898, b: 0.5775805, a: 1}
+    shade: {r: 0.006048834, g: 0.025186865, b: 0.18782079, a: 1}
+    pattern: 1
+    accent: {r: 0.5209957, g: 0.79129803, b: 1.0000001, a: 1}
+    glow: 0
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 0.042311415, g: 0.06301003, b: 0.6866854, a: 1}
+    shinyShade: {r: 0.010329825, g: 0.013702084, b: 0.19461785, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.79129803, b: 0.39157256, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Citron
+    family: 4
+    rarity: 1
+    body: {r: 1.0000001, g: 0.5647116, b: 0.02315337, a: 1}
+    shade: {r: 0.7454043, g: 0.25415215, b: 0.00303527, a: 1}
+    pattern: 3
+    accent: {r: 1.0000001, g: 0.921582, b: 0.5271152, a: 1}
+    glow: 0.8
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 1
+    mouth: 0
+    attitude: 0
+    blush: 0
+    shinyBody: {r: 0.88792324, g: 0.7156936, b: 0.042311415, a: 1}
+    shinyShade: {r: 0.4564111, g: 0.32314327, b: 0.0036765079, a: 1}
+    shinyAccent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Braise
+    family: 5
+    rarity: 2
+    body: {r: 0.7454043, g: 0.029556839, b: 0.04970657, a: 1}
+    shade: {r: 0.15592648, g: 0.0036765079, b: 0.011612247, a: 1}
+    pattern: 6
+    accent: {r: 1.0000001, g: 0.46207708, b: 0.027320895, a: 1}
+    glow: 2.2
+    sheen: 0
+    head: 4
+    headColor: {r: 0.06847818, g: 0.006995411, b: 0.006995411, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 2
+    attitude: 3
+    blush: 0
+    shinyBody: {r: 0.5775805, g: 0.014443846, b: 0.0761854, a: 1}
+    shinyShade: {r: 0.0761854, g: 0.00303527, b: 0.019382365, a: 1}
+    shinyAccent: {r: 0.21223079, g: 0.80695236, b: 1.0000001, a: 1}
+    shinyHead: {r: 0.012983034, g: 0.012983034, b: 0.02315337, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Chantilly
+    family: 6
+    rarity: 1
+    body: {r: 0.9646864, g: 0.89626944, b: 0.7681512, a: 1}
+    shade: {r: 0.69387186, g: 0.5457246, b: 0.35153267, a: 1}
+    pattern: 12
+    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    glow: 0
+    sheen: 0
+    head: 11
+    headColor: {r: 0.7681512, g: 0.019382365, b: 0.043735035, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 1
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 1.0000001, g: 0.86315733, b: 0.89626944, a: 1}
+    shinyShade: {r: 0.7454043, g: 0.5209957, b: 0.5775805, a: 1}
+    shinyAccent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    shinyHead: {r: 1.0000001, g: 0.5775805, b: 0.04666509, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Ourson
+    family: 7
+    rarity: 0
+    body: {r: 0.19461785, g: 0.05951125, b: 0.017641958, a: 1}
+    shade: {r: 0.04817183, g: 0.012983034, b: 0.0043914425, a: 1}
+    pattern: 0
+    accent: {r: 0.39157256, g: 0.14412849, b: 0.04817183, a: 1}
+    glow: 0
+    sheen: 0
+    head: 10
+    headColor: {r: 0.14412849, g: 0.042311415, b: 0.012983034, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 0.29613835, g: 0.11697069, b: 0.028426044, a: 1}
+    shinyShade: {r: 0.06847818, g: 0.02315337, b: 0.006048834, a: 1}
+    shinyAccent: {r: 0.5775805, g: 0.27889434, b: 0.11697069, a: 1}
+    shinyHead: {r: 0.23839763, g: 0.08650048, b: 0.02315337, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Bourgeon
+    family: 8
+    rarity: 1
+    body: {r: 0.2581829, g: 0.6724433, b: 0.042311415, a: 1}
+    shade: {r: 0.04970657, g: 0.27889434, b: 0.014443846, a: 1}
+    pattern: 0
+    accent: {r: 0.76052463, g: 1.0000001, b: 0.47932026, a: 1}
+    glow: 0
+    sheen: 0
+    head: 9
+    headColor: {r: 1.0000001, g: 0.34670413, b: 0.5972019, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 1
+    blush: 1
+    shinyBody: {r: 0.15896086, g: 0.6724433, b: 0.10224175, a: 1}
+    shinyShade: {r: 0.028426044, g: 0.25415215, b: 0.029556839, a: 1}
+    shinyAccent: {r: 0.9046613, g: 1.0000001, b: 0.6307572, a: 1}
+    shinyHead: {r: 1.0000001, g: 0.7681512, b: 0.14702728, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Lune
+    family: 9
+    rarity: 2
+    body: {r: 0.015996296, g: 0.011612247, b: 0.024157636, a: 1}
+    shade: {r: 0.0036765079, g: 0.00303527, b: 0.006048834, a: 1}
+    pattern: 11
+    accent: {r: 1.0000001, g: 0.6653874, b: 0.06847818, a: 1}
+    glow: 1.6
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 1
+    backColor: {r: 0.07036011, g: 0.04666509, b: 0.12477183, a: 1}
+    eyes: 2
+    mouth: 4
+    attitude: 0
+    blush: 0
+    shinyBody: {r: 0.011612247, g: 0.015996296, b: 0.036889456, a: 1}
+    shinyShade: {r: 0.00303527, g: 0.0040247175, b: 0.00913406, a: 1}
+    shinyAccent: {r: 0.15896086, g: 0.6866854, b: 1.0000001, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 0.04666509, g: 0.06847818, b: 0.15592648, a: 1}
+  - name: Roi
+    family: 10
+    rarity: 3
+    body: {r: 0.9911022, g: 0.9911022, b: 1.0000001, a: 1}
+    shade: {r: 0.5520115, g: 0.45078588, b: 0.88792324, a: 1}
+    pattern: 10
+    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
     glow: 0.5
+    sheen: 0
+    head: 8
+    headColor: {r: 1.0000001, g: 0.64447975, b: 0.06847818, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 3
+    attitude: 2
+    blush: 1
+    shinyBody: {r: 1.0000001, g: 0.921582, b: 0.7156936, a: 1}
+    shinyShade: {r: 0.79129803, g: 0.47932026, b: 0.13286833, a: 1}
+    shinyAccent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    shinyHead: {r: 0.80695236, g: 0.80695236, b: 0.91309875, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  variants:
+  - name: Tigrou
+    family: 0
+    rarity: 1
+    body: {r: 1.0000001, g: 0.32314327, b: 0.025186865, a: 1}
+    shade: {r: 0.64447975, g: 0.088655606, b: 0.010329825, a: 1}
+    pattern: 5
+    accent: {r: 0.14702728, g: 0.02315337, b: 0.00303527, a: 1}
+    glow: 0
+    sheen: 0
+    head: 3
+    headColor: {r: 1.0000001, g: 0.32314327, b: 0.025186865, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 1
+    attitude: 0
+    blush: 0
+    shinyBody: {r: 1.0000001, g: 0.45078588, b: 0.06301003, a: 1}
+    shinyShade: {r: 0.69387186, g: 0.19461785, b: 0.010329825, a: 1}
+    shinyAccent: {r: 0.042311415, g: 0.02315337, b: 0.14702728, a: 1}
+    shinyHead: {r: 1.0000001, g: 0.45078588, b: 0.06301003, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Cristal
+    family: 1
+    rarity: 2
+    body: {r: 0.17464742, g: 0.05448029, b: 0.6038274, a: 1}
+    shade: {r: 0.042311415, g: 0.008023194, b: 0.21586056, a: 1}
+    pattern: 8
+    accent: {r: 0.79129803, g: 0.930111, b: 1.0000001, a: 1}
+    glow: 0.7
+    sheen: 1
+    head: 6
+    headColor: {r: 0.3419145, g: 0.83076996, b: 1.0000001, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 0
+    shinyBody: {r: 0.3324516, g: 0.04970657, b: 0.5972019, a: 1}
+    shinyShade: {r: 0.08437623, g: 0.010329825, b: 0.21586056, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.8713672, b: 0.95597345, a: 1}
+    shinyHead: {r: 1.0000001, g: 0.47932026, b: 0.8713672, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: "F\xE9e"
+    family: 2
+    rarity: 2
+    body: {r: 1.0000001, g: 0.37123775, b: 0.63759696, a: 1}
+    shade: {r: 0.7454043, g: 0.090841725, b: 0.27467737, a: 1}
+    pattern: 7
+    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    glow: 0.6
+    sheen: 1
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 2
+    backColor: {r: 1.0000001, g: 0.79129803, b: 0.921582, a: 1}
+    eyes: 1
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 1.0000001, g: 0.26635566, b: 0.47932026, a: 1}
+    shinyShade: {r: 0.5840785, g: 0.05126947, b: 0.21586056, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.88792324, b: 0.35153267, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 0.80695236, g: 0.921582, b: 1.0000001, a: 1}
+  - name: Lagon
+    family: 3
+    rarity: 0
+    body: {r: 0.029556839, g: 0.13843164, b: 0.701102, a: 1}
+    shade: {r: 0.008023194, g: 0.042311415, b: 0.27049786, a: 1}
+    pattern: 2
+    accent: {r: 0.15896086, g: 0.80695236, b: 0.7454043, a: 1}
+    glow: 0
+    sheen: 0
+    head: 0
+    headColor: {r: 1, g: 1, b: 1, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 0.02315337, g: 0.078187436, b: 0.5271152, a: 1}
+    shinyShade: {r: 0.006048834, g: 0.013702084, b: 0.15592648, a: 1}
+    shinyAccent: {r: 1.0000001, g: 0.88792324, b: 0.39157256, a: 1}
+    shinyHead: {r: 1, g: 1, b: 1, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: Abeille
+    family: 4
+    rarity: 1
+    body: {r: 1.0000001, g: 0.6583749, b: 0.05780544, a: 1}
+    shade: {r: 0.7454043, g: 0.32314327, b: 0.0043914425, a: 1}
+    pattern: 4
+    accent: {r: 1.0000001, g: 0.88792324, b: 0.47932026, a: 1}
+    glow: 0.3
+    sheen: 0
+    head: 2
+    headColor: {r: 0.042311415, g: 0.017641958, b: 0.006995411, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 0
+    blush: 1
+    shinyBody: {r: 0.91309875, g: 0.7454043, b: 0.13286833, a: 1}
+    shinyShade: {r: 0.47932026, g: 0.32314327, b: 0.0051815175, a: 1}
+    shinyAccent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    shinyHead: {r: 0.02315337, g: 0.02315337, b: 0.06847818, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
+  - name: "N\xE9buleuse"
+    family: 9
+    rarity: 2
+    body: {r: 0.027320895, g: 0.019382365, b: 0.03954624, a: 1}
+    shade: {r: 0.0051815175, g: 0.0036765079, b: 0.00913406, a: 1}
+    pattern: 9
+    accent: {r: 1.0000001, g: 0.26225072, b: 0.83076996, a: 1}
+    glow: 1.2
+    sheen: 0
+    head: 7
+    headColor: {r: 1.0000001, g: 0.79129803, b: 0.26225072, a: 1}
+    back: 0
+    backColor: {r: 1, g: 1, b: 1, a: 1}
+    eyes: 0
+    mouth: 0
+    attitude: 1
+    blush: 0
+    shinyBody: {r: 0.012983034, g: 0.02315337, b: 0.042311415, a: 1}
+    shinyShade: {r: 0.00303527, g: 0.0051815175, b: 0.00913406, a: 1}
+    shinyAccent: {r: 0.26225072, g: 0.8713672, b: 1.0000001, a: 1}
+    shinyHead: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
+    shinyBack: {r: 1, g: 1, b: 1, a: 1}
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
@@ -549,6 +814,8 @@ MonoBehaviour:
   drawPreviews: 0
   gallery: 0
   galleryInPlay: 0
+  galleryShiny: 1
+  galleryVariants: 1
   galleryOrigin: {x: -17, y: 15}
   galleryWidth: 12
 --- !u!4 &1913087441
