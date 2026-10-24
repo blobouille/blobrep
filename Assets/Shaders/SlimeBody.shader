@@ -152,22 +152,36 @@ Shader "Slime/Body"
                 return max(dot(p, normalize(float2(1.0, 1.7320508))), p.x);
             }
 
+            // Bulles de verre qui montent en ondulant et grossissent : liseré, voile teinté, deux reflets.
+            float3 Bubbles(float2 p, float3 col, float3 accent, float seed, float t, float faceMask, int count, float amount)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    float h = Hash21(float2(i, seed * 7.0));
+                    float h2 = Hash21(float2(seed, i + 3.1));
+                    float y = frac(h2 + t * (0.05 + 0.06 * h)) * 2.2 - 1.1;
+                    float rise = (y + 1.1) / 2.2;
+                    float rad = (0.045 + 0.085 * frac(h * 13.0)) * (0.75 + 0.4 * rise);
+                    float2 c = float2(h * 1.3 - 0.65 + 0.05 * sin(t * 2.0 + h * 20.0), y);
+                    float d = length(p - c);
+                    float fade = smoothstep(1.05, 0.7, abs(y)) * smoothstep(0.95, 0.7, length(c)) * lerp(0.45, 1.0, faceMask) * amount;
+                    float inside = Fill(d - rad);
+                    float ring = Fill(abs(d - rad) - 0.011);
+                    float hl = Fill(length(p - c - rad * float2(-0.38, 0.38)) - rad * 0.3);
+                    float hl2 = Fill(length(p - c - rad * float2(0.4, -0.38)) - rad * 0.12);
+                    col = lerp(col, lerp(col, accent, 0.22), inside * fade);
+                    col = lerp(col, accent * 1.1, saturate(ring * 0.8 + hl + hl2 * 0.7) * fade);
+                }
+                return col;
+            }
+
             // Motif dans le repère du décor. Renvoie la couleur modifiée.
             float3 Pattern(int pattern, float2 p, float3 col, float3 shade, float3 accent, float glow, float seed, float faceMask, float t)
             {
                 float r = length(p);
                 if (pattern == 1) // bulles qui montent
                 {
-                    for (int i = 0; i < 6; i++)
-                    {
-                        float h = Hash21(float2(i, seed * 7.0));
-                        float2 c = float2(h * 1.3 - 0.65, frac(Hash21(float2(seed, i)) + t * (0.06 + 0.05 * h)) * 2.0 - 1.0);
-                        float rad = 0.05 + 0.06 * frac(h * 13.0);
-                        float d = length(p - c);
-                        float fade = smoothstep(1.0, 0.6, abs(c.y)) * smoothstep(0.95, 0.7, length(c));
-                        float ring = Fill(abs(d - rad) - 0.014) * 0.7 + Fill(d - rad) * 0.15 + Fill(length(p - c - rad * float2(-0.35, 0.35)) - rad * 0.3);
-                        col = lerp(col, accent, saturate(ring) * fade * 0.8);
-                    }
+                    col = Bubbles(p, col, accent, seed, t, faceMask, 7, 0.9);
                 }
                 else if (pattern == 2) // pois
                 {
@@ -231,7 +245,7 @@ Shader "Slime/Body"
                     col *= 0.88 + 0.24 * v.z;
                     col = lerp(col, accent, (1.0 - smoothstep(0.0, 0.05, v.y)) * 0.35);
                     float sheen = smoothstep(0.92, 1.0, sin((p.x + p.y) * 3.0 - t * 1.6) * 0.5 + 0.5);
-                    col += accent * sheen * 0.35 * (1.0 + glow);
+                    col += accent * sheen * 0.6 * glow; // trait de brillance : selon la lueur (presque rien en version de base)
                 }
                 else if (pattern == 9) // galaxie
                 {
@@ -272,11 +286,52 @@ Shader "Slime/Body"
                               : k < 4.0 ? float3(0.2, 0.75, 0.25) : float3(0.6, 0.25, 1.0);
                     col = lerp(col, sc, Fill(d) * on * lerp(0.35, 1.0, faceMask));
                 }
+                else if (pattern == 13) // eau : reflets de vagues qui ondulent (caustiques), plus de bulles
+                {
+                    float2 q = p * 4.2 + seed;
+                    float w1 = sin(q.x + 1.4 * sin(q.y * 0.7 + t * 0.8) + t * 0.5);
+                    float w2 = sin(q.y * 1.1 + 1.4 * sin(q.x * 0.8 - t * 0.7) - t * 0.4);
+                    float caustic = pow(saturate(1.0 - abs(w1 + w2) * 0.5), 7.0);
+                    float depth = smoothstep(-0.9, 0.8, p.y);
+                    col = lerp(col, accent * 1.1, caustic * 0.55 * depth * lerp(0.35, 1.0, faceMask));
+                    col = Bubbles(p, col, accent, seed, t, faceMask, 14, 1.0);
+                }
+                else if (pattern == 14) // cactus : côtes verticales (creux plus sombres) et petites épines blanches sur les côtes
+                {
+                    float sy = sqrt(max(1.0 - p.y * p.y, 0.04));
+                    float u = p.x / sy * 2.5;
+                    float fu = frac(u + 0.5) - 0.5;
+                    float rib = floor(u + 0.5);
+                    float k = lerp(0.4, 1.0, faceMask);
+                    col = lerp(col, shade, smoothstep(0.32, 0.5, abs(fu)) * 0.32 * k);
+                    col = lerp(col, col * 1.12 + 0.03, smoothstep(0.18, 0.0, abs(fu)) * 0.35 * k);
+                    float2 sp = float2(fu * sy / 2.5, (frac(p.y * 3.2 + Hash21(float2(rib, seed))) - 0.5) / 3.2);
+                    float ds = min(SdSegment(sp, float2(-0.024, -0.014), float2(0.024, 0.014)), SdSegment(sp, float2(-0.024, 0.014), float2(0.024, -0.014)));
+                    ds = min(ds, SdSegment(sp, float2(0.0, -0.026), float2(0.0, 0.026)));
+                    float on = smoothstep(0.92, 0.75, length(p));
+                    col = lerp(col, accent, Fill(ds - 0.006) * on * k);
+                }
+                else if (pattern == 15) // filets de chocolat en zigzag (haut et bas, pas sur le visage)
+                {
+                    float d = 10.0;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        float y0 = i == 0 ? -0.62 : 0.42 + 0.2 * (i - 1);
+                        float h = Hash21(float2(i, seed));
+                        float f = 5.5 + 2.5 * h;
+                        float a = 0.07 + 0.04 * h;
+                        float wave = a * sin(p.x * f + h * 6.0) + 0.03 * sin(p.x * 13.0 + h * 9.0);
+                        float slope = a * f + 0.39;
+                        d = min(d, abs(p.y - (y0 + wave)) / sqrt(1.0 + slope * slope * 0.5));
+                    }
+                    float on = smoothstep(0.92, 0.78, length(p));
+                    col = lerp(col, accent, Fill(d - 0.018) * on * lerp(0.2, 1.0, faceMask));
+                }
                 return col;
             }
 
             // Reflet par-dessus tout le gumori : 1 holo (carte brillante : arc-en-ciel en bandes qui passent), 2 étincelles.
-            float3 Sheen(int sheen, float2 p, float3 col, float seed, float faceMask, float t)
+            float3 Sheen(int sheen, float2 p, float3 col, float3 accent, float seed, float faceMask, float t)
             {
                 if (sheen == 1)
                 {
@@ -290,6 +345,21 @@ Shader "Slime/Body"
                 {
                     float g = Glitter(p, 9.0, 0.4, seed + 9.0, t) + Glitter(p + 0.21, 15.0, 0.3, seed + 4.0, t * 1.2) * 0.6;
                     col += float3(1.2, 1.2, 1.2) * g * lerp(0.5, 1.0, faceMask);
+                }
+                else if (sheen == 3) // braises qui s'envolent en vacillant
+                {
+                    float e = 0.0;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float2 g = float2(p.x * 6.0 + i * 3.7, p.y * 6.0 - t * (1.2 + 0.5 * i) + seed);
+                        float2 cell = floor(g);
+                        float h = Hash21(cell + i * 11.0);
+                        float2 q = frac(g) - 0.5 - 0.3 * (Hash22(cell + 4.2) - 0.5);
+                        q.x += 0.15 * sin(t * 3.0 + h * 30.0);
+                        float flick = 0.6 + 0.4 * sin(t * 9.0 + h * 50.0);
+                        e += step(h, 0.35) * exp(-dot(q, q) * 160.0) * flick;
+                    }
+                    col += accent * e * 2.0 * lerp(0.4, 1.0, faceMask);
                 }
                 return col;
             }
@@ -366,6 +436,12 @@ Shader "Slime/Body"
                 // Bouche : expressions d'abord (heureux, surpris, grimace), sinon la bouche choisie.
                 float2 m = q - float2(0.0, -0.16);
                 float mouth = 0.0, tongue = 0.0, fang = 0.0;
+                if (mouthStyle == 5)
+                {
+                    col = lerp(col, lerp(col, float3(1.0, 0.86, 0.68), 0.75), Fill(SdEllipse(m - float2(0.0, -0.01), float2(0.2, 0.135))));
+                    col = lerp(col, ink, Fill(SdEllipse(m - float2(0.0, 0.055), float2(0.055, 0.038))));
+                    m.y += 0.045;
+                }
                 if (expr == 1 || (expr == 0 && mouthStyle == 2))
                 {
                     float d = max(SdEllipse(m - float2(0.0, 0.02), float2(0.13, 0.11)), m.y - 0.02);
@@ -383,7 +459,7 @@ Shader "Slime/Body"
                     float y = 0.02 * sin(m.x * 60.0);
                     mouth = Fill(max(abs(m.y - y) - 0.016, abs(m.x) - 0.1));
                 }
-                else if (mouthStyle == 1)
+                else if (mouthStyle == 1 || mouthStyle == 5)
                 {
                     float2 w = float2(abs(m.x) - 0.045, m.y + 0.01);
                     mouth = Fill(SdArc(float2(w.x, -w.y), 1.2, 0.045, 0.016));
@@ -476,7 +552,7 @@ Shader "Slime/Body"
                 ink = lerp(ink, lerp(body, float3(1.0, 0.96, 1.0), 0.85), Dark(body));
                 col = Face(fq, (int)(faceCode % 8u), (int)((faceCode / 8u) % 8u), (int)(faceCode / 64u), (int)round(i.face.w), i.face.xy, i.face.z, col, ink,
                            accent * (1.0 + glow * 0.6), t, i.misc.z);
-                col = Sheen((int)(code / 32u), p, col, seed, faceMask, t);
+                col = Sheen((int)(code / 32u), p, col, accent, seed, faceMask, t);
 
                 // Reflets : grand reflet doux en haut à gauche, petit point vif, lumière renvoyée en bas à droite.
                 float2 h = L - float2(-0.36, 0.44);

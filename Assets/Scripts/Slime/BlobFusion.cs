@@ -48,9 +48,9 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         // Familles de couleur des gumori (mêmes que SlimeSkin, en linéaire), à partir du niveau 1 (le niveau 0, orange, est
         // la couleur du modèle) : violet, rose, bleu, jaune, rouge, crème, chocolat, vert, noir, spécial.
-        new Color(0.254f, 0.026f, 0.479f), new Color(1.000f, 0.266f, 0.552f), new Color(0.018f, 0.093f, 0.578f),
-        new Color(1.000f, 0.565f, 0.023f), new Color(0.745f, 0.030f, 0.050f), new Color(0.965f, 0.896f, 0.768f),
-        new Color(0.195f, 0.060f, 0.018f), new Color(0.258f, 0.672f, 0.042f), new Color(0.016f, 0.012f, 0.024f),
+        new Color(0.352f, 0.065f, 0.730f), new Color(1.000f, 0.371f, 0.638f), new Color(0.050f, 0.238f, 0.855f),
+        new Color(1.000f, 0.658f, 0.058f), new Color(0.745f, 0.030f, 0.050f), new Color(1.000f, 0.863f, 0.896f),
+        new Color(0.195f, 0.060f, 0.018f), new Color(0.258f, 0.672f, 0.042f), new Color(0.027f, 0.019f, 0.040f),
         new Color(0.991f, 0.991f, 1.000f)
     };
 

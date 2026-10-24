@@ -63,10 +63,12 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   les familles simples par nature ; les grandes classiques, riches en variantes (rouge, jaune, bleu, rose), juste après
   (assez grandes pour leurs détails, encore fréquentes) ; les plus grands = la vitrine des designs les plus sophistiqués
 - Ordre retenu, validé sur la planche de test du 2026-10-24 (`Captures/bancs/palette.js` → `Captures/palette/`) :
-  1 orange #FFA63D (clair, chaud) · 2 violet pourpre #8A2DB8 (foncé) · 3 rose #FF8DC4 (clair) · 4 bleu #2456C8 (foncé,
-  froid) · 5 jaune #FFC62A (clair, chaud) · 6 rouge #E0303F (foncé, chaud) · 7 crème #FBF3E3 (très clair) · 8 chocolat au
-  lait #7A4524 (foncé, chaud) · 9 vert pomme #8BD63A (clair) · 10 noir réglisse #221C2B (très foncé) · 11 spécial
-  (couleurs de référence ; 3 nuances par famille dans le script = première idée des fourchettes)
+  1 orange #FFA63D (clair, chaud) · 2 violet vif #A048DE (moyen) · 3 rose bonbon #FFA4D1 (clair) · 4 bleu #3F86EE (moyen,
+  froid) · 5 jaune miel #FFD444 (clair, chaud) · 6 rouge #E0303F (foncé, chaud) · 7 crème rosée #FFEFF3 (très clair) ·
+  8 chocolat au lait #7A4524 (foncé, chaud) · 9 vert pomme #8BD63A (clair) · 10 noir #2E2638 (très foncé) · 11 spécial
+  (couleurs de référence ; 3 nuances par famille dans le script = première idée des fourchettes). Retouche du 2026-10-24
+  demandée par l'utilisateur : bleu plus clair (avant #2456C8, trop sombre et profond), violet plus vif (avant #8A2DB8), rose
+  plus bonbon (avant #FF8DC4) ; l'ordre tient sans changement
   Pourquoi : niveaux impairs clairs, pairs foncés. Couleurs VIVES aux tout premiers niveaux (les plus nombreux à l'écran) :
   chocolat / crème en premier, essayé, faisait « pas des couleurs » (peu saturées, lues comme neutres) ; un petit orange
   plutôt qu'un petit violet (choix de l'utilisateur). Classiques (rose, bleu, jaune, rouge) aux niveaux 3 à 6 ; crème,
@@ -76,7 +78,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   ressemble à rien d'autre ; le chocolat passe « au lait » pour s'en détacher). Les couleurs de base vraiment utilisables
   sont ≈ 9 à 10 : 10 familles + spécial, c'est le maximum.
   Mesuré (OKLab ΔE, pire nuance contre pire nuance, 5 modes : normal, deutéranopie, protanopie, tritanopie, gris) : niveaux
-  voisins ≥ 0,16 partout. À 2 niveaux d'écart, faible pour violet / bleu et rouge / chocolat en daltonisme rouge-vert, et
+  voisins ≥ 0,10 partout (le plus juste : rose / bleu en protanopie et en gris, depuis le bleu plus clair). À 2 niveaux d'écart, faible pour violet / bleu et rouge / chocolat en daltonisme rouge-vert, et
   plusieurs paires en gris / tritanopie : la taille (+26 à 54 %) départage. Crème à surveiller sur fond clair
 - Appliqué au jeu (2026-10-24) : `SlimeDesign.Levels()` (un design par niveau), mêmes couleurs dans `BlobFusion.levelColors`,
   toutes les scènes. Purement visuel : aucun effet sur la simulation ni les replays
@@ -88,12 +90,14 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   personnalisé). Données : `Cosmetics/SlimeDesign.cs` (enums des cases + catalogue). Cases actuelles :
   - Couleur du corps (« couleur du fond ») : famille + nuance (`body`, `shade`), toujours dans la fourchette de la famille
   - Motif (effets sur la gelée) : bulles, pois, ondes, alvéoles, rayures, magma, paillettes, cristal, galaxie, arc-en-ciel,
-    anneaux lunaires, vermicelles ; couleur `accent`, `glow` = lueur
-  - Reflet (par-dessus tout, façon carte brillante) : holo, étincelles
-  - Tête : pousse, pousse de fleur, antennes, oreilles de chat, oreilles d'ourson, cornes, nœud, cristaux, auréole, couronne,
-    cerise
+    anneaux lunaires, vermicelles, eau (reflets de vagues + bulles de verre), cactus (côtes + épines), filets de chocolat ;
+    couleur `accent`, `glow` = lueur
+  - Reflet (par-dessus tout, façon carte brillante ; RÉSERVÉ aux ultra rares) : holo, étincelles, braises
+  - Tête : pousse, pousse de fleur, antennes, oreilles de chat, oreilles d'ourson, cornes, nœud, cristaux, gerbe de cristaux,
+    auréole, couronne, cerise
   - Dos (derrière le corps, sur les côtés) : ailes de chauve-souris, ailes de fée
-  - Yeux : ronds, étoilés, lumineux ; Bouche : sourire, chat, grand sourire, en coin, croc ; Attitude au repos : calme,
+  - Yeux : ronds, étoilés, lumineux ; Bouche : sourire, chat, grand sourire, en coin, croc, museau
+    (d'ourson : ovale clair + truffe) ; Attitude au repos : calme,
     rêveur (yeux fermés), fier (paupières mi-closes), féroce (sourcils) ; Joues roses
   Les expressions de jeu (joie après fusion, surprise en chute, grimace au choc, clignements) passent par-dessus toutes les
   cases : même vie pour tous
@@ -105,19 +109,32 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   (enregistrées dans les scènes par leur numéro)
 - DA commune : rond, mou, gélatineux, kawaii (grands yeux brillants, joues, petite bouche) ; les variations sont dans les
   cases, jamais dans cette base. Couleurs écrites en sRGB (#RRGGBB, comme une palette), converties par `SlimeDesign.Hex`
-- Rareté selon la sophistication (pas besoin de remplir toutes les cases) : commun = couleur + visage + au plus un élément
-  simple ; rare = motif et / ou accessoire ; ultra rare = effets lumineux, plusieurs cases, reflet ; spécial = le dernier
-  niveau. Ex. vert commun, vert rare, vert ultra rare. Le design de chaque NIVEAU (celui vu en jeu) est choisi pour sa
-  lisibilité, sa rareté n'est qu'indicative
-- Shiny : MÊME gumori (mêmes cases), recoloré dans SA famille (autre nuance ; motif, accessoires libres) + étincelles s'il
-  n'a pas de reflet ; très rare. Couleurs `shiny…` de chaque design. Pas encore tiré en jeu : le jour où il l'est, tirage par
-  une suite à graine SÉPARÉE de celle des lâchers (sinon la suite des niveaux change et les replays divergent)
-- Designs actuels par niveau : Clémentine (orange, pois), Raisin (violet, bulles), Bonbon (rose, paillettes + nœud), Bulle
-  (bleu), Citron (jaune, ondes, yeux étoilés), Braise (rouge, magma adouci : fissures courbes qui coulent, + cornes, féroce),
-  Chantilly (crème, vermicelles + cerise), Ourson (chocolat, oreilles d'ourson), Bourgeon (vert, pousse de fleur, rêveur),
-  Lune (noir façon Pokémon ténèbres : anneaux lunaires lumineux, yeux lumineux, croc, ailes de chauve-souris), Roi (spécial).
-  Variantes (collection, pas encore en jeu) : Tigrou (orange), Cristal (violet, holo), Fée (rose, ailes de fée, holo), Lagon
-  (bleu, pois cyan), Abeille (jaune), Nébuleuse (noir, galaxie + auréole). Vitrine (Scene view) : niveaux, leurs shiny, variantes
+- Chaque gumori de base est un THÈME qui a un sens avec sa couleur (petit tigre orange, cristal violet, bonbon rose, eau
+  bleue, ruche jaune, magma rouge, chantilly, ourson en chocolat, cactus vert, nébuleuse noire), pas une couleur avec un
+  motif posé au hasard. Un gumori trop simple (une couleur + un détail) est « boring » : lui donner un thème, sans
+  sur-compliquer
+- Paliers (décision du 2026-10-24) : COMMUN (dont la version de base, celle vue en jeu, + autres thèmes de la famille), RARE
+  (même thème, un détail ou une couleur de détail en plus : ex. magma à lave bleue), ULTRA RARE = « shiny » (le thème de
+  base en plus beau : effets de brillance, détails qu'il n'avait pas, couleur des détails libre, ex. lave dorée ; la couleur
+  dominante et l'identité du thème restent). Les effets de brillance (reflets holo / étincelles / braises, galaxie très
+  lumineuse, auréole, trait de brillance du cristal) sont RÉSERVÉS aux ultra rares ; la version de base n'en a pas.
+  Spécial = le dernier niveau. Pas besoin de remplir toutes les cases. On ne supprime pas un design qui plaît : il devient
+  une variante
+- Écarté (2026-10-24) : shiny = recoloration automatique de chaque gumori + étincelles (jugé « vraiment nul »)
+- Tirage en jeu des variantes rares / ultra rares : pas encore ; le jour où il existe, par une suite à graine SÉPARÉE de
+  celle des lâchers (sinon la suite des niveaux change et les replays divergent)
+- Versions de base (une par niveau) : Tigrou (orange, rayures + oreilles de chat), Cristal (violet, facettes + 3 cristaux),
+  Bonbon (rose, paillettes + nœud), Bulle (bleu, eau), Abeille (jaune, alvéoles + antennes), Braise (rouge, magma : fissures
+  courbes qui coulent + cornes, féroce), Chantilly (crème rosée, vermicelles + cerise dorée), Ourson (chocolat, filets de
+  chocolat blanc + museau + oreilles), Cactus (vert, côtes + épines + fleur), Nébuleuse (noir, galaxie douce, rêveur), Roi
+  (spécial). Communs : Clémentine (orange, pois), Raisin (violet, bulles), Lagon (bleu, pois cyan), Vanille (crème ivoire,
+  cerise rouge), Bourgeon (vert, pousse de fleur). Rares : Citron (jaune, ondes, yeux étoilés), Braise bleue (lave bleue),
+  Lune (noir façon Pokémon ténèbres : anneaux lunaires, yeux lumineux, croc, ailes de chauve-souris). Ultra rares : Cristal
+  étincelant (gerbe de 5 cristaux, holo), Fée (ailes de fée, yeux étoilés, holo), Braise d'or (lave dorée, yeux lumineux,
+  braises), Nébuleuse étoilée (galaxie lumineuse, auréole, étincelles)
+- Vitrine (Scene view, hors Play) : un tableau, une colonne par famille (à la taille de son niveau) ; 1re rangée = versions
+  de base, puis une rangée par palier (communs, rares, ultra rares). Captures par `unity command eval_file` :
+  `Captures/bancs/shot_gallery.cs` (tableau) et `Captures/bancs/shot_zoom.cs` (gros plans)
 
 ## Roadmap (étape actuelle en gras)
 1. Strict minimum (scène `Slime/reservoir`) : un réservoir (rectangle ouvert en haut), on lâche des blobs d'en haut
