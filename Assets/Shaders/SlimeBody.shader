@@ -146,6 +146,21 @@ Shader "Slime/Body"
                 return tw * s;
             }
 
+            float SdRoundBox(float2 p, float2 b, float r)
+            {
+                float2 q = abs(p) - b + r;
+                return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+            }
+
+            // Fleur de sakura : 5 pétales arrondis, encoche au bout de chaque pétale.
+            float SdBlossom(float2 q, float rad, float turn)
+            {
+                float a = atan2(q.y, q.x) + turn;
+                float k = abs(cos(2.5 * a));
+                float r = rad * (0.5 + 0.5 * sqrt(k)) * (1.0 - 0.2 * pow(k, 30.0));
+                return length(q) - r;
+            }
+
             float Hex(float2 p)
             {
                 p = abs(p);
@@ -327,6 +342,19 @@ Shader "Slime/Body"
                     float on = smoothstep(0.92, 0.78, length(p));
                     col = lerp(col, accent, Fill(d - 0.018) * on * lerp(0.2, 1.0, faceMask));
                 }
+                else if (pattern == 16) // fleurs de sakura éparses (cœur foncé), surtout en bas et sur les côtés
+                {
+                    float2 g = p * 2.4 + seed;
+                    float2 cell = floor(g);
+                    float h = Hash21(cell + 1.7);
+                    float on = step(h, 0.55) * smoothstep(0.3, -0.1, p.y + 0.25 * (1.0 - faceMask));
+                    float2 q = frac(g) - 0.5 - 0.35 * (Hash22(cell + 6.1) - 0.5);
+                    float rad = 0.24 + 0.1 * Hash21(cell + 9.3);
+                    float d = SdBlossom(q, rad, h * TAU);
+                    float3 petal = accent * (1.0 + glow * 0.5);
+                    col = lerp(col, lerp(petal, shade, saturate(1.0 - length(q) / rad) * 0.25), Fill(d) * on * 0.9);
+                    col = lerp(col, shade, Fill(length(q) - rad * 0.16) * on);
+                }
                 return col;
             }
 
@@ -361,6 +389,26 @@ Shader "Slime/Body"
                     }
                     col += accent * e * 2.0 * lerp(0.4, 1.0, faceMask);
                 }
+                else if (sheen == 4) // pétales de sakura qui tombent en tournoyant, avec un éclat
+                {
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float2 g = float2(p.x * 3.2 + t * (0.25 + 0.1 * i) + i * 2.3, p.y * 3.2 + t * (0.45 + 0.15 * i) + seed);
+                        float2 cell = floor(g);
+                        float h = Hash21(cell + i * 7.0);
+                        float2 q = frac(g) - 0.5 - 0.3 * (Hash22(cell + 2.9) - 0.5);
+                        q.x += 0.12 * sin(t * 1.7 + h * 20.0);
+                        float a = t * (1.0 + h) + h * TAU;
+                        float2 r = float2(q.x * cos(a) - q.y * sin(a), q.x * sin(a) + q.y * cos(a));
+                        r.x *= 0.6 + 0.4 * abs(sin(t * 2.2 + h * 9.0)); // il se retourne en tombant
+                        float d = SdEllipse(r, float2(0.12, 0.19));
+                        d = max(d, -(length(r - float2(0.0, 0.23)) - 0.07)); // encoche
+                        float on = step(h, 0.3);
+                        float glint = pow(saturate(sin(t * 3.0 + h * 30.0)), 8.0);
+                        float3 pc = float3(1.0, 0.55, 0.75) * (1.15 + 1.2 * glint);
+                        col = lerp(col, pc, Fill(d) * on * lerp(0.6, 1.0, faceMask));
+                    }
+                }
                 return col;
             }
 
@@ -376,7 +424,8 @@ Shader "Slime/Body"
                 float2 e = float2(abs(q.x), q.y) - float2(0.31, 0.07) - float2(look.x * side, look.y);
 
                 // Joues roses
-                if (blushOn > 0.5 || expr == 1)
+                bool masked = mouthStyle == 6;
+                if ((blushOn > 0.5 || expr == 1) && !masked)
                 {
                     float b = SdEllipse(float2(abs(q.x), q.y) - float2(0.48, -0.11), float2(0.09, 0.045));
                     col = lerp(col, float3(1.0, 0.45, 0.55), saturate(0.5 - b / 0.04) * 0.45);
@@ -432,6 +481,8 @@ Shader "Slime/Body"
                     float d = SdSegment(c, float2(0.19, 0.3), float2(0.43, 0.36));
                     col = lerp(col, ink, Fill(d - 0.025));
                 }
+
+                if (masked) return col; // bouche cachée sous le masque
 
                 // Bouche : expressions d'abord (heureux, surpris, grimace), sinon la bouche choisie.
                 float2 m = q - float2(0.0, -0.16);
@@ -550,8 +601,47 @@ Shader "Slime/Body"
                 float bodyLuma = dot(body, float3(0.2126, 0.7152, 0.0722));
                 float3 ink = lerp(float3(0.015, 0.008, 0.015), float3(0.12, 0.06, 0.10), smoothstep(0.12, 0.35, bodyLuma)); // plus noire sur un corps moyen
                 ink = lerp(ink, lerp(body, float3(1.0, 0.96, 1.0), 0.85), Dark(body));
-                col = Face(fq, (int)(faceCode % 8u), (int)((faceCode / 8u) % 8u), (int)(faceCode / 64u), (int)round(i.face.w), i.face.xy, i.face.z, col, ink,
-                           accent * (1.0 + glow * 0.6), t, i.misc.z);
+                uint extra = (uint)round(i.misc.z);
+                uint hc = extra >> 1;
+                float3 headCol = pow(float3(hc & 63u, (hc >> 6) & 63u, (hc >> 12) & 63u) / 63.0, 2.2);
+                int mouthStyle = (int)((faceCode / 8u) % 8u);
+
+                // Bandeau de ninja (case tête) : bande de tissu au front qui épouse la gelée, plaque de métal gravée d'une fleur.
+                if (faceCode >= 256u)
+                {
+                    float yc = 0.5 * faceScale - 0.02 - 0.1 * p.x * p.x;
+                    float hh = 0.1 * faceScale;
+                    float v = (p.y - yc) / hh;
+                    float3 cloth = headCol * lerp(0.75, 1.25, saturate(v * 0.5 + 0.5));
+                    cloth = lerp(cloth, cloth * 0.7, smoothstep(0.75, 1.0, abs(v)));
+                    col = lerp(col, cloth, Fill(abs(p.y - yc) - hh));
+                    float2 pq = float2(p.x, p.y - yc) / faceScale;
+                    float pd = SdRoundBox(pq, float2(0.22, 0.075), 0.03);
+                    float3 metal = lerp(float3(0.42, 0.4, 0.5), float3(0.9, 0.88, 0.95), smoothstep(-0.08, 0.07, pq.y));
+                    col = lerp(col, metal * 0.55, Fill(pd));
+                    col = lerp(col, metal, Fill(pd + 0.016));
+                    col = lerp(col, lerp(shade, accent, 0.25) * (1.0 + glow), Fill(SdBlossom(pq, 0.052, 0.31)));
+                    col = lerp(col, metal * 0.6, Fill(length(pq) - 0.012));
+                }
+
+                // Masque de ninja (case bouche) : tissu sur le bas du visage, d'un bord à l'autre, petit pli sur le nez.
+                if (mouthStyle == 6)
+                {
+                    float2 q = fq;
+                    float top = -0.11 - 0.06 * q.x * q.x + 0.03 * exp(-q.x * q.x * 40.0);
+                    float bottom = -0.47 - 0.1 * q.x * q.x;
+                    float d = max(q.y - top, bottom - q.y);
+                    float3 cloth = lerp(float3(0.042, 0.023, 0.065), float3(0.12, 0.09, 0.17), Dark(body));
+                    cloth *= lerp(0.8, 1.25, smoothstep(bottom, top, q.y));
+                    float fold = abs(q.y - (top - 0.13) + 0.1 * abs(q.x)) - 0.01;
+                    cloth = lerp(cloth, cloth * 0.55, Fill(fold) * smoothstep(0.4, 0.15, abs(q.x)));
+                    float3 edge = lerp(cloth * 0.5, ink * 0.6, Dark(body));
+                    col = lerp(col, edge, Fill(d - 0.018));
+                    col = lerp(col, cloth, Fill(d));
+                }
+
+                col = Face(fq, (int)(faceCode % 8u), mouthStyle, (int)((faceCode / 64u) % 4u), (int)round(i.face.w), i.face.xy, i.face.z, col, ink,
+                           accent * (1.0 + glow * 0.6), t, (float)(extra & 1u));
                 col = Sheen((int)(code / 32u), p, col, accent, seed, faceMask, t);
 
                 // Reflets : grand reflet doux en haut à gauche, petit point vif, lumière renvoyée en bas à droite.

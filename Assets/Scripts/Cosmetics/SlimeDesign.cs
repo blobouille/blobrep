@@ -28,11 +28,13 @@ public enum SlimePattern
     [InspectorName("Magma")] Cracks, [InspectorName("Paillettes")] Sparkles, [InspectorName("Cristal")] Facets,
     [InspectorName("Galaxie")] Galaxy, [InspectorName("Arc-en-ciel")] Rainbow,
     [InspectorName("Anneaux lunaires")] MoonRings, [InspectorName("Vermicelles")] Sprinkles,
-    [InspectorName("Eau")] Water, Cactus, [InspectorName("Filets de chocolat")] Drizzle
+    [InspectorName("Eau")] Water, Cactus, [InspectorName("Filets de chocolat")] Drizzle,
+    [InspectorName("Fleurs de sakura")] Sakura
 }
 
 // Reflet par-dessus tout le gumori (façon carte brillante) : réservé aux ultra rares.
-public enum SlimeSheen { [InspectorName("Aucun")] None, Holo, [InspectorName("Étincelles")] Glitter, [InspectorName("Braises")] Embers }
+public enum SlimeSheen { [InspectorName("Aucun")] None, Holo, [InspectorName("Étincelles")] Glitter, [InspectorName("Braises")] Embers,
+    [InspectorName("Pétales de sakura")] Petals }
 
 // Case « tête » (chapeaux, antennes, pousses…).
 public enum SlimeHead
@@ -41,18 +43,23 @@ public enum SlimeHead
     [InspectorName("Cornes")] Horns, [InspectorName("Nœud")] Bow, [InspectorName("Cristaux")] Crystals,
     [InspectorName("Auréole")] Halo, [InspectorName("Couronne")] Crown, [InspectorName("Pousse de fleur")] Flower,
     [InspectorName("Oreilles d'ourson")] RoundEars, [InspectorName("Cerise")] Cherry,
-    [InspectorName("Gerbe de cristaux")] CrystalCluster
+    [InspectorName("Gerbe de cristaux")] CrystalCluster, [InspectorName("Bandeau de ninja")] Headband
 }
 
 // Case « dos » (dessinée derrière le corps).
-public enum SlimeBack { [InspectorName("Aucun")] None, [InspectorName("Ailes de chauve-souris")] BatWings, [InspectorName("Ailes de fée")] FairyWings }
+public enum SlimeBack
+{
+    [InspectorName("Aucun")] None, [InspectorName("Ailes de chauve-souris")] BatWings, [InspectorName("Ailes de fée")] FairyWings,
+    Katana, [InspectorName("Deux katanas")] TwinKatanas
+}
 
 public enum SlimeEyes { [InspectorName("Ronds")] Round, [InspectorName("Étoilés")] Starry, [InspectorName("Lumineux")] Glowing }
 
 public enum SlimeMouth
 {
     [InspectorName("Sourire")] Smile, [InspectorName("Chat")] Cat, [InspectorName("Grand sourire")] Grin,
-    [InspectorName("En coin")] Smirk, [InspectorName("Croc")] Fang, [InspectorName("Museau")] Muzzle
+    [InspectorName("En coin")] Smirk, [InspectorName("Croc")] Fang, [InspectorName("Museau")] Muzzle,
+    [InspectorName("Masque de ninja")] Mask
 }
 
 // Attitude au repos : yeux fermés (rêveur), paupières mi-closes (fier), sourcils (féroce).
@@ -160,6 +167,9 @@ public class SlimeDesign
         New("Bourgeon", GumoriFamily.Green, GumoriRarity.Common).Colors("#8BD63A", "#3F9020", "#E2FFB8")
             .Set(SlimePattern.None, SlimeEyes.Round, SlimeMouth.Smile, true, 0f, SlimeAttitude.Dreamy)
             .Head(SlimeHead.Flower, "#FF9FCB"),
+        New("Ninjakura", GumoriFamily.Rose, GumoriRarity.Common).Colors("#FFB3CF", "#D9638F", "#FFEAF2")
+            .Set(SlimePattern.Sakura, SlimeEyes.Round, SlimeMouth.Mask, false, 0f, SlimeAttitude.Fierce)
+            .Head(SlimeHead.Headband, "#3A2A48").Back(SlimeBack.Katana, "#3A2A48"),
 
         // Rares : même thème, un détail ou une couleur de détail en plus.
         New("Citron", GumoriFamily.Yellow, GumoriRarity.Rare).Colors("#FFC62A", "#E08A0A", "#FFF6C0")
@@ -183,6 +193,9 @@ public class SlimeDesign
         New("Nébuleuse étoilée", GumoriFamily.Black, GumoriRarity.UltraRare).Colors("#2E2638", "#100C18", "#FF8CEB")
             .Set(SlimePattern.Galaxy, SlimeEyes.Round, SlimeMouth.Smile, false, 1.2f, SlimeAttitude.Dreamy)
             .Head(SlimeHead.Halo, "#FFE68C").Sheen(SlimeSheen.Glitter),
+        New("Ninjakura en fleurs", GumoriFamily.Rose, GumoriRarity.UltraRare).Colors("#FFB8D4", "#D95C8E", "#FFF2F7")
+            .Set(SlimePattern.Sakura, SlimeEyes.Round, SlimeMouth.Mask, false, 0.6f, SlimeAttitude.Fierce)
+            .Head(SlimeHead.Headband, "#3A2A48").Back(SlimeBack.TwinKatanas, "#3A2A48").Sheen(SlimeSheen.Petals),
     };
 
     SlimeDesign Colors(string body, string shade, string accent)

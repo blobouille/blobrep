@@ -214,7 +214,7 @@ public class SlimeSkin : MonoBehaviour
     Vector2[] _dd = new Vector2[256], _dl = new Vector2[256];
     readonly Dictionary<int, Vector2[]> _units = new Dictionary<int, Vector2[]>();
     Vector4 _k2, _k3, _k4, _k5;
-    float _flash;
+    float _flash, _faceScale = 1f;
 
     public SlimeDesign Design(int level) => designs.Count == 0 ? null : designs[Mathf.Clamp(level, 0, designs.Count - 1)];
 
@@ -766,9 +766,12 @@ public class SlimeSkin : MonoBehaviour
         float aa = 1.5f * _pixel;
         _flash = look.flash;
         _k2 = new Vector4(look.look.x, look.look.y, Blink(look), Expression(look));
-        _k3 = new Vector4(d.shade.r, d.shade.g, d.shade.b, (int)d.eyes + 8 * (int)d.mouth + 64 * (int)d.attitude);
+        bool band = d.head == SlimeHead.Headband;
+        _faceScale = faceScale;
+        _k3 = new Vector4(d.shade.r, d.shade.g, d.shade.b, (int)d.eyes + 8 * (int)d.mouth + 64 * (int)d.attitude + (band ? 256 : 0));
         _k4 = new Vector4(d.accent.r, d.accent.g, d.accent.b, d.glow);
-        _k5 = new Vector4(look.seed, faceScale, d.blush ? 1f : 0f, outlineWidth / (outlineWidth + aa));
+        // Joues (bit 0) + couleur de la tête en sRGB 6 bits par canal (bandeau peint sur la gelée par le shader).
+        _k5 = new Vector4(look.seed, faceScale, (d.blush ? 1 : 0) + 2 * Pack6(d.headColor), outlineWidth / (outlineWidth + aa));
         Color32 body = d.body;
         float surface = (int)d.pattern + 32 * (int)d.sheen; // motif + 32 × reflet
         float frame = look.frame;
@@ -809,6 +812,12 @@ public class SlimeSkin : MonoBehaviour
         }
 
         EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
+    }
+
+    static int Pack6(Color linear)
+    {
+        int C(float v) => Mathf.Clamp(Mathf.RoundToInt(Mathf.LinearToGammaSpace(Mathf.Clamp01(v)) * 63f), 0, 63);
+        return C(linear.r) + 64 * C(linear.g) + 4096 * C(linear.b);
     }
 
     // ---- Accessoires (coordonnées locales en rayons du slime : x le long du bord, y vers l'extérieur, 0 = surface) ----
@@ -1001,7 +1010,88 @@ public class SlimeSkin : MonoBehaviour
                     Polygon(p, nor, size, new Vector2(-0.06f, 0.2f), Color.white, 0.4f, aa);
                 }
                 break;
+            case SlimeHead.Headband:
+                if (!front) return;
+                {
+                    // Le bandeau est peint sur la gelée (shader) ; ici le nœud et ses deux pans, là où il rejoint le bord droit.
+                    float yc = 0.5f * _faceScale - 0.02f - 0.1f * 0.78f;
+                    Anchor(Mathf.Asin(Mathf.Clamp(yc, -0.9f, 0.9f)) * Mathf.Rad2Deg, n, rot, frame, out var p, out var nor);
+                    float sway = Mathf.Sin(Time.time * 2.4f);
+                    Ribbon(p, nor, size, new Vector2(-0.02f, 0.02f), new Vector2(0.2f + 0.03f * sway, 0.5f), 0.06f, 0.075f, 0.06f, col, aa);
+                    Ribbon(p, nor, size, new Vector2(0.02f, 0.02f), new Vector2(0.42f + 0.02f * sway, 0.36f), -0.05f, 0.07f, 0.055f, col * 0.9f, aa);
+                    Circle(new Vector2(0f, 0.02f), 0.085f, 14);
+                    Polygon(p, nor, size, new Vector2(0f, 0.02f), col * 1.1f, 0f, aa);
+                }
+                break;
         }
+    }
+
+    // Pan de tissu de 'a' à 'b' (coordonnées locales), courbé de 'bend', largeur w0 → w1, bout coupé en V.
+    void Ribbon(Vector2 p, Vector2 nor, float size, Vector2 a, Vector2 b, float bend, float w0, float w1, Color col, float aa)
+    {
+        Vector2 axis = b - a, side = new Vector2(-axis.y, axis.x).normalized;
+        const int N = 8;
+        _poly.Clear();
+        for (int i = 0; i <= N; i++)
+        {
+            float s = i / (float)N;
+            _poly.Add(a + axis * s + side * (bend * Mathf.Sin(Mathf.PI * s) + Mathf.Lerp(w0, w1, s)));
+        }
+        _poly.Add(b + side * (bend * 0f) - axis.normalized * (w1 * 1.1f));
+        for (int i = N; i >= 0; i--)
+        {
+            float s = i / (float)N;
+            _poly.Add(a + axis * s + side * (bend * Mathf.Sin(Mathf.PI * s) - Mathf.Lerp(w0, w1, s)));
+        }
+        Polygon(p, nor, size, a + axis * 0.45f + side * bend, col, 0f, aa);
+    }
+
+    // Katana dans le dos : la poignée dépasse en haut, de biais (s = −1 côté gauche, +1 droit). Repère local : u vers le haut
+    // du slime, y vers l'extérieur ; la lame et le fourreau restent cachés derrière le corps.
+    void Katana(int s, int n, float rot, float frame, float size, Color wrap, float glow, float aa)
+    {
+        Anchor(90f - 48f * s, n, rot, frame, out var p, out var nor);
+        float tilt = 0.1f * s;
+        Vector2 L(float u, float y) => Rotate(new Vector2(-s * u, y), tilt);
+        void Box(float u0, float u1, float y0, float y1, Color c, float g)
+        {
+            _poly.Clear();
+            _poly.Add(L(u0, y0)); _poly.Add(L(u1, y0)); _poly.Add(L(u1, y1)); _poly.Add(L(u0, y1));
+            Polygon(p, nor, size, L(0.5f * (u0 + u1), 0.5f * (y0 + y1)), c, g, aa);
+        }
+        Box(-0.07f, 0.07f, -0.5f, 0.02f, Color.Lerp(wrap, KatanaSheath, 0.7f), 0f);
+        Box(-0.055f, 0.055f, 0.06f, 0.44f, wrap, 0f);
+        for (int i = 0; i < 3; i++)
+        {
+            float y = 0.15f + 0.1f * i;
+            _poly.Clear();
+            _poly.Add(L(0f, y - 0.045f)); _poly.Add(L(0.04f, y)); _poly.Add(L(0f, y + 0.045f)); _poly.Add(L(-0.04f, y));
+            Polygon(p, nor, size, L(0f, y), KatanaWrapLight, glow * 0.3f, aa);
+        }
+        Box(-0.062f, 0.062f, 0.43f, 0.48f, KatanaGold, glow * 0.5f);
+        _poly.Clear();
+        for (int i = 0; i < 14; i++)
+        {
+            float a = TAU * i / 14;
+            _poly.Add(L(0.15f * Mathf.Cos(a), 0.04f + 0.04f * Mathf.Sin(a)));
+        }
+        Polygon(p, nor, size, L(0f, 0.04f), KatanaGold, glow * 0.5f, aa);
+
+        // Cordon et fleur de sakura qui pendent du pommeau.
+        float sway = 0.05f * Mathf.Sin(Time.time * 2f + s);
+        Vector2 top = L(0f, 0.48f), end = L(-0.2f, 0.54f + sway);
+        _poly.Clear();
+        Vector2 side = new Vector2(-(end - top).y, (end - top).x).normalized * 0.014f;
+        _poly.Add(top - side); _poly.Add(end - side); _poly.Add(end + side); _poly.Add(top + side);
+        Polygon(p, nor, size, 0.5f * (top + end), KatanaCord, 0f, aa);
+        for (int i = 0; i < 5; i++)
+        {
+            Vector2 pc = end + Dir(TAU * i / 5f + Mathf.PI * 0.5f + sway * 3f) * 0.05f;
+            Circle(pc, 0.042f, 10);
+            Polygon(p, nor, size, pc, KatanaCord, glow * 0.4f, aa);
+        }
+        Circle(end, 0.025f, 8);
+        Polygon(p, nor, size, end, KatanaGold, glow * 0.5f, aa);
     }
 
     // Case « dos » : derrière le corps, de part et d'autre (s = −1 gauche, +1 droite). Dans le repère local d'un point du bord,
@@ -1035,6 +1125,13 @@ public class SlimeSkin : MonoBehaviour
                     Leaf(p, nor, size, new Vector2(0f, -0.12f), s * (-0.3f - flap * 0.6f), 0.6f, 0.19f, col * 0.92f, aa);
                 }
                 break;
+            case SlimeBack.Katana:
+                Katana(-1, n, rot, frame, size, col, d.glow, aa);
+                break;
+            case SlimeBack.TwinKatanas:
+                Katana(1, n, rot, frame, size, col, d.glow, aa);
+                Katana(-1, n, rot, frame, size, col, d.glow, aa);
+                break;
         }
     }
 
@@ -1047,7 +1144,9 @@ public class SlimeSkin : MonoBehaviour
     };
 
     static readonly Color StemGreen = SlimeDesign.Hex("#4FA83A"), FlowerHeart = SlimeDesign.Hex("#FFD23F"),
-        EarPink = SlimeDesign.Hex("#FFB3C1"), CherryStem = SlimeDesign.Hex("#5E7A2A");
+        EarPink = SlimeDesign.Hex("#FFB3C1"), CherryStem = SlimeDesign.Hex("#5E7A2A"),
+        KatanaSheath = SlimeDesign.Hex("#7A1E3A"), KatanaWrapLight = SlimeDesign.Hex("#FF9EC4"),
+        KatanaGold = SlimeDesign.Hex("#E8B85A"), KatanaCord = SlimeDesign.Hex("#FF7FB0");
 
     static readonly float[] ClusterLength = { 0.36f, 0.52f, 0.78f, 0.5f, 0.34f };
 

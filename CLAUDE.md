@@ -90,14 +90,15 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   personnalisé). Données : `Cosmetics/SlimeDesign.cs` (enums des cases + catalogue). Cases actuelles :
   - Couleur du corps (« couleur du fond ») : famille + nuance (`body`, `shade`), toujours dans la fourchette de la famille
   - Motif (effets sur la gelée) : bulles, pois, ondes, alvéoles, rayures, magma, paillettes, cristal, galaxie, arc-en-ciel,
-    anneaux lunaires, vermicelles, eau (reflets de vagues + bulles de verre), cactus (côtes + épines), filets de chocolat ;
+    anneaux lunaires, vermicelles, eau (reflets de vagues + bulles de verre), cactus (côtes + épines), filets de chocolat,
+    fleurs de sakura ;
     couleur `accent`, `glow` = lueur
-  - Reflet (par-dessus tout, façon carte brillante ; RÉSERVÉ aux ultra rares) : holo, étincelles, braises
+  - Reflet (par-dessus tout, façon carte brillante ; RÉSERVÉ aux ultra rares) : holo, étincelles, braises, pétales de sakura
   - Tête : pousse, pousse de fleur, antennes, oreilles de chat, oreilles d'ourson, cornes, nœud, cristaux, gerbe de cristaux,
-    auréole, couronne, cerise
-  - Dos (derrière le corps, sur les côtés) : ailes de chauve-souris, ailes de fée
+    auréole, couronne, cerise, bandeau de ninja (bande peinte sur la gelée par le shader + nœud et pans en polygones)
+  - Dos (derrière le corps, sur les côtés) : ailes de chauve-souris, ailes de fée, katana, deux katanas
   - Yeux : ronds, étoilés, lumineux ; Bouche : sourire, chat, grand sourire, en coin, croc, museau
-    (d'ourson : ovale clair + truffe) ; Attitude au repos : calme,
+    (d'ourson : ovale clair + truffe), masque de ninja (cache la bouche et les joues) ; Attitude au repos : calme,
     rêveur (yeux fermés), fier (paupières mi-closes), féroce (sourcils) ; Joues roses
   Les expressions de jeu (joie après fusion, surprise en chute, grimace au choc, clignements) passent par-dessus toutes les
   cases : même vie pour tous
@@ -128,10 +129,12 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   courbes qui coulent + cornes, féroce), Chantilly (crème rosée, vermicelles + cerise dorée), Ourson (chocolat, filets de
   chocolat blanc + museau + oreilles), Cactus (vert, côtes + épines + fleur), Nébuleuse (noir, galaxie douce, rêveur), Roi
   (spécial). Communs : Clémentine (orange, pois), Raisin (violet, bulles), Lagon (bleu, pois cyan), Vanille (crème ivoire,
-  cerise rouge), Bourgeon (vert, pousse de fleur). Rares : Citron (jaune, ondes, yeux étoilés), Braise bleue (lave bleue),
+  cerise rouge), Bourgeon (vert, pousse de fleur), Ninjakura (rose sakura, fleurs de sakura, bandeau, masque, katana,
+  féroce ; demandé le 2026-10-25). Rares : Citron (jaune, ondes, yeux étoilés), Braise bleue (lave bleue),
   Lune (noir façon Pokémon ténèbres : anneaux lunaires, yeux lumineux, croc, ailes de chauve-souris). Ultra rares : Cristal
   étincelant (gerbe de 5 cristaux, holo), Fée (ailes de fée, yeux étoilés, holo), Braise d'or (lave dorée, yeux lumineux,
-  braises), Nébuleuse étoilée (galaxie lumineuse, auréole, étincelles)
+  braises), Nébuleuse étoilée (galaxie lumineuse, auréole, étincelles), Ninjakura en fleurs (deux katanas croisés,
+  pétales de sakura qui tombent, fleurs et plaque qui luisent). Gros plans : `Captures/bancs/shot_ninja.cs`
 - Vitrine (Scene view, hors Play) : un tableau, une colonne par famille (à la taille de son niveau) ; 1re rangée = versions
   de base, puis une rangée par palier (communs, rares, ultra rares). Captures par `unity command eval_file` :
   `Captures/bancs/shot_gallery.cs` (tableau) et `Captures/bancs/shot_zoom.cs` (gros plans)
