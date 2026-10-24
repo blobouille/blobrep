@@ -235,7 +235,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Plus fort avec le niveau et la chaîne :
      tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
      éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
-   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son
+   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, son de la gelée en temps réel)
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
      bit près (5 875 pas, 17 fusions, même score)
@@ -389,7 +389,7 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   direct dans l'éditeur = réglages de la scène, rien ne change), `SlimeUi` (boutons et textes OnGUI communs).
 - `Scripts/Map/` : la carte (`SlimeMap` décor et caméra, `SlimeMapMesh` sol, `SlimeMapAvatar`, `SlimeMapMenu` titre / fiche /
   enchaînements). Purement visuel, hors simulation (l'avatar a sa physique Box2D, mais rien n'y est rejoué).
-- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound`, `SlimeFinale`) ; ils mettent
+- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound` + `SlimeSynth`, `SlimeFinale`) ; ils mettent
   les événements de la simulation en file et ignorent le rejeu accéléré. `SlimeSkin.Impact` = chocs (vus à l'affichage)
   Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
 - Scènes : `Assets/Scenes/Slime/` (nouveau jeu), le reste = bancs de test hérités
@@ -419,11 +419,31 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
 - Dessin debug de la physique : `monde_settings.drawOptions` (formes sélectionnées seulement) et `BlobDropper.debugDraw`
 
 ## Son
-- Procédural (décision du 2026-10-22) : `SlimeSound` calcule tous les sons au lancement à partir de formules, aucun fichier
-  audio. Lâcher = « plop » ; choc = « splotch » (volume selon la vitesse perdue, silencieux sous 3,5 m/s) ; fusion = « bloup »
-  plus grave pour les gros + cloche dont la note monte à chaque maillon (gamme pentatonique) ; grondement (niveau 6+),
-  paillettes (chaîne de 3+), fanfare (record dès le niveau 4, niveau max). Hauteur variée au hasard, son placé gauche / droite
-- Je ne peux pas écouter : les réglages se font à l'oreille par l'utilisateur (volumes, `semitonesPerLevel`, `jitter`…)
+- Procédural (décision du 2026-10-22) : `SlimeSound` calcule tous les sons à partir de formules, aucun fichier audio
+- DA sonore (décision du 2026-10-24) : grave, rond, APAISANT, satisfaisant ; peu d'aigus, pas d'énergie agressive. Tous les
+  sons accordés dans UNE gamme (pentatonique majeure de `key`) : ensemble, ils sonnent toujours juste, jamais de brouhaha.
+  Cloche de chaîne SUPPRIMÉE (jugée insupportable à la longue)
+- Lâcher = « plop » ; tir (Space) = « fwoump » de souffle selon la vitesse (`BlobLauncher.Launched`) ; choc = « splotch »
+  sourd quand il est doux, mouillé quand il est violent (volume selon la vitesse perdue, silencieux sous 3,5 km/h), plus grave
+  si le gumori est gros. Bruits : hauteur variée au hasard (`jitter`) ; sons placés gauche / droite
+- Fusion = « bloup » (le son préféré de l'utilisateur) : sa note monte d'un cran dans la gamme à chaque maillon de chaîne et
+  il gagne des couches (octave grave dès 2 maillons, harmonie dès 3), façon série de kills Valorant ; « doum » grave à
+  l'éclat, sur la même note ; grondement (niveau 6+), cascade de bulles (chaîne de 3+), accord de fête doux (record dès le
+  niveau 4, niveau max). Gelée et nappe baissent un instant sous une fusion (`duckDepth`)
+- Gelée (temps réel, `SlimeSynth` sur le fil audio) : `SlimeSkin.Motions` donne pour chaque gumori à l'écran son
+  tremblement (vitesse de changement de forme de l'anneau : ovale + trèfle, 1/s), son étirement et sa vitesse. Les
+  `wobbleVoices` (4) plus agités (gros d'abord) ont une voix grave : volume selon le tremblement (`wobbleGate` 0,12 →
+  `wobbleFull` 2,5), filtre qui s'ouvre avec le mouvement (« wouh »), souffle selon la vitesse (trajet), note selon la
+  taille (mi 3 → do 2), clapotis. Mesuré : Space, un tir = tremblements de 1 à 3,7/s, retombés à 0,02–0,2 en ≈ 1 s ;
+  terrestre, 0,5 à 1,9 à l'atterrissage, éteint en 0,3 s. Le même système sonne donc tout seul plus flottant en basse
+  gravité (lien entre les deux jeux). Nappe d'ambiance grave (do sol ré) qui respire et gonfle un peu quand tout bouge
+  (`ambience`) ; mêmes réglages dans toutes les scènes pour l'instant (réglables par scène dans l'inspecteur)
+- Mesuré (PC, éditeur) : sortie ≈ −20 dB RMS (crêtes −9 à −12 dB) quand ça bouge, −37 à −46 dB au repos ; synthé 3,8 %
+  d'un cœur au pire (6 voix + nappe), sur le fil audio ; simulation intouchée (identique au bit près, terrestre et Space)
+- Téléphone : haut-parleurs quasi muets sous ≈ 200 Hz : tous les sons graves ont des harmoniques (on « entend » la basse
+  quand même). Écouter au casque ET sur le haut-parleur
+- Je ne peux pas écouter : les réglages se font à l'oreille par l'utilisateur (volumes, `key`, `stepsPerLevel`, seuils de la
+  gelée…). Écoute hors jeu des sons ponctuels : `Captures/bancs/sound_wav.cs` (Play) → `Captures/sons/apercu.wav`
 
 ## Déterminisme
 - Pas de `Random` sans graine fixe explicite

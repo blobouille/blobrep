@@ -1,13 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Sound design procédural : tous les sons sont calculés au lancement (aucun fichier audio), à partir de formules.
-// - lâcher : petit « plop » de bulle ;
-// - choc : « splotch » mouillé (bruit filtré + coup sourd), plus fort si le choc est violent, plus grave si le slime est gros ;
-// - fusion : « bloup » qui monte quand les deux slimes se touchent (plus grave pour les gros), puis à l'éclat (SlimeFx) une
-//   cloche dont la note monte à chaque maillon de la chaîne (gamme pentatonique : toujours juste) ; gros slime : grondement ;
-//   longue chaîne : pluie de paillettes ; nouveau record ou niveau max : fanfare.
-// Purement audio : événements de la simulation mis en file, joués dans Update ; rien pendant le rejeu accéléré.
+// Sound design procédural : tous les sons sont calculés (aucun fichier audio). DA : grave, rond, apaisant, satisfaisant ;
+// peu d'aigus. Tous les sons accordés sont dans UNE gamme (pentatonique majeure de `key`) : ensemble, ils sonnent toujours
+// juste, jamais un brouhaha.
+// - lâcher : petit « plop » de bulle ; tir (Space) : « fwoump » de souffle, plus fort si le tir est rapide ;
+// - choc : « splotch » sourd quand il est doux, plus mouillé quand il est violent ; plus grave si le gumori est gros ;
+// - fusion : « bloup » (plus grave pour les gros) ; la CHAÎNE fait monter sa note d'un cran par maillon et lui ajoute des
+//   couches (octave grave, puis harmonie), façon série de kills ; à l'éclat (SlimeFx) un « doum » grave et doux sur la même
+//   note ; gros gumori : grondement ; longue chaîne : cascade de bulles ; record ou niveau max : accord de fête ;
+// - gelée (SlimeSynth, temps réel) : chaque gumori qui bouge (trajet, tremblements une fois posé) a une voix grave qui suit
+//   ce qu'on voit (forme lue par SlimeSkin) : plus il tremble, plus fort ; plus il s'étire, plus le son s'ouvre ; plus il file
+//   vite, plus il souffle ; note selon sa taille ; seuls les plus agités sonnent ;
+// - ambiance : nappe grave qui respire, un peu plus présente quand tout bouge.
+// Purement audio : événements de la simulation mis en file, joués hors simulation ; rien pendant le rejeu accéléré.
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(960)]
 public class SlimeSound : MonoBehaviour
@@ -21,16 +27,24 @@ public class SlimeSound : MonoBehaviour
     [Range(0f, 1f)] public float master = 0.8f;
     [Range(0f, 1f)] public float dropVolume = 0.4f;
     [Range(0f, 1f)] public float impactVolume = 0.6f;
+    [Tooltip("« Bloup » de la fusion (et ses couches quand la chaîne monte).")]
     [Range(0f, 1f)] public float mergeVolume = 0.85f;
-    [Tooltip("Cloche de la chaîne (sa note monte à chaque fusion enchaînée).")]
+    [Tooltip("« Doum » grave à l'éclat de la fusion (sa note monte avec la chaîne).")]
     [Range(0f, 1f)] public float comboVolume = 0.45f;
-    [Tooltip("Grondement des gros slimes, paillettes, fanfare.")]
+    [Tooltip("Grondement des gros gumori, cascade de bulles (longue chaîne), accord de fête (record).")]
     [Range(0f, 1f)] public float bigVolume = 0.7f;
+    [Tooltip("Souffle d'un tir (scène Space).")]
+    [Range(0f, 1f)] public float launchVolume = 0.5f;
 
     [Header("Hauteur et espace")]
-    [Tooltip("Demi-tons plus grave par niveau : un gros slime sonne plus grave.")]
+    [Tooltip("Tonalité de tous les sons accordés (fusions, gelée, nappe), en demi-tons au-dessus de do.")]
+    [Range(-6, 6)] public int key;
+    [Tooltip("Notes de la gamme plus grave par niveau pour les sons accordés : un gros gumori sonne plus grave.")]
+    [Range(0f, 2f)] public float stepsPerLevel = 0.7f;
+    [Tooltip("Demi-tons plus grave par niveau pour les bruits (plop, splotch).")]
     [Min(0f)] public float semitonesPerLevel = 1.5f;
-    [Tooltip("Variation aléatoire de hauteur (demi-tons) pour qu'un même son ne se répète pas à l'identique.")]
+    [Tooltip("Variation aléatoire de hauteur des bruits (demi-tons) pour qu'un même son ne se répète pas à l'identique.\n" +
+             "Les sons accordés restent justes.")]
     [Range(0f, 3f)] public float jitter = 0.7f;
     [Tooltip("Son placé à gauche / à droite selon la position à l'écran (0 = centré).")]
     [Range(0f, 1f)] public float stereo = 0.5f;
@@ -40,11 +54,32 @@ public class SlimeSound : MonoBehaviour
     [SpeedKmh] [Min(0.1f)] public float loudImpact = 10f;
     [Tooltip("Grondement à partir de ce niveau.")]
     [Min(0)] public int boomLevel = 6;
-    [Tooltip("Voix simultanées max (au-delà, la plus ancienne est coupée).")]
+    [Tooltip("Voix simultanées max des sons ponctuels (au-delà, la plus ancienne est coupée).")]
     [Range(4, 32)] public int voices = 16;
 
+    [Header("Gelée qui bouge (temps réel)")]
+    [Tooltip("Volume des voix de gelée. 0 = coupé.")]
+    [Range(0f, 1f)] public float wobbleVolume = 0.5f;
+    [Tooltip("Tremblement (changement de forme par seconde, 1/s) en dessous duquel un gumori est silencieux : les petits\n" +
+             "frémissements d'une pile au repos.")]
+    [Min(0f)] public float wobbleGate = 0.12f;
+    [Tooltip("Tremblement (1/s) au volume max.")]
+    [Min(0.01f)] public float wobbleFull = 2.5f;
+    [Tooltip("Vitesse (km/h) d'un gumori qui file au souffle max (trajet). 0 = la vitesse ne fait aucun son.")]
+    [SpeedKmh] [Min(0f)] public float travelFull = 8f;
+    [Tooltip("Gumori qui sonnent en même temps (les plus agités, les gros d'abord).")]
+    [Range(1, SlimeSynth.MaxVoices)] public int wobbleVoices = 4;
+    [Tooltip("Part de clapotis mouillé dans les voix de gelée.")]
+    [Range(0f, 1f)] public float slosh = 0.3f;
+    [Tooltip("Baisse des voix de gelée et de la nappe pendant un son de fusion (pour qu'il ressorte), 0 = aucune.")]
+    [Range(0f, 1f)] public float duckDepth = 0.45f;
+
+    [Header("Ambiance")]
+    [Tooltip("Nappe grave et douce, dans la gamme des fusions ; elle respire et gonfle un peu quand tout bouge. 0 = coupée.")]
+    [Range(0f, 1f)] public float ambience = 0.15f;
+
     const int Rate = 44100;
-    static readonly int[] Ladder = { 0, 2, 4, 7, 9, 12, 14, 16, 19 };
+    static readonly int[] Penta = { 0, 2, 4, 7, 9 };
 
     struct Request
     {
@@ -53,18 +88,32 @@ public class SlimeSound : MonoBehaviour
         public bool record;
     }
 
+    struct Candidate
+    {
+        public int index;
+        public float score;
+    }
+
     BlobFusion _fusion;
     SlimeScore _score;
     SlimeFx _fx;
-    AudioClip _plop, _bloop, _ding, _boom, _sparkle, _fanfare;
-    AudioClip[] _splats;
+    BlobLauncher _launcher;
+    AudioClip _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh;
+    AudioClip[] _splats, _softSplats;
     AudioSource[] _sources;
     float[] _started;
     GameObject _voices;
     AudioListener _listener;
+    SlimeSynth _synth;
     readonly List<Request> _requests = new List<Request>();
+    readonly List<Candidate> _candidates = new List<Candidate>();
+    readonly int[] _owner = new int[SlimeSynth.MaxVoices];
+    readonly bool[] _kept = new bool[SlimeSynth.MaxVoices];
+    readonly float[] _freeAt = new float[SlimeSynth.MaxVoices];
+    static readonly System.Comparison<Candidate> ByScore = (a, b) => b.score.CompareTo(a.score);
     System.Random _rand = new System.Random(5);
     int _impactsThisFrame, _splitsThisFrame;
+    float _duckTime;
 
     void OnEnable()
     {
@@ -80,6 +129,8 @@ public class SlimeSound : MonoBehaviour
         if (skin != null) skin.Impact += OnImpact;
         _fx = FindAnyObjectByType<SlimeFx>();
         if (_fx != null) _fx.Popped += OnPopped;
+        _launcher = FindAnyObjectByType<BlobLauncher>();
+        if (_launcher != null) _launcher.Launched += OnLaunched;
 
         Synthesize();
         _voices = new GameObject("Voix (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
@@ -93,6 +144,13 @@ public class SlimeSound : MonoBehaviour
             source.dopplerLevel = 0f;
             _sources[i] = source;
         }
+        var live = new GameObject("Gelée (SlimeSound)") { hideFlags = HideFlags.HideAndDontSave };
+        live.transform.SetParent(_voices.transform);
+        var liveSource = live.AddComponent<AudioSource>();
+        liveSource.playOnAwake = false;
+        liveSource.spatialBlend = 0f;
+        _synth = live.AddComponent<SlimeSynth>();
+        System.Array.Clear(_owner, 0, _owner.Length);
         if (FindAnyObjectByType<AudioListener>() == null && Camera.main != null) _listener = Camera.main.gameObject.AddComponent<AudioListener>();
     }
 
@@ -102,11 +160,14 @@ public class SlimeSound : MonoBehaviour
         if (_score != null) _score.Scored -= OnScored;
         if (skin != null) skin.Impact -= OnImpact;
         if (_fx != null) _fx.Popped -= OnPopped;
+        if (_launcher != null) _launcher.Launched -= OnLaunched;
         if (_voices != null) Destroy(_voices);
         if (_listener != null) Destroy(_listener);
-        foreach (var clip in new[] { _plop, _bloop, _ding, _boom, _sparkle, _fanfare }) if (clip != null) Destroy(clip);
+        foreach (var clip in new[] { _plop, _bloop, _doum, _boom, _bubbles, _fanfare, _whoosh }) if (clip != null) Destroy(clip);
         if (_splats != null) foreach (var clip in _splats) Destroy(clip);
+        if (_softSplats != null) foreach (var clip in _softSplats) Destroy(clip);
         _requests.Clear();
+        _synth = null;
     }
 
     void OnDropped(BLOB blob, int level)
@@ -120,37 +181,70 @@ public class SlimeSound : MonoBehaviour
             _requests.Add(new Request { kind = 1, level = hit.level, combo = hit.combo, x = hit.position.x, record = hit.record });
     }
 
+    void OnLaunched(BLOB blob, Vector2 velocity)
+    {
+        if (LevelSimulation.FastForwarding || blob == null) return;
+        float max = _launcher != null && _launcher.maxSpeed > 0f ? _launcher.maxSpeed : 4.4f;
+        _requests.Add(new Request
+        {
+            kind = 2, level = _fusion != null ? _fusion.LevelOf(blob) : 0, x = blob.transform.position.x,
+            strength = Mathf.Clamp01(velocity.magnitude / max)
+        });
+    }
+
     // Éclat de la fusion (pendant LateUpdate de SlimeFx, hors simulation) : joué tout de suite.
     void OnPopped(SlimeScore.Hit hit, Vector2 position) => Burst(hit.level, hit.combo, hit.record, position.x);
+
+    // ---- Notes ----
+
+    // Degré n de la gamme pentatonique (do ré mi sol la), en demi-tons au-dessus du do de référence (négatif = plus grave).
+    static int Degree(int n)
+    {
+        int octave = n >= 0 ? n / 5 : -((-n + 4) / 5);
+        return 12 * octave + Penta[n - 5 * octave];
+    }
+
+    // Degré du « bloup » : mi pour un petit gumori seul, plus grave pour les gros, un cran plus haut par maillon de chaîne.
+    int MergeDegree(int level, int combo) => 2 - Mathf.RoundToInt(level * stepsPerLevel) + Mathf.Clamp(combo - 1, 0, 8);
+
+    // Transposition (demi-tons) d'un son accordé sur mi (bloup, doum) vers le degré n.
+    float Shift(int n) => Degree(n) - 4 + key;
+
+    float Jitter() => jitter * ((float)_rand.NextDouble() * 2f - 1f);
+    float Detune() => 0.08f * ((float)_rand.NextDouble() * 2f - 1f);
+
+    void Duck() => _duckTime = 0.7f;
 
     void Burst(int level, int combo, bool record, float x)
     {
         int maxLevel = _fusion != null ? _fusion.MaxLevel : 99;
         combo = Mathf.Max(1, combo);
-        Play(_ding, comboVolume * (combo == 1 ? 0.55f : 1f), Ladder[Mathf.Min(combo - 1, Ladder.Length - 1)], x);
+        int n = MergeDegree(level, combo);
+        Play(_doum, comboVolume * (combo == 1 ? 0.75f : 1f), Shift(n) + Detune(), x);
         if (boomLevel > 0 && level >= boomLevel) Play(_boom, bigVolume * Mathf.Min(1f, 0.45f + 0.06f * level), -(level - boomLevel) * 0.8f, x);
-        if (combo >= 3) Play(_sparkle, bigVolume * Mathf.Min(1f, 0.3f + 0.12f * combo), Ladder[Mathf.Min(combo - 3, 4)], x);
-        if ((record && level >= 4) || level >= maxLevel) Play(_fanfare, bigVolume, 0f, 0f);
+        if (combo >= 3) Play(_bubbles, bigVolume * Mathf.Min(0.8f, 0.25f + 0.1f * combo), key + Degree(Mathf.Min(combo - 3, 5)), x);
+        if ((record && level >= 4) || level >= maxLevel) Play(_fanfare, bigVolume, key, 0f);
+        Duck();
     }
 
-    // Division d'un slime (fin de niveau réussi) : « bloup » aigu, cloche qui monte à chaque génération. Peu par image (des
-    // dizaines de slimes se divisent ensemble).
+    // Division d'un gumori (fin de niveau réussi) : « bloup » qui monte d'un cran à chaque génération. Peu par image (des
+    // dizaines de gumori se divisent ensemble).
     public void Split(int level, int generation, float x)
     {
         if (_splitsThisFrame >= 3 || _fusion == null) return;
         _splitsThisFrame++;
-        Play(_bloop, mergeVolume * 0.6f, 9f - level * semitonesPerLevel + Jitter(), x);
-        Play(_ding, comboVolume * 0.5f, Ladder[Mathf.Min(generation, Ladder.Length - 1)], x);
+        Play(_bloop, mergeVolume * 0.6f, Shift(MergeDegree(level, 1) + 2 + generation) + Detune(), x);
     }
 
-    public void PlayFanfare() => Play(_fanfare, bigVolume, 0f, 0f);
+    public void PlayFanfare() => Play(_fanfare, bigVolume, key, 0f);
 
     void OnImpact(BLOB blob, Vector2 point, Vector2 normal, float speed)
     {
         if (speed < softImpact || _impactsThisFrame >= 3 || _fusion == null) return;
         _impactsThisFrame++;
         float strength = Mathf.Clamp01((speed - softImpact) / Mathf.Max(0.1f, loudImpact - softImpact));
-        Play(_splats[_rand.Next(_splats.Length)], impactVolume * (0.15f + 0.85f * strength),
+        var set = strength < 0.45f ? _softSplats : _splats;
+        Play(set[_rand.Next(set.Length)], impactVolume * (0.2f + 0.8f * strength),
             2f - _fusion.LevelOf(blob) * semitonesPerLevel + Jitter(), point.x);
     }
 
@@ -166,13 +260,100 @@ public class SlimeSound : MonoBehaviour
                 Play(_plop, dropVolume, 3f - r.level * semitonesPerLevel * 0.6f + Jitter(), r.x);
                 continue;
             }
-            Play(_bloop, mergeVolume, 5f - r.level * semitonesPerLevel + Jitter() * 0.5f, r.x);
+            if (r.kind == 2)
+            {
+                Play(_whoosh, launchVolume * (0.3f + 0.7f * r.strength), -r.level * semitonesPerLevel * 0.5f + Jitter() * 0.5f, r.x);
+                continue;
+            }
+            // Série : même bloup, un cran plus haut par maillon, avec des couches en plus (octave grave, puis harmonie).
+            int n = MergeDegree(r.level, r.combo);
+            Play(_bloop, mergeVolume, Shift(n) + Detune(), r.x);
+            if (r.combo >= 2) Play(_bloop, mergeVolume * 0.45f, Shift(n) - 12f + Detune(), r.x);
+            if (r.combo >= 3) Play(_bloop, mergeVolume * 0.3f, Shift(n + 2) + Detune(), r.x);
+            Duck();
             if (_fx == null || !_fx.isActiveAndEnabled) Burst(r.level, r.combo, r.record, r.x);
         }
         _requests.Clear();
     }
 
-    float Jitter() => jitter * ((float)_rand.NextDouble() * 2f - 1f);
+    void LateUpdate() => UpdateJelly();
+
+    // ---- Gelée (temps réel) ----
+
+    // Choisit les gumori les plus agités (les gros d'abord) et donne leurs cibles aux voix de SlimeSynth. Une voix garde son
+    // gumori tant qu'il reste parmi les choisis ; libérée, elle se tait avant d'en prendre un autre.
+    void UpdateJelly()
+    {
+        if (_synth == null) return;
+        float now = Time.unscaledTime;
+        _duckTime = Mathf.Max(0f, _duckTime - Time.unscaledDeltaTime);
+        _synth.duck = 1f - duckDepth * Mathf.SmoothStep(0f, 1f, _duckTime / 0.35f);
+        _synth.slosh = slosh;
+        _synth.padRoot = 130.81f * Mathf.Pow(2f, key / 12f);
+
+        var motions = skin != null ? skin.Motions : null;
+        int count = motions != null ? motions.Count : 0;
+        float span = Mathf.Max(0.01f, wobbleFull - wobbleGate), total = 0f;
+        _candidates.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            var m = motions[i];
+            float energy = Mathf.Clamp01((m.wobble - wobbleGate) / span) + Travel(m.speed);
+            total += energy;
+            if (energy > 0.01f) _candidates.Add(new Candidate { index = i, score = energy * (0.6f + m.radius) });
+        }
+        _candidates.Sort(ByScore);
+        int chosen = Mathf.Min(_candidates.Count, Mathf.Min(wobbleVoices, SlimeSynth.MaxVoices));
+
+        float sum = 0f;
+        for (int c = 0; c < chosen; c++)
+        {
+            var m = motions[_candidates[c].index];
+            sum += Mathf.Pow(Mathf.Clamp01((m.wobble - wobbleGate) / span), 1.3f) + 0.5f * Travel(m.speed);
+        }
+        float norm = wobbleVolume * master * (sum > 1f ? 1f / Mathf.Sqrt(sum) : 1f);
+
+        System.Array.Clear(_kept, 0, _kept.Length);
+        for (int c = 0; c < chosen; c++)
+        {
+            var m = motions[_candidates[c].index];
+            int v = System.Array.IndexOf(_owner, m.id);
+            if (v < 0)
+            {
+                for (int k = 0; k < SlimeSynth.MaxVoices; k++)
+                    if (_owner[k] == 0 && now >= _freeAt[k]) { v = k; break; }
+                if (v < 0) continue;
+                _owner[v] = m.id;
+                _synth.snap[v] = true;
+            }
+            _kept[v] = true;
+            float w = Mathf.Clamp01((m.wobble - wobbleGate) / span), travel = Travel(m.speed);
+            float size = Mathf.Lerp(0.55f, 1f, Mathf.Clamp01(m.radius / 2f));
+            int n = MergeDegree(m.level, 1);
+            _synth.freq[v] = 164.81f * Mathf.Pow(2f, Shift(n) / 12f) * (1f + 0.08f * m.stretch);
+            _synth.open[v] = Mathf.Clamp01(0.5f * m.stretch + 0.6f * w + 0.25f * travel);
+            _synth.tone[v] = norm * size * Mathf.Pow(w, 1.3f);
+            _synth.air[v] = norm * size * 0.5f * travel;
+            _synth.pan[v] = Pan(m.center.x);
+        }
+        for (int v = 0; v < SlimeSynth.MaxVoices; v++)
+        {
+            if (_kept[v]) continue;
+            if (_owner[v] != 0) { _owner[v] = 0; _freeAt[v] = now + 0.12f; }
+            _synth.tone[v] = 0f;
+            _synth.air[v] = 0f;
+        }
+        _synth.pad = 0.3f * ambience * master * (0.75f + 0.25f * Mathf.Clamp01(total / 3f));
+    }
+
+    float Travel(float speed) => travelFull > 0f ? Mathf.Clamp01((speed - 0.25f) / travelFull) : 0f;
+
+    float Pan(float x)
+    {
+        var cam = Camera.main;
+        if (cam == null || !cam.orthographic) return 0f;
+        return Mathf.Clamp((x - cam.transform.position.x) / (cam.orthographicSize * cam.aspect), -1f, 1f) * stereo;
+    }
 
     void Play(AudioClip clip, float volume, float semitones, float x)
     {
@@ -188,10 +369,7 @@ public class SlimeSound : MonoBehaviour
         source.clip = clip;
         source.volume = volume * master;
         source.pitch = Mathf.Clamp(Mathf.Pow(2f, semitones / 12f), 0.1f, 3f);
-        float pan = 0f;
-        var cam = Camera.main;
-        if (cam != null && cam.orthographic) pan = Mathf.Clamp((x - cam.transform.position.x) / (cam.orthographicSize * cam.aspect), -1f, 1f) * stereo;
-        source.panStereo = pan;
+        source.panStereo = Pan(x);
         source.Play();
         _started[pick] = Time.unscaledTime;
     }
@@ -201,12 +379,14 @@ public class SlimeSound : MonoBehaviour
     void Synthesize()
     {
         _plop = Clip("plop", Plop());
-        _splats = new[] { Clip("splotch 1", Splat(11u)), Clip("splotch 2", Splat(23u)), Clip("splotch 3", Splat(37u)) };
+        _splats = new[] { Clip("splotch 1", Splat(11u, 1f)), Clip("splotch 2", Splat(23u, 1f)), Clip("splotch 3", Splat(37u, 1f)) };
+        _softSplats = new[] { Clip("splotch doux 1", Splat(13u, 0.2f)), Clip("splotch doux 2", Splat(29u, 0.2f)), Clip("splotch doux 3", Splat(41u, 0.2f)) };
         _bloop = Clip("bloup", Bloop());
-        _ding = Clip("cloche", Ding());
+        _doum = Clip("doum", Doum());
         _boom = Clip("grondement", Boom());
-        _sparkle = Clip("paillettes", Sparkle());
-        _fanfare = Clip("fanfare", Fanfare());
+        _bubbles = Clip("bulles", Bubbles());
+        _fanfare = Clip("fête", Fanfare());
+        _whoosh = Clip("fwoump", Whoosh());
     }
 
     static AudioClip Clip(string name, float[] data)
@@ -282,29 +462,33 @@ public class SlimeSound : MonoBehaviour
         return d;
     }
 
-    static float[] Splat(uint seed)
+    // Choc : coup sourd grave + gelée écrasée (bruit filtré) ; 'wet' 0 = doux et étouffé, 1 = mouillé.
+    static float[] Splat(uint seed, float wet)
     {
         var d = Buffer(0.32f);
         var noise = new Noise(seed);
         var body = new Filter();
-        var wet = new Filter();
+        var squish = new Filter();
         float phase = 0f;
         for (int i = 0; i < d.Length; i++)
         {
             float t = (float)i / Rate;
             float n = noise.Next();
-            body.Run(n, 260f + 2600f * Mathf.Exp(-t / 0.035f), 0.6f);
-            wet.Run(n, 900f + 400f * Mathf.Sin(2f * Mathf.PI * 38f * t), 0.3f);
-            float f = 55f + 110f * Mathf.Exp(-t / 0.03f);
+            body.Run(n, 170f + (700f + 1300f * wet) * Mathf.Exp(-t / 0.03f), 0.6f);
+            squish.Run(n, 450f + 250f * wet + 250f * Mathf.Sin(2f * Mathf.PI * 34f * t), 0.3f);
+            float f = 48f + 95f * Mathf.Exp(-t / 0.035f);
             phase += 2f * Mathf.PI * f / Rate;
-            float squelch = wet.band * Env(t - 0.02f, 0.01f, 0.05f) * (0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * 30f * t));
-            d[i] = body.low * Env(t, 0.001f, 0.06f) * 1.2f + Mathf.Sin(phase) * Env(t, 0.002f, 0.07f) * 0.9f + squelch * 0.5f;
+            float s = squish.band * Env(t - 0.02f, 0.01f, 0.05f) * (0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * 28f * t));
+            d[i] = body.low * Env(t, 0.001f, 0.06f) * (0.7f + 0.4f * wet) + Mathf.Sin(phase) * Env(t, 0.002f, 0.08f) * 1.1f
+                   + s * 0.45f * wet;
         }
         return d;
     }
 
+    // Accordé sur mi 5 (fin de la montée) : Shift() le transpose dans la gamme.
     static float[] Bloop()
     {
+        const float Tune = 659.26f / 680f;
         var d = Buffer(0.55f);
         float phase = 0f, sub = 0f;
         float[] bubbles = { 0.10f, 0.16f, 0.23f };
@@ -312,9 +496,9 @@ public class SlimeSound : MonoBehaviour
         for (int i = 0; i < d.Length; i++)
         {
             float t = (float)i / Rate;
-            float f = 210f + 470f * (1f - Mathf.Exp(-t / 0.05f));
+            float f = (210f + 470f * (1f - Mathf.Exp(-t / 0.05f))) * Tune;
             phase += 2f * Mathf.PI * f / Rate;
-            sub += 2f * Mathf.PI * (110f + 50f * (1f - Mathf.Exp(-t / 0.04f))) / Rate;
+            sub += 2f * Mathf.PI * (110f + 50f * (1f - Mathf.Exp(-t / 0.04f))) * Tune / Rate;
             float s = Mathf.Sin(phase) * Env(t, 0.004f, 0.15f) + 0.3f * Mathf.Sin(2f * phase) * Env(t, 0.004f, 0.08f)
                       + 0.5f * Mathf.Sin(sub) * Env(t, 0.003f, 0.12f);
             for (int b = 0; b < 3; b++)
@@ -329,26 +513,22 @@ public class SlimeSound : MonoBehaviour
         return d;
     }
 
-    // Cloche : partiels légèrement inharmoniques qui s'éteignent chacun à leur rythme, plus une octave basse douce.
-    static void Bell(float[] d, float start, float freq, float amp, float length)
+    // « Doum » : note grave et ronde (mi 3) qui tombe un peu, harmoniques pour qu'on l'entende aussi sur un téléphone.
+    static float[] Doum()
     {
-        float[] ratio = { 1f, 2f, 3.01f, 4.17f, 5.43f };
-        float[] gain = { 1f, 0.5f, 0.22f, 0.12f, 0.07f };
-        float[] decay = { 0.9f, 0.55f, 0.35f, 0.22f, 0.15f };
-        int i0 = Mathf.Max(0, Mathf.RoundToInt(start * Rate));
-        for (int i = i0; i < d.Length; i++)
+        var d = Buffer(0.9f);
+        var noise = new Noise(7u);
+        var soft = new Filter();
+        float phase = 0f;
+        for (int i = 0; i < d.Length; i++)
         {
-            float t = (float)(i - i0) / Rate;
-            float s = 0.25f * Mathf.Sin(Mathf.PI * freq * t) * Env(t, 0.01f, 0.6f * length);
-            for (int p = 0; p < ratio.Length; p++) s += gain[p] * Mathf.Sin(2f * Mathf.PI * freq * ratio[p] * t) * Env(t, 0.002f, decay[p] * length);
-            d[i] += amp * s;
+            float t = (float)i / Rate;
+            float f = 164.81f * (1f + 0.18f * Mathf.Exp(-t / 0.03f));
+            phase += 2f * Mathf.PI * f / Rate;
+            soft.Run(noise.Next(), 600f, 0.8f);
+            d[i] = (Mathf.Sin(phase) + 0.4f * Mathf.Sin(2f * phase) * Env(t, 0f, 0.18f) + 0.15f * Mathf.Sin(3f * phase) * Env(t, 0f, 0.1f))
+                   * Env(t, 0.006f, 0.32f) + soft.low * Env(t, 0.001f, 0.012f) * 0.6f;
         }
-    }
-
-    static float[] Ding()
-    {
-        var d = Buffer(1.4f);
-        Bell(d, 0f, 523.25f, 1f, 1f);
         return d;
     }
 
@@ -357,49 +537,77 @@ public class SlimeSound : MonoBehaviour
         var d = Buffer(1.6f);
         var noise = new Noise(91u);
         var whump = new Filter();
-        var air = new Filter();
         float phase = 0f;
         for (int i = 0; i < d.Length; i++)
         {
             float t = (float)i / Rate;
             phase += 2f * Mathf.PI * (38f + 60f * Mathf.Exp(-t / 0.18f)) / Rate;
-            float n = noise.Next();
-            whump.Run(n, 120f + 900f * Mathf.Exp(-t / 0.05f), 0.7f);
-            air.Run(n, 5000f, 0.4f);
-            d[i] = Mathf.Sin(phase) * Env(t, 0.004f, 0.5f) + whump.low * Env(t, 0.003f, 0.18f) * 0.6f + air.band * Env(t, 0.08f, 0.45f) * 0.12f;
+            whump.Run(noise.Next(), 120f + 700f * Mathf.Exp(-t / 0.05f), 0.7f);
+            d[i] = Mathf.Sin(phase) * Env(t, 0.004f, 0.5f) + 0.25f * Mathf.Sin(2f * phase) * Env(t, 0.004f, 0.3f)
+                   + whump.low * Env(t, 0.003f, 0.18f) * 0.6f;
         }
         return d;
     }
 
-    static float[] Sparkle()
+    // Cascade de bulles d'eau qui montent (do 4 à do 5, dans la gamme) : la fête d'une longue chaîne, sans aigus perçants.
+    static float[] Bubbles()
     {
         var d = Buffer(1.1f);
         var rand = new System.Random(17);
-        const int Count = 22;
+        const int Count = 14;
         for (int k = 0; k < Count; k++)
         {
-            float start = 0.6f * Mathf.Pow((float)k / Count, 1.3f) + 0.02f * (float)rand.NextDouble();
-            float freq = 1046.5f * Mathf.Pow(2f, Ladder[rand.Next(Ladder.Length)] / 12f);
-            float amp = 0.3f * (1f - 0.6f * k / Count), decay = 0.07f + 0.08f * (float)rand.NextDouble();
+            float start = 0.55f * Mathf.Pow((float)k / Count, 1.2f) + 0.02f * (float)rand.NextDouble();
+            float freq = 261.63f * Mathf.Pow(2f, Degree(rand.Next(6) + k / 5) / 12f);
+            float amp = 0.35f * (1f - 0.5f * k / Count), decay = 0.05f + 0.04f * (float)rand.NextDouble();
             int i0 = Mathf.RoundToInt(start * Rate);
+            float phase = 0f;
             for (int i = i0; i < d.Length; i++)
             {
                 float t = (float)(i - i0) / Rate;
-                float env = Env(t, 0.001f, decay);
+                float env = Env(t, 0.002f, decay);
                 if (env < 1e-4f && t > 0.01f) break;
-                d[i] += amp * env * (Mathf.Sin(2f * Mathf.PI * freq * t) + 0.3f * Mathf.Sin(4f * Mathf.PI * freq * t));
+                phase += 2f * Mathf.PI * freq * (1f + 0.6f * (1f - Mathf.Exp(-t / 0.012f))) / Rate;
+                d[i] += amp * env * Mathf.Sin(phase);
             }
         }
         return d;
     }
 
+    // Accord doux qui s'ouvre (do mi sol do + basse), notes égrenées : une fête calme.
     static float[] Fanfare()
     {
-        var d = Buffer(2.4f);
-        int[] notes = { 0, 4, 7, 12 };
-        for (int k = 0; k < notes.Length; k++) Bell(d, 0.09f * k, 523.25f * Mathf.Pow(2f, notes[k] / 12f), 0.6f, 0.45f);
-        for (int k = 0; k < notes.Length; k++) Bell(d, 0.38f, 523.25f * Mathf.Pow(2f, notes[k] / 12f), 0.45f, 1.4f);
-        Bell(d, 0.38f, 261.63f, 0.4f, 1.6f);
+        var d = Buffer(2.6f);
+        float[] notes = { 130.81f, 261.63f, 329.63f, 392f, 523.25f };
+        for (int k = 0; k < notes.Length; k++)
+        {
+            float start = k == 0 ? 0f : 0.08f * (k - 1);
+            int i0 = Mathf.RoundToInt(start * Rate);
+            float amp = k == 0 ? 0.7f : 0.45f;
+            for (int i = i0; i < d.Length; i++)
+            {
+                float t = (float)(i - i0) / Rate;
+                float ph = 2f * Mathf.PI * notes[k] * t;
+                d[i] += amp * Env(t, 0.06f, 0.9f) * (Mathf.Sin(ph) + 0.3f * Mathf.Sin(2f * ph) + 0.08f * Mathf.Sin(3f * ph));
+            }
+        }
+        return d;
+    }
+
+    // Tir : souffle grave qui s'ouvre et se referme, petit coup sourd au départ.
+    static float[] Whoosh()
+    {
+        var d = Buffer(0.5f);
+        var noise = new Noise(53u);
+        var air = new Filter();
+        float phase = 0f;
+        for (int i = 0; i < d.Length; i++)
+        {
+            float t = (float)i / Rate;
+            air.Run(noise.Next(), 200f + 650f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.42f)), 0.9f);
+            phase += 2f * Mathf.PI * (60f + 40f * Mathf.Exp(-t / 0.03f)) / Rate;
+            d[i] = air.band * Env(t, 0.05f, 0.14f) * 1.4f + Mathf.Sin(phase) * Env(t, 0.003f, 0.07f) * 0.7f;
+        }
         return d;
     }
 }

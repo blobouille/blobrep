@@ -77,6 +77,16 @@ public class SlimeSkin : MonoBehaviour
     // Choc détecté sur un slime : point de contact, normale (vers le slime), vitesse perdue (m/s).
     public event System.Action<BLOB, Vector2, Vector2, float> Impact;
 
+    // Mouvement de chaque gumori vu à l'écran, refait à chaque image (son de la gelée) : tremblement = vitesse à laquelle sa forme
+    // change (1/s : ovale et trèfle de l'anneau, rapportés à sa taille), étirement = écart à un cercle (0 = rond), vitesse en m/s.
+    public struct Motion
+    {
+        public int id, level;
+        public Vector2 center;
+        public float radius, wobble, stretch, speed;
+    }
+    public readonly List<Motion> Motions = new List<Motion>();
+
     // Dessin de slimes sans physique (fin de niveau…) : appelé pendant la construction du maillage, temps écoulé en argument ;
     // y appeler DrawVirtual.
     public event System.Action<float> DrawExtras;
@@ -124,9 +134,11 @@ public class SlimeSkin : MonoBehaviour
 
     internal class Look
     {
-        public int level, seen, step;
+        public int level, seen, step, id;
         public float radius, rot, frame, seed;
         public bool hasRot, hasCenter, hasVelocity;
+        public Vector4 shape;
+        public float wobble, wobbleRaw, stretch, stepTime;
         public Vector2 center, velocity, look, attention;
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
         public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
@@ -281,7 +293,7 @@ public class SlimeSkin : MonoBehaviour
 
     Look NewLook(int level, float radius)
     {
-        var look = new Look { level = level, radius = radius, seed = Mathf.Repeat(++_seedCounter * 0.618034f, 1f) * 50f };
+        var look = new Look { level = level, radius = radius, id = ++_seedCounter, seed = Mathf.Repeat(_seedCounter * 0.618034f, 1f) * 50f };
         look.blinkIn = blinkInterval * (0.3f + Rand());
         return look;
     }
@@ -335,6 +347,7 @@ public class SlimeSkin : MonoBehaviour
         _pending.Clear();
 
         Begin();
+        Motions.Clear();
         if (dropper != null)
         {
             var blobs = dropper.Blobs;
@@ -345,6 +358,11 @@ public class SlimeSkin : MonoBehaviour
                 var look = GetLook(blob);
                 look.seen = _frame;
                 UpdateBlob(blob, look, dt, step);
+                Motions.Add(new Motion
+                {
+                    id = look.id, level = look.level, center = look.center, radius = look.radius,
+                    wobble = look.wobble, stretch = look.stretch, speed = look.velocity.magnitude
+                });
             }
             if (drawPreviews) DrawPreviews(dt);
         }
@@ -379,7 +397,8 @@ public class SlimeSkin : MonoBehaviour
         }
         c /= m;
 
-        float sx = 0f, sy = 0f;
+        float sx = 0f, sy = 0f, r2 = 0f;
+        Vector4 shape = Vector4.zero;
         var rest = Units(m);
         for (int i = 0; i < m; i++)
         {
@@ -387,7 +406,15 @@ public class SlimeSkin : MonoBehaviour
             Vector2 d = _ring[i] - c;
             sx += ca * d.x + sa * d.y;
             sy += ca * d.y - sa * d.x;
+            // d² (ovale) et d³ / |d| (trèfle) en nombres complexes : forme sans dépendre de la position.
+            float xx = d.x * d.x, yy = d.y * d.y, inv = 1f / Mathf.Max(1e-5f, Mathf.Sqrt(xx + yy));
+            r2 += xx + yy;
+            shape.x += xx - yy;
+            shape.y += 2f * d.x * d.y;
+            shape.z += (d.x * (xx - 3f * yy)) * inv;
+            shape.w += (d.y * (3f * xx - yy)) * inv;
         }
+        if (r2 > 1e-6f) shape /= r2;
         float rot = Mathf.Atan2(sy, sx);
         if (!look.hasRot) { look.rot = rot; look.frame = 0f; look.hasRot = true; }
         else
@@ -425,11 +452,17 @@ public class SlimeSkin : MonoBehaviour
                 look.pastCount = Mathf.Min(8, look.pastCount + 1);
                 look.velocity = v;
                 look.hasVelocity = true;
+                look.wobbleRaw = (shape - look.shape).magnitude / (ds * Time.fixedDeltaTime);
             }
+            look.shape = shape;
+            look.stretch = shape.magnitude;
+            look.stepTime = Time.unscaledTime;
             look.center = c;
             look.step = step;
             look.hasCenter = true;
         }
+        if (Time.unscaledTime - look.stepTime > 0.15f) look.wobbleRaw = 0f; // simulation en pause
+        look.wobble = Mathf.Lerp(look.wobbleRaw, look.wobble, Mathf.Exp(-dt / 0.06f));
 
         Animate(look, dt, c);
 
