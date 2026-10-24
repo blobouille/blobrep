@@ -6,15 +6,26 @@ using UnityEngine;
 // Mitose à l'envers : un seul anneau remplace les deux, posé en cacahuète sur eux et tenu dans cette forme par les angles de
 // repos de ses joints, ramenés vers le cercle en 'mergeTime' : le col s'ouvre, les bouts rentrent, les capsules s'épaississent.
 // Contacts entre blobs comptés par événements (sommes entières : indépendant de leur ordre), fusions dans l'ordre de création.
+public enum GrowthMode { [InspectorName("Arithmétique (+)")] Arithmetic, [InspectorName("Multiplication (×)")] Geometric }
+
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BlobDropper))]
 public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Fusion")]
-    [Tooltip("Croissance LINÉAIRE : chaque niveau ajoute (growth − 1) × le diamètre du premier slime.\n" +
+    [Tooltip("Comment la taille grandit d'un niveau à l'autre.\n" +
+             "Arithmétique : on AJOUTE la même longueur à chaque niveau (growth).\n" +
+             "Multiplication : on MULTIPLIE le diamètre par le même facteur à chaque niveau (geometricGrowth) : petits écarts\n" +
+             "entre les petits, grands écarts entre les gros.")]
+    public GrowthMode growthMode = GrowthMode.Arithmetic;
+    [Tooltip("Mode arithmétique : chaque niveau ajoute (growth − 1) × le diamètre du premier slime.\n" +
              "Diamètre du niveau n = modèle × (1 + (growth − 1) × n). Ex. 1,25 avec un modèle de 1 m : 1 ; 1,25 ; 1,5 ; 1,75… ; 3,5 m au niveau 10.")]
     [Min(1f)] public float growth = 2f;
+    [Tooltip("Mode multiplication : diamètre du niveau n = modèle × geometricGrowth^n.\n" +
+             "Ex. 1,168 avec un modèle de 1 m : 1 ; 1,17 ; 1,36 ; 1,59… ; 4,7 m au niveau 10 (même taille max que l'arithmétique à 1,37).\n" +
+             "Attention : ça grimpe vite (1,25 → 9,3 m au niveau 10, plus grand que le réservoir).")]
+    [Min(1.01f)] public float geometricGrowth = 1.168f;
     [Tooltip("Nombre max de capsules d'un blob fusionné. Chaque fusion double le nombre de capsules (capsules de même longueur :\n" +
              "les deux anneaux se recousent exactement) jusqu'à ce maximum. Plus = plus rond, plus coûteux.")]
     [Range(3, 32)] public int maxSides = 32;
@@ -90,6 +101,7 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     public float LevelDiameter(int level)
     {
         float diameter = Template.diameter;
+        if (growthMode == GrowthMode.Geometric) return diameter * Mathf.Pow(geometricGrowth, level);
         return diameter * (1f + (growth - 1f) * level);
     }
 
@@ -235,8 +247,11 @@ public class BlobFusion : MonoBehaviour, ILevelPhysics, ILevelTick
 
     int Level(BLOB blob)
     {
+        float ratio = blob.diameter / _dropper.template.diameter;
+        if (growthMode == GrowthMode.Geometric)
+            return geometricGrowth <= 1f ? 0 : Mathf.Max(0, Mathf.RoundToInt(Mathf.Log(ratio) / Mathf.Log(geometricGrowth)));
         if (growth <= 1f) return 0;
-        return Mathf.RoundToInt((blob.diameter / _dropper.template.diameter - 1f) / (growth - 1f));
+        return Mathf.RoundToInt((ratio - 1f) / (growth - 1f));
     }
 
     void Merge(BLOB a, BLOB b)

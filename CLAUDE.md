@@ -154,7 +154,8 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    (`growth`), capsules doublées jusqu'à 32, couleur par niveau (dégradé de 10 teintes depuis le cyan du modèle : vert, jaune, orange, rouge, rose, violet),
    `maxLevel` = 10 par défaut. Taille LINÉAIRE depuis le 2026-10-21 (exponentielle avant, jugée trop rapide) : diamètre du
    niveau n = modèle × (1 + (`growth` − 1) × n) ; avec `growth` 1,37 : 1 ; 1,37 ; 1,74… ; 4,7 m au niveau 10 (tient dans le
-   réservoir de 8 m ; en exponentiel, 1,25 donnait déjà 9,3 m). Historique de l'exponentiel (sans limite : blobs de 8 puis 16 m
+   réservoir de 8 m ; en exponentiel, 1,25 donnait déjà 9,3 m). Depuis le 2026-10-25, au choix dans `BlobFusion.growthMode` :
+   Arithmétique (+, `growth`, défaut) ou Multiplication (×, `geometricGrowth` 1,168 = même 4,7 m au niveau 10). Historique de l'exponentiel (sans limite : blobs de 8 puis 16 m
    dans le réservoir de 8 m, éjectés à 200 m/s). Mitose à l'envers : nouvel anneau posé sur une cacahuète (union adoucie des
    deux cercles, col `waist`) TENUE par l'anneau (`SetShape` : angles de repos des joints = angles de la cacahuète − 2π/m,
    capsules allongées à son périmètre), puis ramenée au cercle en `mergeTime` selon `mergeCurve` ; capsules qui s'épaississent.
