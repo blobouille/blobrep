@@ -1,4 +1,4 @@
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
 var phase = System.IO.File.ReadAllText("Captures/bancs/lab_phase.txt").Trim();
 if (phase == "0")
 {

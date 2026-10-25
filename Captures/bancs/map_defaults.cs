@@ -1,8 +1,8 @@
-// Recopie les valeurs par défaut du script SlimeMap dans le composant de la scène (couleurs, caméra, décor).
-var m = UnityEngine.Object.FindAnyObjectByType<SlimeMap>();
+// Recopie les valeurs par défaut du script GumoriMap dans le composant de la scène (couleurs, caméra, décor).
+var m = UnityEngine.Object.FindAnyObjectByType<GumoriMap>();
 var tmp = new GameObject("tmp") { hideFlags = HideFlags.HideAndDontSave };
 tmp.SetActive(false);
-var d = tmp.AddComponent<SlimeMap>();
+var d = tmp.AddComponent<GumoriMap>();
 m.grass = d.grass; m.grassDark = d.grassDark; m.grassLight = d.grassLight;
 m.stone = d.stone; m.mortar = d.mortar; m.pathEdge = d.pathEdge;
 m.skyTop = d.skyTop; m.skyHorizon = d.skyHorizon; m.mist = d.mist;

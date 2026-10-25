@@ -1,8 +1,8 @@
 // Remplit le réservoir : redémarrage, N pas d'entrées fixes (lâchers + visée qui balaie), puis forme moyenne des slimes au repos.
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
-var sc = d.GetComponent<SlimeScore>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
+var sc = d.GetComponent<GumoriScore>();
 int steps = int.Parse(System.IO.File.ReadAllText("Captures/bancs/space_steps.txt").Trim());
-uint SP = 1u << (int)FlipperKey.Space, RI = 1u << (int)FlipperKey.RightArrow, LE = 1u << (int)FlipperKey.LeftArrow;
+uint SP = 1u << (int)GameKey.Space, RI = 1u << (int)GameKey.RightArrow, LE = 1u << (int)GameKey.LeftArrow;
 var inputs = new System.Collections.Generic.List<uint>();
 for (int i = 0; i < steps; i++)
 {
@@ -19,7 +19,7 @@ LevelSimulation.FastForward(inputs, inputs.Count);
 sw.Stop();
 ulong h = 1469598103934665603UL;
 float ratio = 0f; int n = 0; float top = -99f;
-foreach (var b in d.Blobs)
+foreach (var b in d.InPlay)
 {
     float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
     for (int k = 0; k < b.CapsuleCount; k++)

@@ -1,4 +1,4 @@
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
 var c = UnityEngine.Object.FindAnyObjectByType<CurvePath2D>();
 var sb = new System.Text.StringBuilder();
 sb.AppendLine("dropper " + d.transform.position + " half " + d.halfWidth + " gap " + d.wallGap);

@@ -1,7 +1,7 @@
-// Rend la vitrine des gumori (SlimeSkin, hors Play) par une caméra orthographique temporaire → Captures/gumori_vitrine.png.
-var skin = UnityEngine.Object.FindAnyObjectByType<SlimeSkin>();
-typeof(SlimeSkin).GetField("_builtFrame", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(skin, -1);
-var back = UnityEngine.Object.FindAnyObjectByType<SlimeBackdrop>();
+// Rend la vitrine des gumori (GumoriSkin, hors Play) par une caméra orthographique temporaire → Captures/gumori_vitrine.png.
+var skin = UnityEngine.Object.FindAnyObjectByType<GumoriSkin>();
+typeof(GumoriSkin).GetField("_builtFrame", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(skin, -1);
+var back = UnityEngine.Object.FindAnyObjectByType<GumoriBackdrop>();
 if (back != null) back.enabled = false;
 var go = new GameObject("capture vitrine") { hideFlags = HideFlags.HideAndDontSave };
 var cam = go.AddComponent<Camera>();

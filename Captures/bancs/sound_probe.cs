@@ -1,6 +1,6 @@
-// Son de la gelée : mouvement vu par SlimeSkin (tremblement, étirement, vitesse) et cibles des voix de SlimeSynth.
-var skin = UnityEngine.Object.FindAnyObjectByType<SlimeSkin>();
-var synth = UnityEngine.Object.FindAnyObjectByType<SlimeSynth>();
+// Son de la gelée : mouvement vu par GumoriSkin (tremblement, étirement, vitesse) et cibles des voix de GumoriSynth.
+var skin = UnityEngine.Object.FindAnyObjectByType<GumoriSkin>();
+var synth = UnityEngine.Object.FindAnyObjectByType<GumoriSynth>();
 var sb = new System.Text.StringBuilder();
 float maxW = 0f, sumW = 0f, maxS = 0f, maxV = 0f;
 foreach (var m in skin.Motions)
@@ -17,7 +17,7 @@ foreach (var w in ws) sb.Append(w.ToString("0.00")).Append(' ');
 if (synth != null)
 {
     sb.Append("| voix ");
-    for (int v = 0; v < SlimeSynth.MaxVoices; v++) sb.Append($"[{synth.tone[v]:0.00}/{synth.air[v]:0.00} {synth.freq[v]:0}Hz o{synth.open[v]:0.0}] ");
+    for (int v = 0; v < GumoriSynth.MaxVoices; v++) sb.Append($"[{synth.tone[v]:0.00}/{synth.air[v]:0.00} {synth.freq[v]:0}Hz o{synth.open[v]:0.0}] ");
     sb.Append($"nappe {synth.pad:0.000} duck {synth.duck:0.00}");
 }
 return sb.ToString();

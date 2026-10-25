@@ -1,4 +1,4 @@
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
 var one = new System.Collections.Generic.List<uint> { 0u };
 int shots = 0;
 for (int s = 0; s < 420; s++)
@@ -11,5 +11,5 @@ for (int s = 0; s < 420; s++)
     }
     LevelSimulation.FastForward(one, 1);
 }
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
 return "tirs " + shots + " slimes " + d.Count;

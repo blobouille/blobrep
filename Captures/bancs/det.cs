@@ -1,7 +1,7 @@
 // Déterminisme : deux parties identiques (redémarrage + 1500 pas d'entrées fixes) doivent donner le même hash au bit près.
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
-var sc = d.GetComponent<SlimeScore>();
-uint SP = 1u << (int)FlipperKey.Space, RI = 1u << (int)FlipperKey.RightArrow, LE = 1u << (int)FlipperKey.LeftArrow;
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
+var sc = d.GetComponent<GumoriScore>();
+uint SP = 1u << (int)GameKey.Space, RI = 1u << (int)GameKey.RightArrow, LE = 1u << (int)GameKey.LeftArrow;
 var inputs = new System.Collections.Generic.List<uint>();
 for (int i = 0; i < 1500; i++)
 {
@@ -16,7 +16,7 @@ string Run()
     LevelRestart.Restart();
     LevelSimulation.FastForward(inputs, inputs.Count);
     ulong h = 1469598103934665603UL;
-    foreach (var b in d.Blobs)
+    foreach (var b in d.InPlay)
         for (int k = 0; k < b.CapsuleCount; k++)
         {
             var p = b.Capsule(k).position;

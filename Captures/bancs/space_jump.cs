@@ -1,22 +1,22 @@
 // Partie scriptée de 1200 pas : hauteur max dont montent le slime né et ses voisins dans la seconde après chaque fusion.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var f = d.GetComponent<BlobFusion>();
-var soft = d.GetComponent<SlimeSoftMerge>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
+var soft = d.GetComponent<GumoriSoftMerge>();
 soft.enabled = System.IO.File.ReadAllText("Captures/bancs/soft.txt").Trim() == "1";
 d.seed = 2;
 LevelRestart.Restart();
-Vector2 C(BLOB b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
-bool InRack(BLOB b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
-var watch = new System.Collections.Generic.List<(BLOB blob, float y0, int until)>();
+Vector2 C(Gumori b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
+bool InRack(Gumori b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
+var watch = new System.Collections.Generic.List<(Gumori blob, float y0, int until)>();
 int merges = 0;
-var logged = new System.Collections.Generic.List<BLOB>(); var log = new System.Text.StringBuilder();
-System.Action<BLOB, int, Vector2> onMerge = (b, lv, at) =>
+var logged = new System.Collections.Generic.List<Gumori>(); var log = new System.Text.StringBuilder();
+System.Action<Gumori, int, Vector2> onMerge = (b, lv, at) =>
 {
     merges++;
     int until = LevelSimulation.Step + 60;
     watch.Add((b, at.y, until));
-    foreach (var x in d.Blobs)
+    foreach (var x in d.InPlay)
     {
         if (x == b) continue;
         float reach = 0.5f * (x.diameter + b.diameter) + 0.4f;
@@ -27,7 +27,7 @@ System.Action<BLOB, int, Vector2> onMerge = (b, lv, at) =>
 f.Merged += onMerge;
 var one = new System.Collections.Generic.List<uint> { 0u };
 float worst = 0f, sum = 0f; int big = 0, total = 0;
-var best = new System.Collections.Generic.Dictionary<BLOB, float>();
+var best = new System.Collections.Generic.Dictionary<Gumori, float>();
 while (LevelSimulation.Step < 1200)
 {
     int s = LevelSimulation.Step;
@@ -42,7 +42,7 @@ while (LevelSimulation.Step < 1200)
     for (int w = watch.Count - 1; w >= 0; w--)
     {
         var (b, y0, until) = watch[w];
-        bool alive = false; foreach (var x in d.Blobs) if (x == b) alive = true;
+        bool alive = false; foreach (var x in d.InPlay) if (x == b) alive = true;
         if (!alive || LevelSimulation.Step > until || InRack(b))
         {
             watch.RemoveAt(w);
@@ -56,5 +56,5 @@ while (LevelSimulation.Step < 1200)
 }
 f.Merged -= onMerge;
 soft.enabled = true;
-var esc = d.GetComponent<SlimeEscape>(); var unt = d.GetComponent<SlimeUntangle>();
+var esc = d.GetComponent<GumoriEscape>(); var unt = d.GetComponent<GumoriUntangle>();
 return log + $" évasions? démêlages {unt.Untangled} | douce {(soft.enabled ? "" : "")}{System.IO.File.ReadAllText("Captures/bancs/soft.txt").Trim()} | fusions {merges} | montée max {worst:F2} m | slimes montés de plus de 0,5 m : {big}/{total}";

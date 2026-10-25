@@ -1,22 +1,22 @@
 // Banc sans tir : lit de 14 slimes posé, puis 6 paires de slimes identiques posées l'une contre l'autre sur la pile (vitesse
 // nulle) : elles fusionnent au milieu de la foule. Énergie cinétique (½ v² × d², vitesse = déplacement réel) des slimes hors
 // réserve : pic dans les 1,5 s après la pose, moins le niveau d'avant. growTime lu dans grow.txt.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var f = d.GetComponent<BlobFusion>();
-var foam = d.GetComponent<SlimeFoam>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
+var foam = d.GetComponent<GumoriFoam>();
 foam.growTime = float.Parse(System.IO.File.ReadAllText("Captures/bancs/grow.txt").Trim(), System.Globalization.CultureInfo.InvariantCulture);
 d.seed = 2;
 LevelRestart.Restart();
 var one = new System.Collections.Generic.List<uint> { 0u };
-Vector2 C(BLOB b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
-bool InRack(BLOB b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
-var last = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
+Vector2 C(Gumori b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
+bool InRack(Gumori b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
+var last = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
 float Energy()
 {
     float e = 0f;
-    var now = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
-    foreach (var b in d.Blobs)
+    var now = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
+    foreach (var b in d.InPlay)
     {
         Vector2 c = C(b); now[b] = c;
         if (InRack(b) || !last.ContainsKey(b)) continue;
@@ -39,7 +39,7 @@ int merges0 = f.Merges;
 for (int p = 0; p < xs.Length; p++)
 {
     float top = -10f;
-    foreach (var b in d.Blobs) if (!InRack(b)) top = Mathf.Max(top, C(b).y + 0.5f * b.diameter);
+    foreach (var b in d.InPlay) if (!InRack(b)) top = Mathf.Max(top, C(b).y + 0.5f * b.diameter);
     float r = 0.5f * f.LevelDiameter(lv[p]);
     float before = 0f;
     for (int i = 0; i < 10; i++) { LevelSimulation.FastForward(one, 1); before = Mathf.Max(before, Energy()); }

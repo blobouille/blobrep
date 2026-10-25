@@ -1,6 +1,6 @@
 // Partie scriptée par morceaux (space_game.txt = "début fin") : un tir tous les 40 pas, rang / angle / force tirés d'un compteur.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
 var parts = System.IO.File.ReadAllText("Captures/bancs/space_game.txt").Trim().Split(' ');
 int from = int.Parse(parts[0]), to = int.Parse(parts[1]);
 if (from == 0) { d.seed = 2; LevelRestart.Restart(); }
@@ -23,11 +23,11 @@ while (LevelSimulation.Step < to)
 }
 sw.Stop();
 ulong h = 1469598103934665603UL;
-foreach (var b in d.Blobs)
+foreach (var b in d.InPlay)
     for (int k = 0; k < b.CapsuleCount; k++)
     {
         var p = b.Capsule(k).position;
         h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(p.x)) * 1099511628211UL;
         h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(p.y)) * 1099511628211UL;
     }
-return $"pas {LevelSimulation.Step} tirs {l.Shots.Count} réserve {l.Rack.Count} slimes {d.Count} score {d.GetComponent<SlimeScore>().Score} cout {sw.Elapsed.TotalMilliseconds / Mathf.Max(1, steps):F2} ms/pas hash {h:X16}";
+return $"pas {LevelSimulation.Step} tirs {l.Shots.Count} réserve {l.Rack.Count} slimes {d.Count} score {d.GetComponent<GumoriScore>().Score} cout {sw.Elapsed.TotalMilliseconds / Mathf.Max(1, steps):F2} ms/pas hash {h:X16}";

@@ -1,5 +1,5 @@
 // Applique les designs par défaut (nouvel ordre des familles) et les couleurs de niveau à toutes les scènes du jeu de slimes.
-// Seulement l'habillage : SlimeSkin.designs / variants et BlobFusion.levelColors. Rien d'autre n'est touché.
+// Seulement l'habillage : GumoriSkin.designs / variants et GumoriFusion.levelColors. Rien d'autre n'est touché.
 var paths = new[] { "Assets/Scenes/Slime/reservoir.unity", "Assets/Scenes/Slime/space endless.unity",
     "Assets/Scenes/Slime/space endless 1.unity", "Assets/Scenes/Slime/carte.unity" };
 var colors = new Color[]
@@ -19,15 +19,15 @@ foreach (var path in paths)
     int skins = 0, fusions = 0;
     foreach (var root in scene.GetRootGameObjects())
     {
-        foreach (var skin in root.GetComponentsInChildren<SlimeSkin>(true))
+        foreach (var skin in root.GetComponentsInChildren<GumoriSkin>(true))
         {
             UnityEditor.Undo.RecordObject(skin, "Designs gumori");
-            skin.designs = SlimeSkin.DefaultDesigns();
-            skin.variants = SlimeDesign.Variants();
+            skin.designs = GumoriSkin.DefaultDesigns();
+            skin.variants = GumoriDesign.Variants();
             UnityEditor.EditorUtility.SetDirty(skin);
             skins++;
         }
-        foreach (var fusion in root.GetComponentsInChildren<BlobFusion>(true))
+        foreach (var fusion in root.GetComponentsInChildren<GumoriFusion>(true))
         {
             UnityEditor.Undo.RecordObject(fusion, "Couleurs gumori");
             fusion.levelColors = (Color[])colors.Clone();

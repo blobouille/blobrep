@@ -1,12 +1,12 @@
-// Écoute hors jeu : rend les sons ponctuels de SlimeSound dans Captures/sons/apercu.wav (mono 44,1 kHz), avec les mêmes
+// Écoute hors jeu : rend les sons ponctuels de GumoriSound dans Captures/sons/apercu.wav (mono 44,1 kHz), avec les mêmes
 // transpositions qu'en jeu. Ordre : chaîne de 6 fusions (bloup + couches, puis doum à l'éclat), gros gumori (grondement),
 // chocs doux puis forts (petit puis gros), tir, cascade de bulles, accord de fête.
-var snd = UnityEngine.Object.FindAnyObjectByType<SlimeSound>();
+var snd = UnityEngine.Object.FindAnyObjectByType<GumoriSound>();
 var F = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-System.Func<string, AudioClip> C = n => (AudioClip)typeof(SlimeSound).GetField(n, F).GetValue(snd);
-System.Func<string, AudioClip[]> CA = n => (AudioClip[])typeof(SlimeSound).GetField(n, F).GetValue(snd);
-var mDeg = typeof(SlimeSound).GetMethod("MergeDegree", F);
-var mShift = typeof(SlimeSound).GetMethod("Shift", F);
+System.Func<string, AudioClip> C = n => (AudioClip)typeof(GumoriSound).GetField(n, F).GetValue(snd);
+System.Func<string, AudioClip[]> CA = n => (AudioClip[])typeof(GumoriSound).GetField(n, F).GetValue(snd);
+var mDeg = typeof(GumoriSound).GetMethod("MergeDegree", F);
+var mShift = typeof(GumoriSound).GetMethod("Shift", F);
 System.Func<int, int, int> Deg = (l, c) => (int)mDeg.Invoke(snd, new object[] { l, c });
 System.Func<int, float> Shift = n => (float)mShift.Invoke(snd, new object[] { n });
 const int R = 44100;

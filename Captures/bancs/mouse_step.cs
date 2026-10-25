@@ -1,5 +1,5 @@
 // Souris simulée : mouse.txt = "phase dx dy" (phase 0 = appui sur le 1er slime de la réserve, 1 = glisser de (dx,dy) m, 2 = relâcher).
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
 var cam = Camera.main;
 var v = System.IO.File.ReadAllText("Captures/bancs/mouse.txt").Trim().Split(' ');
 int phase = int.Parse(v[0]);

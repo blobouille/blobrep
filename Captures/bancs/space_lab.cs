@@ -1,8 +1,8 @@
 // Banc de fusion contrôlé : lit de slimes au fond, deux petits lâchés dessus (fusion puis chaîne dans la pile).
 // Mesure la vitesse réelle vers le haut (déplacement d'un pas à l'autre) des slimes hors réserve.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var f = d.GetComponent<BlobFusion>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
 d.seed = 2;
 LevelRestart.Restart();
 var one = new System.Collections.Generic.List<uint> { 0u };
@@ -13,14 +13,14 @@ Run(150);
 d.SpawnLevel(new Vector2(-0.45f, 6.5f), 1);
 d.SpawnLevel(new Vector2(0.45f, 6.5f), 1);
 int merges0 = f.Merges;
-Vector2 C(BLOB b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
-bool InRack(BLOB b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
-var last = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
+Vector2 C(Gumori b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
+bool InRack(Gumori b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
+var last = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
 float up = 0f, any = 0f; int fastSteps = 0;
 for (int s = 0; s < 240; s++)
 {
     Run(1);
-    foreach (var b in d.Blobs)
+    foreach (var b in d.InPlay)
     {
         if (InRack(b)) { last.Remove(b); continue; }
         Vector2 c = C(b);

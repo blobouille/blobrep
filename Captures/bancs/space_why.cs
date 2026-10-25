@@ -1,23 +1,23 @@
 // Pour chaque fusion : montée réelle max (déplacement d'un pas à l'autre) du né et des voisins pendant 1 s, et le contexte.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var f = d.GetComponent<BlobFusion>();
-var u = d.GetComponent<SlimeUntangle>();
-var e = d.GetComponent<SlimeEscape>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
+var u = d.GetComponent<GumoriUntangle>();
+var e = d.GetComponent<GumoriEscape>();
 d.seed = 2;
 LevelRestart.Restart();
-Vector2 C(BLOB b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
-bool InRack(BLOB b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
-var events = new System.Collections.Generic.List<(int step, BLOB born, int level, float y, System.Collections.Generic.List<BLOB> near, int unt, int esc, float upBorn, float upNear, string who, bool rackBorn)>();
-System.Action<BLOB, int, Vector2> onMerge = (b, lv, at) =>
+Vector2 C(Gumori b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
+bool InRack(Gumori b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
+var events = new System.Collections.Generic.List<(int step, Gumori born, int level, float y, System.Collections.Generic.List<Gumori> near, int unt, int esc, float upBorn, float upNear, string who, bool rackBorn)>();
+System.Action<Gumori, int, Vector2> onMerge = (b, lv, at) =>
 {
-    var near = new System.Collections.Generic.List<BLOB>();
-    foreach (var x in d.Blobs) if (x != b && (C(x) - at).magnitude < 0.5f * (x.diameter + b.diameter) + 0.4f) near.Add(x);
+    var near = new System.Collections.Generic.List<Gumori>();
+    foreach (var x in d.InPlay) if (x != b && (C(x) - at).magnitude < 0.5f * (x.diameter + b.diameter) + 0.4f) near.Add(x);
     events.Add((LevelSimulation.Step, b, lv, at.y, near, u.Untangled, e.Escapes, 0f, 0f, "", false));
 };
 f.Merged += onMerge;
 var one = new System.Collections.Generic.List<uint> { 0u };
-var last = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
+var last = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
 while (LevelSimulation.Step < 1200)
 {
     int s = LevelSimulation.Step;
@@ -29,8 +29,8 @@ while (LevelSimulation.Step < 1200)
         l.Launch((i * 7) % l.Rack.Count, new Vector2(Mathf.Cos(ang * Mathf.Deg2Rad), Mathf.Sin(ang * Mathf.Deg2Rad)) * speed);
     }
     LevelSimulation.FastForward(one, 1);
-    var now = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
-    foreach (var b in d.Blobs) now[b] = C(b);
+    var now = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
+    foreach (var b in d.InPlay) now[b] = C(b);
     for (int k = 0; k < events.Count; k++)
     {
         var ev = events[k];

@@ -1,0 +1,6 @@
+== reservoir
+"result":"seed=2 blobs=20 drops=52 merges=32 score=7810 escapes=0 hash=1183859B9F3344BF (0,349 ms/pas)"
+"result":"seed=2 blobs=20 drops=52 merges=32 score=7810 escapes=0 hash=1183859B9F3344BF (0,349 ms/pas)"
+== space endless 1
+"result":"seed=2 blobs=18 drops=0 merges=30 score=9100 escapes=2 hash=BF39F487BDA2CDA0 (2,695 ms/pas)"
+"result":"seed=2 blobs=18 drops=0 merges=30 score=9100 escapes=2 hash=BF39F487BDA2CDA0 (2,695 ms/pas)"

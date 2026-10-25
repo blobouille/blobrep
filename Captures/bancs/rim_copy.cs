@@ -5,7 +5,7 @@ foreach (var p in paths)
     var sc = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(p, UnityEditor.SceneManagement.OpenSceneMode.Additive);
     int n = 0;
     foreach (var root in sc.GetRootGameObjects())
-        foreach (var s in root.GetComponentsInChildren<SlimeSkin>(true))
+        foreach (var s in root.GetComponentsInChildren<GumoriSkin>(true))
         {
             var so = new UnityEditor.SerializedObject(s);
             so.FindProperty("rimWidth").floatValue = 0.074f;

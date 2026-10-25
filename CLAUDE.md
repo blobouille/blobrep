@@ -9,7 +9,7 @@ n'est PAS encore décidé : on prototype d'abord la sensation.
 
 Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers, puis un skateur (abandonnés). Tout cet état
 (code, scènes, ancien CLAUDE.md complet avec toutes les mesures) est conservé par les tags git `blob-et-debut-skate` et
-`avant-slime`. Le code reste dans le projet (voir « Code existant »).
+`avant-slime`. Leur code a été retiré du projet le 2026-10-25 (voir « Code du jeu »).
 
 Noms (décision du 2026-10-23) : le jeu et son univers (personnages réutilisables dans d'autres jeux) = « Gumori » (marque à
 déposer, classes 9 et 41) ; nom commercial de la micro-entreprise = « Gumori » aussi (une seule identité ; « Igueldan »
@@ -80,14 +80,14 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   Mesuré (OKLab ΔE, pire nuance contre pire nuance, 5 modes : normal, deutéranopie, protanopie, tritanopie, gris) : niveaux
   voisins ≥ 0,10 partout (le plus juste : rose / bleu en protanopie et en gris, depuis le bleu plus clair). À 2 niveaux d'écart, faible pour violet / bleu et rouge / chocolat en daltonisme rouge-vert, et
   plusieurs paires en gris / tritanopie : la taille (+26 à 54 %) départage. Crème à surveiller sur fond clair
-- Appliqué au jeu (2026-10-24) : `SlimeDesign.Levels()` (un design par niveau), mêmes couleurs dans `BlobFusion.levelColors`,
+- Appliqué au jeu (2026-10-24) : `GumoriDesign.Levels()` (un design par niveau), mêmes couleurs dans `GumoriFusion.levelColors`,
   toutes les scènes. Purement visuel : aucun effet sur la simulation ni les replays
 
 ### Règles de création des skins (décision du 2026-10-24)
 - TOUT est fait par le code : aucune texture, aucun sprite, aucun fichier image. Formes des accessoires = polygones calculés
-  (`SlimeSkin`), motifs / visages / reflets = fonctions du shader `Slime/Body` (distances signées). Rien d'autre n'est permis
+  (`GumoriSkin`), motifs / visages / reflets = fonctions du shader `Slime/Body` (distances signées). Rien d'autre n'est permis
 - Un gumori = une combinaison de CASES, un élément par case, chaque élément obtenable séparément (collection, futur avatar
-  personnalisé). Données : `Cosmetics/SlimeDesign.cs` (enums des cases + catalogue). Cases actuelles :
+  personnalisé). Données : `Cosmetics/GumoriDesign.cs` (enums des cases + catalogue). Cases actuelles :
   - Couleur du corps (« couleur du fond ») : famille + nuance (`body`, `shade`), toujours dans la fourchette de la famille
   - Motif (effets sur la gelée) : bulles, pois, ondes, alvéoles, rayures, magma, paillettes, cristal, galaxie, arc-en-ciel,
     anneaux lunaires, vermicelles, eau (reflets de vagues + bulles de verre), cactus (côtes + épines), filets de chocolat,
@@ -109,7 +109,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   case : aura, traînée, effet de fusion…), jamais un design figé d'un bloc. Valeurs d'enum toujours ajoutées à la FIN
   (enregistrées dans les scènes par leur numéro)
 - DA commune : rond, mou, gélatineux, kawaii (grands yeux brillants, joues, petite bouche) ; les variations sont dans les
-  cases, jamais dans cette base. Couleurs écrites en sRGB (#RRGGBB, comme une palette), converties par `SlimeDesign.Hex`
+  cases, jamais dans cette base. Couleurs écrites en sRGB (#RRGGBB, comme une palette), converties par `GumoriDesign.Hex`
 - Chaque gumori de base est un THÈME qui a un sens avec sa couleur (petit tigre orange, cristal violet, bonbon rose, eau
   bleue, ruche jaune, magma rouge, chantilly, ourson en chocolat, cactus vert, nébuleuse noire), pas une couleur avec un
   motif posé au hasard. Un gumori trop simple (une couleur + un détail) est « boring » : lui donner un thème, sans
@@ -141,20 +141,20 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
 
 ## Roadmap (étape actuelle en gras)
 1. Strict minimum (scène `Slime/reservoir`) : un réservoir (rectangle ouvert en haut), on lâche des blobs d'en haut
-   (`BlobDropper`), rien d'autre. But : voir comment ils s'empilent et combien on peut en mettre avant de ralentir.
+   (`GumoriDropper`), rien d'autre. But : voir comment ils s'empilent et combien on peut en mettre avant de ralentir.
    Fait (2026-10-21) : réservoir 8 × 14 m (courbe ouverte en U), `Lâcher` (flèches = viser, Espace = lâcher, tenu = rafale,
    R = vider), `Blob modèle (désactivé)` = réglages des blobs lâchés (défauts : 16 capsules, Ø 1 m, joints 48 Hz), gravité −15.
    Mesuré (PC, éditeur, blobs empilés au repos) : 10 blobs 0,24 ms par pas, 30 : 0,9, 60 : 2,3, 90 : 3,5, 120 : 5,1 ms (réservoir
    presque plein) ; budget 8,3 ms par pas à 120 pas/s, mobile 2 à 4 × plus lent → ≈ 40–60 blobs max sur mobile en l'état.
    Moins de la moitié est Box2D (120 blobs : 2,0 ms) : le reste = chaque blob relit TOUS les événements de contact du monde
-   (`BLOB.RefreshContacts`, coût ∝ blobs × événements) → première optimisation évidente. Rejeu exact au bit près (d'un bloc
+   (`BLOB.RefreshContacts`, coût ∝ blobs × événements) → première optimisation évidente (faite le 2026-10-25, voir « Code du jeu »). Rejeu exact au bit près (d'un bloc
    et pas à pas). Corrigé au passage : tous les blobs avaient le même groupe de collision (−1) et se traversaient ; un groupe
-   négatif par blob maintenant (`BLOB._groupCounter`)
-   Fusion (2026-10-21, `BlobFusion` sur `Lâcher`) : deux blobs de même taille qui se touchent → un blob ×2 en diamètre
+   négatif par blob maintenant (`Gumori._groupCounter`)
+   Fusion (2026-10-21, `GumoriFusion` sur `Lâcher`) : deux blobs de même taille qui se touchent → un blob ×2 en diamètre
    (`growth`), capsules doublées jusqu'à 32, couleur par niveau (dégradé de 10 teintes depuis le cyan du modèle : vert, jaune, orange, rouge, rose, violet),
    `maxLevel` = 10 par défaut. Taille LINÉAIRE depuis le 2026-10-21 (exponentielle avant, jugée trop rapide) : diamètre du
    niveau n = modèle × (1 + (`growth` − 1) × n) ; avec `growth` 1,37 : 1 ; 1,37 ; 1,74… ; 4,7 m au niveau 10 (tient dans le
-   réservoir de 8 m ; en exponentiel, 1,25 donnait déjà 9,3 m). Depuis le 2026-10-25, au choix dans `BlobFusion.growthMode` :
+   réservoir de 8 m ; en exponentiel, 1,25 donnait déjà 9,3 m). Depuis le 2026-10-25, au choix dans `GumoriFusion.growthMode` :
    Arithmétique (+, `growth`, défaut) ou Multiplication (×, `geometricGrowth` 1,168 = même 4,7 m au niveau 10). Historique de l'exponentiel (sans limite : blobs de 8 puis 16 m
    dans le réservoir de 8 m, éjectés à 200 m/s). Mitose à l'envers : nouvel anneau posé sur une cacahuète (union adoucie des
    deux cercles, col `waist`) TENUE par l'anneau (`SetShape` : angles de repos des joints = angles de la cacahuète − 2π/m,
@@ -172,33 +172,33 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    sans aucune fusion ; très visible avec l'habillage). Piste : ne lâcher que quand le précédent a libéré la place (test
    de distance dans LevelTick, déterministe) ; ceux du bas de la pile s'aplatissent ; surface (et
    masse) du blob fusionné = 2 × celle des deux blobs réunis (conserver la matière = diamètre ×1,41)
-   Suite, aperçu, points (2026-10-21) : niveaux définis à un seul endroit (`BlobFusion.LevelDiameter / LevelSides /
+   Suite, aperçu, points (2026-10-21) : niveaux définis à un seul endroit (`GumoriFusion.LevelDiameter / LevelSides /
    LevelColor / LevelStiffness`, diamètre calculé pareil pour lâchés et fusionnés : égal au bit près,
-   c'est ce qui reconnaît deux slimes de même niveau). `BlobDropper` : suite aléatoire à graine fixe (`seed`, xorshift32 en
+   c'est ce qui reconnaît deux slimes de même niveau). `GumoriDropper` : suite aléatoire à graine fixe (`seed`, xorshift32 en
    entiers, tirée au départ et à chaque lâcher dans `LevelTick` ; pas `UnityEngine.Random`), niveaux 0 à `maxDropLevel` (3),
    `smallBias` pour favoriser les petits ; slime à lâcher dessiné au point de lâcher + « Suivant » à côté ; zone de lâcher
    selon le rayon (2026-10-22 : paroi intérieure mesurée sur la courbe `reservoir` (axe − ½ épaisseur, moitié haute ;
    suit la box quand on la redimensionne ; `halfWidth` à la main seulement sans courbe) ; tout au bord, un
    slime de toute taille longe la paroi à `wallGap` 0,15 m sans la toucher, mesuré ; avant, son bord entrait dans le verre).
    `dropInterval` vaut aussi pour les appuis répétés, plus seulement pour la touche tenue. H = formes physiques (capsules)
-   dessinées par-dessus l'habillage (`showHitboxes`). Objectif (`SlimeGoal`, 2026-10-22, case `useGoal`, appliquée au
+   dessinées par-dessus l'habillage (`showHitboxes`). Objectif (`GumoriGoal`, 2026-10-22, case `useGoal`, appliquée au
    prochain R) : `maxDrops` coups (30) et `targetScore` points (3 000, à caler sur de vraies parties ; une partie scriptée
    bête en fait 4 790) qui vont ensemble. Score atteint = plus de lâcher, la chaîne en cours se FINIT (ses points comptent :
-   plus de fusion pendant `comboWindow` + `mergeTime`), puis réussi : la simulation retire les slimes et `SlimeFinale`
-   (Cosmetics, purement visuel, slimes virtuels dessinés par `SlimeSkin.DrawVirtual`) les fait se diviser en cascade
+   plus de fusion pendant `comboWindow` + `mergeTime`), puis réussi : la simulation retire les slimes et `GumoriFinale`
+   (Cosmetics, purement visuel, slimes virtuels dessinés par `GumoriSkin.DrawVirtual`) les fait se diviser en cascade
    jusqu'au plus petit (éclat + son à chaque division, confettis, fanfare) ; les plus petits s'envolent par le haut ; panneau
    après `celebrationTime` (3,5 s). Coups épuisés sans objectif : jugé quand rien n'a fusionné depuis `settleTime` (2,5 s),
    « Raté… ». R = rejouer. Identique sur 2 essais (score, fusions, fin)
    Objectif calculé (2026-10-22, `autoTarget`) : base = points SANS AUCUNE CHAÎNE en fusionnant parfaitement la suite à
-   graine (`BlobDropper.PredictSequence`, vérifiée identique au jeu ; paires de même niveau fusionnées comme une retenue
-   binaire : `SlimeGoal.PerfectPoints`) avec tous les coups, divisés par (1 + marge) ; marge : Facile 33 %, Moyen 16,5 %,
+   graine (`GumoriDropper.PredictSequence`, vérifiée identique au jeu ; paires de même niveau fusionnées comme une retenue
+   binaire : `GumoriGoal.PerfectPoints`) avec tous les coups, divisés par (1 + marge) ; marge : Facile 33 %, Moyen 16,5 %,
    Difficile 5 % ; `comboShare` = part de l'objectif à faire en chaînes (0 = chaînes en bonus). Compté en POINTS : en coups
    (points parfaits sur `maxDrops` / (1 + marge) coups), les paliers (un coup de plus ne complète pas toujours une fusion)
    donnaient le même objectif à deux difficultés (graine 2, 30 coups : Moyen = Difficile = 2 340) ; en points : 1 805 /
    2 060 / 2 286. L'inspecteur affiche coups nécessaires / donnés et la difficulté réelle d'un objectif saisi à la main.
    « Parfait » = aucune fusion ratée : en vrai, on en rate
    (slimes coincés loin de leur pareil), donc même Facile peut être dur ; à caler sur de vraies parties.
-   Parois = limites (`SlimeWallHold`, 2026-10-22) : un slime lâché au bord s'écrasait contre la paroi et partait en roulant
+   Parois = limites (`GumoriWallHold`, 2026-10-22) : un slime lâché au bord s'écrasait contre la paroi et partait en roulant
    jusqu'à l'autre côté (mesuré : niveau 4, de x = 2,68 à −0,67 en 3 s, toujours lancé). Tant qu'il touche une paroi (face
    intérieure = `halfWidth`, la collision y est aussi), la vitesse de son centre qui l'en éloigne est annulée
    (`maxAwaySpeed` 0), même correction pour toutes ses capsules : l'écrasement et le rebond restent. Marge de contact
@@ -207,17 +207,17 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    côtés. Marge + chemin d'un pas (vitesse × durée du pas) : tient aussi à 50 et 60 Hz ; tri grossier à 2 diamètres (à 1, un slime
    écrasé contre la paroi gauche était écarté). Mesuré : reste à
    x = 2,70 ; partie scriptée identique au bit près (2 essais)
-   `SlimeScore` : fusion vers le niveau n = `pointsPerMerge` ×
+   `GumoriScore` : fusion vers le niveau n = `pointsPerMerge` ×
    n(n+1)/2, fusions à moins de `comboWindow` (1,2 s, en pas de simulation) l'une de l'autre = chaîne, + `comboPercent` (50 %)
    par maillon ; points qui s'envolent (OnGUI, pas pendant le rejeu accéléré), score / meilleur / plus gros niveau. Vérifié :
    partie scriptée de 3600 pas (22 fusions, chaîne ×6, 2 735 points) identique au bit près, score compris, sur 3 essais
    (2 d'un bloc, 1 pas à pas) ; 4000 tirages ≈ 25 % par niveau
-   Slimes enfermés (`SlimeEscape`, 2026-10-21) : un slime qui fusionne démarre sur une cacahuète tracée sur des cercles
+   Slimes enfermés (`GumoriEscape`, 2026-10-21) : un slime qui fusionne démarre sur une cacahuète tracée sur des cercles
    idéaux, plus gros que des slimes écrasés dans la pile ; il peut chevaucher la membrane d'un voisin et Box2D le pousse
    DEDANS (reproduit : deux niveau 1 contre un niveau 5 → le niveau 2 né à l'intérieur, et il y restait même après que le
    gros a refusionné). Détection pendant `mergeTime` + `watchTime` après chaque fusion (centre du petit dans le polygone des
    capsules du gros, tri grossier par une capsule) ; sortie : le petit prend le groupe de collision du gros
-   (`BLOB.SetCollisionGroup`, il traverse sa membrane et touche tout le reste), poussé à `escapeSpeed` vers le bord le plus
+   (`Gumori.SetCollisionGroup`, il traverse sa membrane et touche tout le reste), poussé à `escapeSpeed` vers le bord le plus
    PROCHE du gros (jamais plus bas que `maxDownAngle` 30° sous l'horizontale), groupe rendu dès qu'il est dégagé, et jamais
    tant qu'il chevauche encore la membrane (au plus 3 × `maxEscapeTime`). Avant (2026-10-25, signalé par l'utilisateur) :
    sortie vers l'extérieur ET le haut, le petit traversait tout le gros et remontait à la surface de la pile (mesuré en
@@ -229,8 +229,8 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
 4. Sensation (gélatine, sons, effets), puis idées retenues une par une. Commencé (2026-10-22), objet « Habillage » de
    `Slime/reservoir` :
-   - `SlimeSkin` : un design par niveau (11 ; depuis le 2026-10-24, découpés en cases combinables et dans l'ordre des
-     familles de couleur : voir « Création et design des gumori » ; mêmes couleurs dans `BlobFusion.levelColors`).
+   - `GumoriSkin` : un design par niveau (11 ; depuis le 2026-10-24, découpés en cases combinables et dans l'ordre des
+     familles de couleur : voir « Création et design des gumori » ; mêmes couleurs dans `GumoriFusion.levelColors`).
      La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
      dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
      regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
@@ -238,20 +238,20 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Scene view. Rebord translucide (2026-10-23, façon Slime Rancher) : pourtour de gelée plus claire de la couleur du slime,
      où l'on devine le fond, épaisseur en fraction du rayon (`rimWidth` 0,074, `rimOpacity` 0,538, `rimLighten` 0,35,
      réglés par l'utilisateur, mêmes valeurs dans toutes les scènes ; `_Rim` du shader, `rimWidth` 0 = sans)
-   - `SlimeFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
+   - `GumoriFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
      Plus fort avec le niveau et la chaîne :
      tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
      éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
-   - `SlimeBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `SlimeSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
+   - `GumoriBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `GumoriSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
      bit près (5 875 pas, 17 fusions, même score)
 5. **Carte du monde, Aventure / Sans fin** (commencé le 2026-10-22, scène `Slime/carte`, première des Build Settings) :
    - Écran titre sur la carte : « Aventure » (la carte) ou « Sans fin » (réservoir sans objectif, graine tirée au hasard à
      chaque nouvelle partie et affichée, record gardé ; la partie reste rejouable au bit près avec sa graine).
-   - Campagne = asset `Settings/Campagne` (`SlimeCampaign`) : zones de niveaux réglés UN PAR UN à la main (graine, coups,
+   - Campagne = asset `Settings/Campagne` (`GumoriCampaign`) : zones de niveaux réglés UN PAR UN à la main (graine, coups,
      difficulté ou objectif à la main, part en chaînes, niveau max lâché, notes pour de futures mécaniques). Zone 1
      « Plaine », 30 niveaux : 1–5 faciles, puis moyens, difficiles aux 10 / 20 / 30, facile juste après. Inspecteur : tableau
      avec objectif calculé et marge réelle (règles lues dans le réservoir ouvert), « Jouer » lance n'importe quel niveau (même
@@ -276,7 +276,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      6 Hz de flexion : trop mou (le gros slime devient concave et enveloppe ses voisins). `SpaceEndless` : sans objectif,
      graine au hasard (N = nouvelle partie), record à part. Pas encore relié à l'écran titre.
      Gameplay de sobosuba (2026-10-23, bande-annonce regardée image par image) : boîte FERMÉE carrée 9 × 9 m à fond en arc
-     de cercle (flèche 2,5 m, rayon 5,3 m). Pas de lâcher mais un LANCER (`BlobLauncher`) : RÉSERVE = rangée qui FLOTTE
+     de cercle (flèche 2,5 m, rayon 5,3 m). Pas de lâcher mais un LANCER (`GumoriLauncher`) : RÉSERVE = rangée qui FLOTTE
      sous le plafond (gravité annulée, ressort vers une ligne à `rackDepth` 1,8 m sous le plafond : place au-dessus pour
      faire rebondir un tir sur le plafond), chaque slime attiré vers le MILIEU ; les nouveaux apparaissent au bord, à gauche
      puis à droite à tour de rôle, et filent s'y bousculer avec leur élan (2026-10-23 ; avant : plaqués au plafond et tirés
@@ -284,38 +284,38 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      relâcher = tir, vitesse ∝ longueur (max 16 km/h à 5 m). Chaque départ (tir, ou slime de la réserve mangé par une
      fusion) fait arriver UN slime ; le slime né d'une fusion avec la réserve y reste : lancer un slime sur son pareil de
      la réserve la fait passer à 4 (préparer le terrain) ; max `maxRack` 4 (sans plafond, elle grandissait sans fin en
-     mangeant la pile). Lâcher de `BlobDropper` neutralisé dans la scène (touches inutilisées, aperçus coupés), il garde
+     mangeant la pile). Lâcher de `GumoriDropper` neutralisé dans la scène (touches inutilisées, aperçus coupés), il garde
      la liste des slimes, leur pas et la fusion ; grabber souris de debug coupé dans la scène (il tirait UNE capsule :
-     slimes qui se retournent). `SlimeFoam` : pression qui tient la SURFACE de chaque slime (ressort amorti sur l'aire du
+     slimes qui se retournent). `GumoriFoam` : pression qui tient la SURFACE de chaque slime (ressort amorti sur l'aire du
      polygone des capsules, 8 Hz, cible × 1,25) + flexion très molle (1,5 Hz, étirement 10 Hz) = ils s'aplatissent les
      uns contre les autres et comblent l'espace ; freine aussi leur rotation (3/s). Gonflé à 1,4 : plus ronds, et un slime
      restait coincé au plafond par frottement ; frottement 0,4. Coût ≈ 0,5–0,8 ms par pas (PC). Même suite de tirs = même
      partie au bit près (vérifié, partie de 80 s, 2 essais) ; MAIS les tirs (analogiques) ne passent pas par `LevelInput` :
      `FastForward` ne les rejoue pas (liste `Shots` gardée). Plus tard : tourner la boîte, formes de niveaux à remplir.
-     Slimes emmêlés (`SlimeUntangle`, 2026-10-23) : très mous (joints 10 Hz, amortissement 0,5, 32 capsules) et gonflés, leur
+     Slimes emmêlés (`GumoriUntangle`, 2026-10-23) : très mous (joints 10 Hz, amortissement 0,5, 32 capsules) et gonflés, leur
      anneau s'étire, des trous s'ouvrent entre capsules et la pointe d'un voisin passe DEDANS, puis y reste (l'anneau la
-     retient de l'intérieur ; SlimeEscape ne surveille que les naissances de fusion). Détection tous les 2 pas (capsule d'un
+     retient de l'intérieur ; GumoriEscape ne surveille que les naissances de fusion). Détection tous les 2 pas (capsule d'un
      slime dans le polygone des capsules d'un autre) → le moins enfoncé prend le groupe de l'autre, écartés à 5 km/h,
      groupe rendu dès que dégagé (max 1,5 s). Mesuré, même partie de 1200 pas : sans, 2,3 paires emmêlées en moyenne (4 à
      la fin) ; avec, 0 (11 démêlages). Identique au bit près (2 essais). Coût total ≈ 1,1–1,2 ms par pas (PC) avec 32
      capsules par slime : à surveiller pour le mobile.
      Vocabulaire (2026-10-23) : jeu « TERRESTRE » = le réservoir normal (`Slime/reservoir`), jeu « SPACE » = Space Endless.
-     Les correctifs du terrestre n'ont pas forcément lieu d'être en space : `SlimeWallHold` (parois qui retiennent) COUPÉ
-     dans la scène space (interaction bizarre au bord, les slimes doivent pouvoir s'en écarter). `SlimeFoam` : cible d'aire
+     Les correctifs du terrestre n'ont pas forcément lieu d'être en space : `GumoriWallHold` (parois qui retiennent) COUPÉ
+     dans la scène space (interaction bizarre au bord, les slimes doivent pouvoir s'en écarter). `GumoriFoam` : cible d'aire
      toujours positive (avant, un slime retourné était TENU à l'envers) + dépliage : une capsule où l'anneau tourne vers
      l'intérieur de plus de `foldAngle` 60° est poussée vers l'extérieur à 4 km/h (slime à moitié retourné, pincé entre
      deux gros, signalé par l'utilisateur). Mesuré, partie de 1200 pas : aucun slime à l'envers, plis passagers 4 → 2
      relevés, aucun à la fin ; identique au bit près (2 essais).
      Slimes qui sautaient après une fusion (2026-10-23) : mesuré merge par merge (montée réelle d'un pas à l'autre), 5 sauts
-     > 2,5 m/s vers le haut par partie de 1200 pas, dus surtout à `SlimeUntangle` : il rendait les groupes de collision dès
+     > 2,5 m/s vers le haut par partie de 1200 pas, dus surtout à `GumoriUntangle` : il rendait les groupes de collision dès
      qu'aucun CENTRE de capsule n'était dans l'autre, capsules encore à cheval → Box2D les séparait d'un coup. Rendus
-     maintenant seulement une fois dégagés de l'épaisseur des capsules : 1 saut restant. `SlimeEscape` de la scène space
-     adouci (1,2 m/s au lieu de 3, vers l'extérieur sans pente vers le haut ; réglages terrestres copiés). `SlimeSoftMerge`
+     maintenant seulement une fois dégagés de l'épaisseur des capsules : 1 saut restant. `GumoriEscape` de la scène space
+     adouci (1,2 m/s au lieu de 3, vers l'extérieur sans pente vers le haut ; réglages terrestres copiés). `GumoriSoftMerge`
      (vitesse du né et de ses voisins limitée à 4 km/h pendant 0,8 s) : effet non mesurable (le coup part PENDANT le pas
      physique), gardé. Reste : un tout petit né pincé entre deux gros gonflés peut jaillir comme un pépin (pression).
      « Coup d'énergie » après fusion (suite, 2026-10-23) : à sa naissance, le slime fusionné occupe 1,4 à 1,9 × sa surface
      finale (tracé sur ses deux parents) et doit rétrécir de 30–50 % ; sans pression pendant la mitose, la foule l'écrasait,
-     puis la pression revenait d'un coup (mesuré : un niveau 4 lancé à 3,5 m/s pile à la fin de sa mitose). `SlimeFoam` :
+     puis la pression revenait d'un coup (mesuré : un niveau 4 lancé à 3,5 m/s pile à la fin de sa mitose). `GumoriFoam` :
      pression dès la naissance, surface cible en rampe (lissée) de sa surface de naissance à sa cible en `growTime` 1,2 s.
      Banc propre sans tir (lit de 14 slimes, 6 paires posées vitesse nulle, 3 dispositions) : coup moyen 9–21 → 3–5,
      pics 29–49 → 12–18 ; à 2 s pire (reste trop gros trop longtemps, coincé). Identique au bit près (2 essais).
@@ -360,7 +360,7 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
     à l'intérieur (planche coincée). Abandonné pour les éléments mobiles
   - Sommets d'un polygone à moins de 0,02 m : soudés sans prévenir (trapèze → triangle : masse et forme changent) ou forme
     effacée (plateau de 2 cm de la planche à l'échelle 0,5). Toute forme qui change de taille doit garder ses côtés au-dessus
-  - Collision continue (`monde_settings.continuousAllowed`) : à grande vitesse, un corps peut être arrêté pendant le pas sans
+  - Collision continue (`WorldSettings.continuousAllowed`) : à grande vitesse, un corps peut être arrêté pendant le pas sans
     qu'aucun contact ne soit signalé à la fin de ce pas (le contact n'apparaît qu'au pas suivant). Ne pas compter sur les seuls
     contacts pour détecter un choc (`Skater.airImpactSpeed`). Ne pas la couper : sans elle, une planche rapide traverse les courbes
   - `PhysicsQuery.ShapeTimeOfImpact` (Unity 6000.6) : seule la `fraction` du résultat est juste ; état, point et normale reviennent
@@ -376,35 +376,47 @@ Garder cette section à jour quand une étape avance ou que la vision du jeu se 
 - Régler la sensation de vitesse par la gravité / vitesse du jeu, pas par la taille
 - Épaisseur des courbes : visuelle seulement (la collision est une chaîne fine)
 
-## Code existant (hérité du jeu de blob / skate)
-Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-slime`. À relire avant de modifier un de ces scripts.
+## Code du jeu
+Nommage (décision du 2026-10-25) : tout ce qui est propre au jeu s'appelle `Gumori…` (corps `Gumori`, `GumoriDropper`,
+`GumoriFusion`…). Gardés tels quels pour ne rien perdre : les clés PlayerPrefs (`slime.*`), les noms des shaders (`Slime/Body`…),
+les noms des scènes (`Assets/Scenes/Slime/`) et des objets des scènes (« Blob modèle (désactivé) »…).
+Audit du 2026-10-25 : code des anciens jeux SUPPRIMÉ (skate, flippers, bumpers, grappin, vitres, piques, caméra, mode
+entraînement, leurs éditeurs et scènes ; restent dans les tags `avant-slime` / `blob-et-debut-skate`, avec le CLAUDE.md de
+l'époque et ses mesures). L'ancien `BLOB` est devenu `Gumori`, réduit à ce que le jeu utilise : lest (touche ↓, qui triplait
+la gravité de tous les gumori), obstacles, casse, comptage de contacts par capsule retirés. Ce comptage relisait TOUS les
+événements de contact du monde pour CHAQUE gumori à chaque pas : sans lui, mêmes parties identiques au bit près
+(`Captures/bancs/audit_ref.cs`, terrestre et Space), 0,35 → 0,21 ms par pas en terrestre, 2,7 → 1,0 ms en Space (PC).
 - `Scripts/Core/` : moteur. `LevelSimulation` (seul moteur pas à pas : entrées → `ILevelTick` dans l'ordre de la hiérarchie →
-  `PhysicsWorld.Simulate`, rejeu accéléré `FastForward`), `LevelInput` (entrées = un bit par `FlipperKey`, enregistrées),
-  `LevelRestart` (R : détruit et recrée toute la physique `ILevelPhysics`), `monde_settings` (seul endroit qui règle le monde :
-  gravité, sous-pas, `simulationWorkers` = 1), `GizmoPickArea`, `SpeedKmhAttribute`
-- `Scripts/Legacy/Blob/` : `BLOB` (anneau de capsules reliées par des joints fixes ; lest flèche bas ; contacts par événements ;
-  `SetShape` pour l'étirer), `BlobJump` (saut Impulse / Stretch). Joints à fréquence 0 = rigides mais l'anneau est
-  précontraint (ils visent un angle relatif nul : seules les différences d'angle comptent)
-- `Scripts/Level/` : courbes `CurvePath2D` + `CurveCollider2D` (chaînes Box2D), flippers, bumpers, obstacles (`BlobHazard`,
-  piques, scies), `MovingPath`, `BoostZone`, gadgets (grappin), vitre destructible `GlassPane`
-- `Scripts/Game/` : `CameraFollow`, `SpeedMeter`, `TrainingMode` (points de sauvegarde exacts, S / Tab / R)
-- `Scripts/Skater/` : skateur (abandonné)
-- `Scripts/Slime/` : le nouveau jeu. `BlobDropper` (lâcher, suite aléatoire, aperçu ; possède la liste des blobs et leur
-  pas ; événement `Dropped`), `BlobFusion` (fusion et définition des niveaux), `SlimeScore` (points, événement `Scored`
-  après chaque fusion comptée), `SlimeEscape` (sort les slimes enfermés dans un autre), `SlimeGoal` (coups max + objectif
-  de points calculé selon la difficulté, fin de niveau ; limite donnée à `BlobDropper.dropLimit`), `SlimeWallHold` (parois
-  qui retiennent au lieu de relancer), `SlimeCampaign` (niveaux de l'Aventure), `SlimeSession` (partie choisie, progression
-  dans PlayerPrefs, gardée en mémoire), `SlimeLevelSetup` (applique la partie choisie au réservoir, boutons de fin ; Play
-  direct dans l'éditeur = réglages de la scène, rien ne change), `SlimeUi` (boutons et textes OnGUI communs).
-- `Scripts/Map/` : la carte (`SlimeMap` décor et caméra, `SlimeMapMesh` sol, `SlimeMapAvatar`, `SlimeMapMenu` titre / fiche /
+  `PhysicsWorld.Simulate`, rejeu accéléré `FastForward`), `LevelInput` (entrées = un bit par `GameKey`, enregistrées ; lit le
+  clavier), `LevelRestart` (R : détruit et recrée toute la physique `ILevelPhysics`), `WorldSettings` (seul endroit qui règle
+  le monde : gravité, sous-pas, `simulationWorkers` = 1), `GizmoPickArea`, `SpeedKmhAttribute`, `LowLevelRaycastGrabber`
+  (souris de debug : NON déterministe)
+- `Scripts/Level/` : courbes `CurvePath2D` + `CurveCollider2D` (chaînes Box2D : parois du réservoir, boîte Space)
+- `Scripts/Gumori/` : le jeu.
+  - `Gumori` : corps d'un gumori, anneau de capsules reliées par des joints fixes (précontraints : ils visent un angle relatif
+    nul, seules les différences d'angle comptent). `SetShape` (forme imposée), `SetCollisionGroup`, et ce que tous les
+    scripts partagent : `Center`, `Velocity`, `AddVelocity` (même vitesse à tout l'anneau), `Contains` (point dans le
+    polygone des capsules), `Index` (rang dans la liste). Les capsules portent leur `Gumori` en `userData.objectValue`
+    (`Gumori.FromShape`)
+  - `GumoriDropper` (lâcher, suite aléatoire, aperçu ; possède la liste des gumori en jeu `InPlay`, `IsInPlay` en O(1) ;
+    événement `Dropped`), `GumoriFusion` (fusion et définition des niveaux), `GumoriScore` (points, événement `Scored`
+    après chaque fusion comptée), `GumoriGoal` (coups max + objectif de points calculé selon la difficulté, fin de niveau ;
+    limite donnée à `GumoriDropper.dropLimit`), `GumoriEscape` (sort les gumori enfermés dans un autre), `GumoriWallHold`
+    (parois qui retiennent au lieu de relancer)
+  - Space : `GumoriLauncher` (réserve et tir), `GumoriFoam` (pression), `GumoriUntangle`, `GumoriSoftMerge`, `SpaceEndless`
+  - Parties : `GumoriCampaign` (niveaux de l'Aventure), `GumoriSession` (partie choisie, progression dans PlayerPrefs,
+    gardée en mémoire, graines tirées au hasard), `GumoriLevelSetup` (applique la partie choisie au réservoir, boutons de
+    fin ; Play direct dans l'éditeur = réglages de la scène, rien ne change), `GumoriUi` (boutons et textes OnGUI communs,
+    dont le texte cerné du HUD `Outlined`)
+- `Scripts/Map/` : la carte (`GumoriMap` décor et caméra, `GumoriMapMesh` sol, `GumoriMapAvatar`, `GumoriMapMenu` titre / fiche /
   enchaînements). Purement visuel, hors simulation (l'avatar a sa physique Box2D, mais rien n'y est rejoué).
-- `Scripts/Cosmetics/` : habillage du jeu de slimes (`SlimeSkin`, `SlimeFx`, `SlimeBackdrop`, `SlimeSound` + `SlimeSynth`, `SlimeFinale`) ; ils mettent
-  les événements de la simulation en file et ignorent le rejeu accéléré. `SlimeSkin.Impact` = chocs (vus à l'affichage)
-  Les capsules de blob portent leur `BLOB` en `userData.objectValue` (`BLOB.FromShape`)
-- Scènes : `Assets/Scenes/Slime/` (nouveau jeu), le reste = bancs de test hérités
+- `Scripts/Cosmetics/` : habillage (`GumoriSkin`, `GumoriFx`, `GumoriBackdrop`, `GumoriSound` + `GumoriSynth`, `GumoriFinale`,
+  catalogue `GumoriDesign`) ; ils mettent les événements de la simulation en file et ignorent le rejeu accéléré.
+  `GumoriSkin.Impact` = chocs (vus à l'affichage)
+- Scènes : `Assets/Scenes/Slime/` (carte, réservoir, space endless, space endless 1)
 
 ## Organisation des scripts
-- `Scripts/Slime/` : tout le nouveau jeu (slimes, réservoir, lâcher). Code utilisable en build (pas de `UnityEditor`)
+- `Scripts/Gumori/` : tout le jeu (gumori, réservoir, lâcher, parties). Code utilisable en build (pas de `UnityEditor`)
 - `Scripts/Core/` : moteur ; `Scripts/Cosmetics/` : effets purement visuels (ils LISENT l'état, jamais d'écriture, jamais
   dans `LevelTick`, dans `LateUpdate`) ; `Editor/` : inspecteurs et poignées (pas inclus dans le jeu)
 - Déplacer / renommer un script uniquement via Unity (`AssetDatabase.MoveAsset`) : le `.meta` suit, les scènes gardent leurs références
@@ -416,8 +428,8 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   (tout corps créé hors d'un `ILevelPhysics` empêche la remise à zéro du monde)
 
 ## Rendu
-- Habillage (décision du 2026-10-22) : maillages procéduraux reconstruits à chaque image par `Cosmetics/` (`SlimeSkin`,
-  `SlimeFx`, `SlimeBackdrop`), dessinés par `Graphics.RenderMesh` pour chaque caméra ; shaders `Assets/Shaders/`
+- Habillage (décision du 2026-10-22) : maillages procéduraux reconstruits à chaque image par `Cosmetics/` (`GumoriSkin`,
+  `GumoriFx`, `GumoriBackdrop`), dessinés par `Graphics.RenderMesh` pour chaque caméra ; shaders `Assets/Shaders/`
   (`Slime/Body`, `Slime/Fx`, `Slime/Backdrop`). Ordre de dessin par file de rendu : fond 2900, vitre 2950, slimes 3000,
   parois 3010, effets 3020. Lueur : couleurs > 1 + bloom (volume « Effets écran », profil `Settings/Slime Volume`)
 - Toujours aucun sprite ni texture importée : formes, motifs et visages calculés (distances signées dans le shader)
@@ -425,14 +437,14 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   + profondeur écrite, maillage trié du plus loin au plus près), `Slime/MapSprite` (ciel, étoiles, ombres). Files : ciel 1000,
   sol 2000, ombres 2950, découpes 2970, étoiles 2990, avatar 3000. Couleurs de sommets données en sRGB : les convertir
   (`Color.linear`), sinon tout ressort délavé (projet en linéaire)
-- Dessin debug de la physique : `monde_settings.drawOptions` (formes sélectionnées seulement) et `BlobDropper.debugDraw`
+- Dessin debug de la physique : `WorldSettings.drawOptions` (formes sélectionnées seulement) et `GumoriDropper.debugDraw`
 
 ## Son
-- Procédural (décision du 2026-10-22) : `SlimeSound` calcule tous les sons à partir de formules, aucun fichier audio
+- Procédural (décision du 2026-10-22) : `GumoriSound` calcule tous les sons à partir de formules, aucun fichier audio
 - DA sonore (décision du 2026-10-24) : grave, rond, APAISANT, satisfaisant ; peu d'aigus, pas d'énergie agressive. Tous les
   sons accordés dans UNE gamme (pentatonique majeure de `key`) : ensemble, ils sonnent toujours juste, jamais de brouhaha.
   Cloche de chaîne SUPPRIMÉE (jugée insupportable à la longue)
-- Lâcher = « plop » ; tir (Space) = « fwoump » de souffle selon la vitesse (`BlobLauncher.Launched`) ; choc = « splotch »
+- Lâcher = « plop » ; tir (Space) = « fwoump » de souffle selon la vitesse (`GumoriLauncher.Launched`) ; choc = « splotch »
   sourd quand il est doux, mouillé quand il est violent (volume selon la vitesse perdue, silencieux sous 3,5 km/h), plus grave
   si le gumori est gros. Bruits : hauteur variée au hasard (`jitter`) ; sons placés gauche / droite
 - Fusion = « bloup » (le son préféré de l'utilisateur) : sa note monte d'un cran dans la gamme à chaque maillon de chaîne et
@@ -440,15 +452,15 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   l'éclat, sur la même note ; grondement (niveau 6+), cascade de bulles (chaîne de 3+), accord de fête doux (record dès le
   niveau 4, niveau max). Souffle et nappe baissent un instant sous une fusion (`duckDepth`)
 - Validé par l'utilisateur (2026-10-24) : fusion, chaîne, lancement, confettis / fête
-- Mouvement : `SlimeSkin.Motions` donne pour chaque gumori à l'écran son tremblement (vitesse de changement de forme de
+- Mouvement : `GumoriSkin.Motions` donne pour chaque gumori à l'écran son tremblement (vitesse de changement de forme de
   l'anneau : ovale + trèfle, 1/s), son étirement et sa vitesse. ÉCARTÉ (2026-10-24, « bruit de moustique, abominable,
   omniprésent ») : une voix TENUE à hauteur fixe (≈ 150 Hz + harmoniques) dont volume et filtre suivaient le tremblement.
   Règle : jamais de son continu à hauteur définie pour le mouvement. À la place, tout discret (≈ 10 dB sous les fusions) :
-  - souffle d'air grave SANS hauteur (`SlimeSynth`, temps réel, bruit filtré) pour un gumori qui file (lancé, en chute) :
+  - souffle d'air grave SANS hauteur (`GumoriSynth`, temps réel, bruit filtré) pour un gumori qui file (lancé, en chute) :
     à partir de 4 km/h, max à 12,6 km/h ; plus grave et plus présent s'il est gros ; les 3 plus rapides seulement ;
   - « blop » mou et grave à un gros rebond de forme (l'étirement passe un extrême, tremblement ≥ 1,2/s), 4 par seconde
     max en tout ; rien sur les frémissements de la pile ;
-  - glissement doux d'un gumori qui arrive dans la réserve (Space, `BlobLauncher.Arrived` ; il y entre à ≈ 5 km/h, trop
+  - glissement doux d'un gumori qui arrive dans la réserve (Space, `GumoriLauncher.Arrived` ; il y entre à ≈ 5 km/h, trop
     lent pour le souffle) : plus long et plus grave s'il est gros.
   Mesuré : Space, un tir = tremblements de 1 à 3,7/s, retombés à 0,02–0,2 en ≈ 1 s ; terrestre, 0,5 à 1,9 à l'atterrissage,
   éteint en 0,3 s : le même système sonne tout seul plus flottant en basse gravité. Nappe d'ambiance (do sol ré qui
@@ -458,7 +470,7 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   intouchée (identique au bit près, terrestre et Space)
 - Piège (2026-10-24) : un seul échantillon NaN dans un son (ex. `Mathf.Pow` d'un `sin(π)` légèrement négatif) rendait tout
   le son NaN à la normalisation, puis tout le MÉLANGE pendant qu'il jouait (coupures, saturation). `Normalize` remplace
-  maintenant tout échantillon invalide par 0, `SlimeSynth` se remet à zéro s'il en produit. Mesurer le son par
+  maintenant tout échantillon invalide par 0, `GumoriSynth` se remet à zéro s'il en produit. Mesurer le son par
   `AudioListener.GetOutputData` depuis des commandes `eval` est faux (l'éditeur se fige ≈ 1,5 s par commande) : enregistrer
   le mélange avec `Assets/Temp/SoundTap.cs` (banc ignoré par git, posé sur l'AudioListener en Play, tire / lâche lui-même,
   WAV + rapport dans `SoundTap.Report`)
@@ -477,7 +489,7 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   (redémarrage, retour à une sauvegarde) : `LevelSimulation.RunBeforeNextStep`
   Pourquoi : avec chaque script dans son propre FixedUpdate, l'ordre dépendait de Unity et un pas ne pouvait pas être
   rejoué hors du temps réel. Un seul moteur = ordre fixe + rejeu accéléré exact (sauvegardes, replays, fantômes)
-- Entrées du joueur : uniquement via `LevelInput` (un bit par `FlipperKey` : Espace, flèches…, enregistré à chaque pas), jamais
+- Entrées du joueur : uniquement via `LevelInput` (un bit par `GameKey` : Espace, flèches…, enregistré à chaque pas), jamais
   le clavier directement dans la simulation. Toute action non enregistrée (ex. souris de debug) casse le rejeu
 - Ordre de création des corps/joints stable et explicite (ne pas dépendre de l'ordre
   d'exécution des scripts) ; ordre d'itération stable (pas de dépendance aux Dictionary/HashSet)
@@ -485,13 +497,13 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
   `GetContacts`, `GetBodies`) : il suit ses identifiants internes, qui changent d'un essai à l'autre (alternés à chaque
   redémarrage, mesuré). La simulation Box2D reste identique, mais un script qui traite « le premier » diverge. Trier par une
   clé stable (ordre de création, index de membre), ou rendre le calcul indépendant de l'ordre (somme en entiers, maximum
-  départagé par la position). `GlassPane` et `Skater` le font. Mesuré (audit du 2026-10-18, époque blob) : `GetBodies` change
+  départagé par la position). `GumoriFusion` le fait (paires triées par ordre de création). Mesuré (audit du 2026-10-18, époque blob) : `GetBodies` change
   bien d'ordre, le `GetContacts` d'un même corps est resté stable ; trier reste une protection gratuite
 - Une forme peut être détruite (vitre brisée) avant qu'un autre script lise l'événement de contact : tester `other.isValid`
 - Audit du 2026-10-18 (époque blob, scène `Legacy/Blob/poc niveau 1`), pour ne pas le refaire : aucune divergence avec les
   touches appuyées (6 essais, nombreux scénarios). Banc de test réutilisable (`unity command eval_file`, hors dépôt) :
   entrées fixes + hash par pas des bits de tous les corps triés, temps d'un redémarrage. `Temp/` est vidé par Unity au
-  redémarrage : garder les bancs dans le scratchpad. Ne pas oublier `TrainingMode._restoring` pendant un test
+  redémarrage : garder les bancs dans le scratchpad.
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
 - Recommencer = `LevelRestart.Restart()` (R, la mort plus tard) : détruit toute la physique, `PhysicsWorld.Reset()`
   sur le monde vide (sinon l'historique interne de Box2D fait diverger les essais), puis recrée dans l'ordre de la hiérarchie.
@@ -501,7 +513,7 @@ Détail complet (réglages, mesures, pièges) dans le CLAUDE.md du tag `avant-sl
 - Point de sauvegarde = entrées de chaque pas depuis le départ ; y revenir = redémarrage + rejeu accéléré (exact au bit près)
 
 ## Performance
-Pourquoi c'est central : revenir à une sauvegarde rejoue TOUS les pas depuis le départ (120 par seconde de jeu). Le coût d'un
+Pourquoi c'est central : revenir à une sauvegarde rejoue TOUS les pas depuis le départ (60 par seconde de jeu). Le coût d'un
 pas est donc multiplié par des milliers à chaque Tab, et un point loin dans le niveau coûte plus cher qu'un point proche du départ.
 Une microseconde gagnée par pas = 3,6 ms de moins pour un retour à 30 s. Sur mobile, compter 2 à 4× plus lent que sur PC.
 
@@ -516,29 +528,27 @@ Philosophie (tout nouveau script, en particulier tout `LevelTick`) :
   Une modification d'inspecteur en Play s'applique au redémarrage suivant : c'est accepté
 - **Un appel au moteur physique ou à Unity coûte cher** (lire `body.position`, `GetContacts`, `userData`, écrire un `Transform`,
   `GetComponents` : 0,05 à 0,5 µs chacun). Les éviter dans les boucles par pas : écarter d'abord par un test bon marché
-  (test de boîte avant les membres, comme la hitbox du `Skater`), lire une fois puis réutiliser, ne pas écrire un Transform
+  (distance entre centres avant de tester les capsules), lire une fois puis réutiliser, ne pas écrire un Transform
   dont personne n'a besoin en jeu (obstacles sur trajectoire : le corps fait foi)
 - **Se faire prévenir plutôt que demander à chaque pas** : événements de Box2D (début / fin de contact via `contactEvents`)
   au lieu d'interroger chaque corps à chaque pas
 - **Aucune allocation par pas** (pas de `new`, de LINQ, de `List` créée dans `LevelTick`) : listes réutilisées ou tableaux préparés au départ
-- **Sauter le calcul quand rien n'a changé** (ex. pose du skateur recalculée seulement si ses entrées changent)
+- **Sauter le calcul quand rien n'a changé** (ex. `GumoriFusion` ne cherche des paires que s'il y a des contacts)
 - **Réglages du monde qui ne changent pas le résultat** : `simulationWorkers` = 1 (Box2D sur 12 threads passait plus de temps à
   coordonner les cœurs qu'à calculer : −33 %, et encore plus utile sur mobile). Résultat identique quel que soit ce nombre
 - Le visuel (`LateUpdate`, `Cosmetics/`, dessin debug, dessin du personnage) ne tourne qu'une fois par image, jamais pendant le
   rejeu accéléré : il compte moins que la simulation, mais reste léger pour le mobile
 
-Repères mesurés (PC, 1 thread) : `poc niveau 2` (un blob de 32 capsules, beaucoup d'obstacles) ≈ 55–60 µs par pas ;
-ancien `skate reboot` ≈ 13,5 µs. Repères du jeu de slimes : à mesurer (étape 1 de la roadmap).
+Repères mesurés (PC, 1 thread, 2026-10-25, `Captures/bancs/audit_ref.cs`) : terrestre, partie scriptée de 3600 pas (≈ 20
+gumori en fin de partie) ≈ 0,21 ms par pas ; Space, 1800 pas (≈ 18 gumori de 32 capsules) ≈ 1,0 ms par pas.
 
 Vérifier une optimisation (méthode utilisée) :
 1. Avec l'ancien code, en Play : redémarrer, rejouer N pas (`LevelSimulation.FastForward` avec des entrées fixes, flèches et
    Espace compris, et un scénario de mort), enregistrer les bits des positions / vitesses de tous les corps
    (`BitConverter.SingleToInt32Bits`), et chronométrer (meilleur de plusieurs essais : la machine varie de ±10 %)
 2. Recompiler, refaire exactement pareil : « identique au bit près » obligatoire, puis comparer les temps
-3. Pendant ces tests, `LevelRestart.Restart()` efface les points du `TrainingMode` de l'utilisateur : mettre son `_restoring` à vrai
-   (réflexion) AVANT CHAQUE `Restart` (le retour au point jaune lancé au début du Play le remet à faux en cours de test), et
-   sauvegarder d'abord `UserSettings/TrainingCheckpoints/<scène>.json`. Pour remettre ce fichier : Play arrêté, copier, puis
-   relancer Play (l'objet chargé en mémoire hors Play peut sinon réécrire l'ancienne liste vide)
+3. Valeurs d'inspecteur avant / après une refonte (renommage de classe, champ retiré) : `Captures/bancs/audit_values.cs`
+   sur chaque scène, puis comparer les fichiers
 
 ## Conventions de code
 - Pas de commentaires, sauf point vraiment non évident
@@ -548,7 +558,7 @@ Vérifier une optimisation (méthode utilisée) :
   grâce à `[SpeedKmh]` (`Core/SpeedKmhAttribute`, dessin `Editor/Core/SpeedKmhDrawer`, float ou Vector2, respecte `[Min]`) ;
   le tooltip parle en km/h. Valeur réécrite seulement si on la modifie : sans effet sur la simulation. Pas pour les rotations
   (°/s) ni les accélérations (m/s²)
-- Noms de variables et classes en anglais ; champs privés préfixés `_` (exception : les champs publics français de `Ball2D`/`monde_settings`, gardés pour ne pas perdre les valeurs)
+- Noms de variables et classes en anglais ; champs privés préfixés `_` (exception : les champs publics français de `Ball2D`/`WorldSettings`, gardés pour ne pas perdre les valeurs)
 - Un script = une responsabilité ; ne pas renommer les champs publics existants (valeurs d'inspecteur perdues)
 - Maths avec `Unity.Mathematics` pour la physique ; dimensions en unités Unity : toujours préciser
   si un paramètre est relatif à une échelle ou absolu

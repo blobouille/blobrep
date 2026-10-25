@@ -1,11 +1,11 @@
 // Gros plans de la vitrine des gumori : une vignette par design (cadrée sur lui), assemblées en planche → Captures/gumori_zoom.png.
-var skin = UnityEngine.Object.FindAnyObjectByType<SlimeSkin>();
-var t = typeof(SlimeSkin);
+var skin = UnityEngine.Object.FindAnyObjectByType<GumoriSkin>();
+var t = typeof(GumoriSkin);
 var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
 t.GetField("_builtFrame", flags).SetValue(skin, -1);
 t.GetMethod("BuildGallery", flags).Invoke(skin, null);
 var list = (System.Collections.IList)t.GetField("_gallery", flags).GetValue(skin);
-var back = UnityEngine.Object.FindAnyObjectByType<SlimeBackdrop>();
+var back = UnityEngine.Object.FindAnyObjectByType<GumoriBackdrop>();
 if (back != null) back.enabled = false;
 int n = list.Count, cols = 6, cell = 520;
 int rows = (n + cols - 1) / cols;
@@ -25,7 +25,7 @@ for (int i = 0; i < n; i++)
     var et = e.GetType();
     var center = (Vector2)et.GetField("center").GetValue(e);
     float radius = (float)et.GetField("radius").GetValue(e);
-    var design = (SlimeDesign)et.GetField("design").GetValue(e);
+    var design = (GumoriDesign)et.GetField("design").GetValue(e);
     cam.orthographicSize = radius * 1.55f;
     cam.transform.position = new Vector3(center.x, center.y + radius * 0.18f, -10f);
     t.GetField("_builtFrame", flags).SetValue(skin, -1);

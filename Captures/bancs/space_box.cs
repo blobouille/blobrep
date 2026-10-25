@@ -1,7 +1,7 @@
 // Scène space endless SEULEMENT : boîte carrée (9 × 9) à fond en arc de cercle (flèche 2,5 m), mousse, grabber souris coupé.
 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
 if (!scene.path.Contains("space endless")) return "PAS la scène space endless : " + scene.path;
-var d = UnityEngine.Object.FindAnyObjectByType<BlobDropper>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
 var curve = d.reservoir;
 UnityEditor.Undo.RecordObjects(new UnityEngine.Object[] { curve, d.gameObject }, "Space boîte");
 float w = 4.5f, sag = 2.5f, wall = 9f;
@@ -18,8 +18,8 @@ var p3 = new CurvePoint(br, HandleMode.Free); p3.handleIn = new Vector2(-t.x, t.
 curve.points.Add(new CurvePoint(tr, HandleMode.Free));
 curve.closed = true;
 curve.Rebuild();
-var foam = d.GetComponent<SlimeFoam>();
-if (foam == null) foam = UnityEditor.Undo.AddComponent<SlimeFoam>(d.gameObject);
+var foam = d.GetComponent<GumoriFoam>();
+if (foam == null) foam = UnityEditor.Undo.AddComponent<GumoriFoam>(d.gameObject);
 var grabbers = new System.Text.StringBuilder();
 foreach (var g in UnityEngine.Object.FindObjectsByType<LowLevelRaycastGrabber>(FindObjectsSortMode.None))
 {

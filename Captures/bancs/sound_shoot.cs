@@ -1,5 +1,5 @@
 // Un tir reproductible depuis la réserve (compteur de tirs), pour écouter / mesurer le son.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
 int i = l.Shots.Count;
 if (l.Rack.Count == 0) return "réserve vide";
 int slot = (i * 7) % l.Rack.Count;

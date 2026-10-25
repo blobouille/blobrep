@@ -1,36 +1,36 @@
 // Gumori qui « s'envolent » (Space, en Play) : partie scriptée (tirs fixes), chaque montée > 2 m/s d'un gumori hors réserve,
-// avec ce qui se passait (sortie SlimeEscape, démêlage SlimeUntangle, fusion récente), et le bilan des sorties / démêlages
+// avec ce qui se passait (sortie GumoriEscape, démêlage GumoriUntangle, fusion récente), et le bilan des sorties / démêlages
 // (montée totale, fin par délai encore à cheval). Paramètres : Captures/bancs/fly.txt = "graine pas".
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var f = d.GetComponent<BlobFusion>();
-var u = d.GetComponent<SlimeUntangle>();
-var e = d.GetComponent<SlimeEscape>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
+var u = d.GetComponent<GumoriUntangle>();
+var e = d.GetComponent<GumoriEscape>();
 var args = System.IO.File.ReadAllText("Captures/bancs/fly.txt").Trim().Split(' ');
 d.seed = int.Parse(args[0]);
 int total = int.Parse(args[1]);
 LevelRestart.Restart();
 var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-var escList = (System.Collections.IList)typeof(SlimeEscape).GetField("_escapes", bf).GetValue(e);
-var untList = (System.Collections.IList)typeof(SlimeUntangle).GetField("_active", bf).GetValue(u);
+var escList = (System.Collections.IList)typeof(GumoriEscape).GetField("_escapes", bf).GetValue(e);
+var untList = (System.Collections.IList)typeof(GumoriUntangle).GetField("_active", bf).GetValue(u);
 var escBlob = escList.GetType().GetGenericArguments()[0].GetField("blob");
 var untA = untList.GetType().GetGenericArguments()[0].GetField("a");
 var untB = untList.GetType().GetGenericArguments()[0].GetField("b");
-Vector2 C(BLOB b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
-bool InRack(BLOB b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
-var lastTag = new System.Collections.Generic.Dictionary<BLOB, (string tag, int step)>();
-var born = new System.Collections.Generic.Dictionary<BLOB, int>();
-System.Action<BLOB, int, Vector2> onMerge = (b, lv, at) => born[b] = LevelSimulation.Step;
+Vector2 C(Gumori b) { Vector2 c = Vector2.zero; for (int k = 0; k < b.CapsuleCount; k++) c += b.Capsule(k).position; return c / Mathf.Max(1, b.CapsuleCount); }
+bool InRack(Gumori b) { foreach (var r in l.Rack) if (r == b) return true; return false; }
+var lastTag = new System.Collections.Generic.Dictionary<Gumori, (string tag, int step)>();
+var born = new System.Collections.Generic.Dictionary<Gumori, int>();
+System.Action<Gumori, int, Vector2> onMerge = (b, lv, at) => born[b] = LevelSimulation.Step;
 f.Merged += onMerge;
-var escStart = new System.Collections.Generic.Dictionary<BLOB, float>(); var escStep = new System.Collections.Generic.Dictionary<BLOB, int>();
-var untStart = new System.Collections.Generic.Dictionary<BLOB, float>();
+var escStart = new System.Collections.Generic.Dictionary<Gumori, float>(); var escStep = new System.Collections.Generic.Dictionary<Gumori, int>();
+var untStart = new System.Collections.Generic.Dictionary<Gumori, float>();
 var sb = new System.Text.StringBuilder();
 int flights = 0, escN = 0, untN = 0, escTimeout = 0, untTimeout = 0;
 float escRiseMax = 0, untRiseMax = 0;
 var one = new System.Collections.Generic.List<uint> { 0u };
-var last = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
-var flying = new System.Collections.Generic.HashSet<BLOB>();
-bool Overlap(BLOB a, BLOB b)
+var last = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
+var flying = new System.Collections.Generic.HashSet<Gumori>();
+bool Overlap(Gumori a, Gumori b)
 {
     float g = a.CapsuleThickness + b.CapsuleThickness;
     for (int i = 0; i < a.CapsuleCount; i++)
@@ -39,8 +39,8 @@ bool Overlap(BLOB a, BLOB b)
     return false;
 }
 var escRing = escList.GetType().GetGenericArguments()[0].GetField("ring");
-var prevEsc = new System.Collections.Generic.List<(BLOB a, BLOB b)>();
-var prevUnt = new System.Collections.Generic.List<(BLOB a, BLOB b)>();
+var prevEsc = new System.Collections.Generic.List<(Gumori a, Gumori b)>();
+var prevUnt = new System.Collections.Generic.List<(Gumori a, Gumori b)>();
 while (LevelSimulation.Step < total)
 {
     int s = LevelSimulation.Step;
@@ -52,10 +52,10 @@ while (LevelSimulation.Step < total)
         l.Launch((i * 7) % l.Rack.Count, new Vector2(Mathf.Cos(ang * Mathf.Deg2Rad), Mathf.Sin(ang * Mathf.Deg2Rad)) * speed);
     }
     LevelSimulation.FastForward(one, 1);
-    var curEsc = new System.Collections.Generic.List<(BLOB a, BLOB b)>();
-    foreach (var x in escList) curEsc.Add(((BLOB)escBlob.GetValue(x), (BLOB)escRing.GetValue(x)));
-    var curUnt = new System.Collections.Generic.List<(BLOB a, BLOB b)>();
-    foreach (var x in untList) curUnt.Add(((BLOB)untA.GetValue(x), (BLOB)untB.GetValue(x)));
+    var curEsc = new System.Collections.Generic.List<(Gumori a, Gumori b)>();
+    foreach (var x in escList) curEsc.Add(((Gumori)escBlob.GetValue(x), (Gumori)escRing.GetValue(x)));
+    var curUnt = new System.Collections.Generic.List<(Gumori a, Gumori b)>();
+    foreach (var x in untList) curUnt.Add(((Gumori)untA.GetValue(x), (Gumori)untB.GetValue(x)));
     foreach (var p in curEsc) { lastTag[p.a] = ("sortie", LevelSimulation.Step); if (!escStart.ContainsKey(p.a)) { escStart[p.a] = C(p.a).y; escStep[p.a] = LevelSimulation.Step; escN++; sb.Append($"  sortie début pas {LevelSimulation.Step} {p.a.name} niv {f.LevelOf(p.a)} dans {p.b.name} niv {f.LevelOf(p.b)} y {C(p.a).y:F2} centre gros y {C(p.b).y:F2}\n"); } }
     foreach (var p in curUnt) { lastTag[p.a] = ("démêlage", LevelSimulation.Step); lastTag[p.b] = ("démêlage(b)", LevelSimulation.Step); if (!untStart.ContainsKey(p.a)) { untStart[p.a] = C(p.a).y; untN++; } }
     foreach (var p in prevEsc)
@@ -63,7 +63,7 @@ while (LevelSimulation.Step < total)
         {
             float rise = C(p.a).y - escStart[p.a]; escStart.Remove(p.a); escRiseMax = Mathf.Max(escRiseMax, rise);
             if (p.b != null && p.b.isActiveAndEnabled && Overlap(p.a, p.b)) escTimeout++;
-            sb.Append($"  sortie finie pas {LevelSimulation.Step} {p.a.name} montée {rise:F2} m durée {LevelSimulation.Step - escStep[p.a]} pas, centre dedans {(p.b != null && p.b.isActiveAndEnabled && e.GetType().GetMethod("Inside", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).Invoke(null, new object[] { p.b, C(p.a) }).Equals(true))}\n");
+            sb.Append($"  sortie finie pas {LevelSimulation.Step} {p.a.name} montée {rise:F2} m durée {LevelSimulation.Step - escStep[p.a]} pas, centre dedans {(p.b != null && p.b.isActiveAndEnabled && p.b.Contains(C(p.a)))}\n");
         }
     foreach (var p in prevUnt)
         if (!curUnt.Contains(p) && p.a != null && p.a.isActiveAndEnabled)
@@ -72,9 +72,9 @@ while (LevelSimulation.Step < total)
             if (p.b != null && p.b.isActiveAndEnabled && Overlap(p.a, p.b)) { untTimeout++; sb.Append($"  démêlage rendu à cheval pas {LevelSimulation.Step} {p.a.name}\n"); }
         }
     prevEsc = curEsc; prevUnt = curUnt;
-    var now = new System.Collections.Generic.Dictionary<BLOB, Vector2>();
-    foreach (var b in d.Blobs) now[b] = C(b);
-    foreach (var b in d.Blobs)
+    var now = new System.Collections.Generic.Dictionary<Gumori, Vector2>();
+    foreach (var b in d.InPlay) now[b] = C(b);
+    foreach (var b in d.InPlay)
     {
         if (!last.ContainsKey(b) || InRack(b)) continue;
         float vy = (now[b].y - last[b].y) / Time.fixedDeltaTime;

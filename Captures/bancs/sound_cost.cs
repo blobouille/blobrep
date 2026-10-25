@@ -1,9 +1,9 @@
-// SlimeSynth seul : coût d'un tampon de 1024 images stéréo (4 souffles actifs) et niveau de sortie (crête, RMS).
+// GumoriSynth seul : coût d'un tampon de 1024 images stéréo (4 souffles actifs) et niveau de sortie (crête, RMS).
 var go = new GameObject("banc synth") { hideFlags = HideFlags.HideAndDontSave };
-var synth = go.AddComponent<SlimeSynth>();
-typeof(SlimeSynth).GetMethod("Start", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(synth, null);
-for (int v = 0; v < SlimeSynth.MaxVoices; v++) { synth.air[v] = 0.25f; synth.cutoff[v] = 300f + 150f * v; synth.pan[v] = 0.3f * v - 0.4f; }
-var m = typeof(SlimeSynth).GetMethod("OnAudioFilterRead", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+var synth = go.AddComponent<GumoriSynth>();
+typeof(GumoriSynth).GetMethod("Start", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(synth, null);
+for (int v = 0; v < GumoriSynth.MaxVoices; v++) { synth.air[v] = 0.25f; synth.cutoff[v] = 300f + 150f * v; synth.pan[v] = 0.3f * v - 0.4f; }
+var m = typeof(GumoriSynth).GetMethod("OnAudioFilterRead", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 var data = new float[2048];
 var args = new object[] { data, 2 };
 float peak = 0f; double sum = 0; int n = 0;

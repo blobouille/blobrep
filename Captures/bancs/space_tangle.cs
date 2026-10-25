@@ -1,7 +1,7 @@
 // Partie scriptée de 2400 pas (tir tous les 40 pas), démêlage actif ou non (tangle.txt = 1 / 0) ; paires emmêlées comptées tous les 100 pas.
-var l = UnityEngine.Object.FindAnyObjectByType<BlobLauncher>();
-var d = l.GetComponent<BlobDropper>();
-var u = d.GetComponent<SlimeUntangle>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var d = l.GetComponent<GumoriDropper>();
+var u = d.GetComponent<GumoriUntangle>();
 bool on = System.IO.File.ReadAllText("Captures/bancs/tangle.txt").Trim() == "1";
 u.enabled = on;
 d.seed = 2;
