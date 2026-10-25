@@ -5,8 +5,11 @@ using UnityEngine;
 // Fusion des gumori : deux gumori de même taille qui se touchent deviennent un seul gumori du niveau suivant (taille linéaire).
 // Mitose à l'envers : un seul anneau remplace les deux, posé en cacahuète sur eux et tenu dans cette forme par les angles de
 // repos de ses joints, ramenés vers le cercle en 'mergeTime' : le col s'ouvre, les bouts rentrent, les capsules s'épaississent.
+// Absorption (autre méthode) : l'anneau part de la forme RÉELLE des deux gumori (contour de leur union, col arrondi) et
+// garde le mouvement de chaque morceau, puis s'arrondit : pas de saut de forme, rien de neuf qui déborde sur les voisins.
 // Contacts entre gumori comptés par événements (sommes entières : indépendant de leur ordre), fusions dans l'ordre de création.
 public enum GrowthMode { [InspectorName("Arithmétique (+)")] Arithmetic, [InspectorName("Multiplication (×)")] Geometric }
+public enum FusionStyle { [InspectorName("Cacahuète (bulle d'un coup)")] Peanut, [InspectorName("Absorption (forme réelle)")] Absorb }
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -37,6 +40,13 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
              "0 = aucun ajustement (mêmes joints que le modèle : à raideur égale, un gumori 2 × plus gros s'affaisse 2 × moins).")]
     [Min(0f)] public float sizeStiffness = 1f;
 
+    [Header("Méthode")]
+    [Tooltip("Cacahuète : un anneau neuf posé d'un coup sur deux cercles idéaux (plus gros que des gumori écrasés : il peut\n" +
+             "déborder sur les voisins), puis ramené au cercle.\n" +
+             "Absorption : l'anneau neuf part exactement de la forme réelle des deux gumori (écrasés, en mouvement), garde\n" +
+             "leur élan morceau par morceau, et ils se fondent l'un dans l'autre jusqu'au cercle.")]
+    public FusionStyle style = FusionStyle.Peanut;
+
     [Header("Animation (mitose à l'envers)")]
     [Tooltip("Durée (s) pour que les deux gumori n'en fassent plus qu'un : la cacahuète est TENUE par les joints, puis ramenée\n" +
              "vers le cercle en suivant 'mergeCurve' ; ses capsules s'épaississent en même temps.\n" +
@@ -51,6 +61,22 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Largeur du col de la cacahuète au moment de la fusion (demi-largeur, en fraction du rayon des deux gumori).\n" +
              "Petit = deux boules à peine soudées qui s'ouvrent ; 1 = presque un ovale dès le départ.")]
     [Range(0.05f, 1f)] public float waist = 0.4f;
+
+    [Header("Absorption (méthode 'Absorption')")]
+    [Tooltip("Durée (s) pour que les deux gumori se fondent en un seul rond. Pendant ce temps il ne peut pas refusionner.")]
+    [Min(0.01f)] public float absorbTime = 0.9f;
+    [Tooltip("Avancement de l'absorption dans le temps : 0 = forme réelle des deux gumori, 1 = rond. Horizontale = durée\n" +
+             "(0 → 1 = 'absorbTime'). Ex. : lente au début = ils restent un instant collés avant de se fondre.")]
+    public AnimationCurve absorbCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    [Tooltip("Raideur en flexion au début de l'absorption, en fraction de celle du gumori (remonte à 1 avec l'avancement).\n" +
+             "Bas = gelée très molle qui ondule et tremble en se fondant ; 1 = la forme suit exactement la courbe.")]
+    [Range(0.01f, 1f)] public float absorbStiffness = 0.35f;
+    [Tooltip("Arrondi du creux entre les deux gumori au départ (en fraction de leur rayon). 0 = le creux reste pointu (forme\n" +
+             "exacte) ; plus grand = le pont de gelée entre eux est déjà plus large.")]
+    [Range(0f, 1.5f)] public float absorbNeck = 0.5f;
+    [Tooltip("Élan gardé : 1 = chaque morceau du nouvel anneau garde la vitesse de la partie des deux gumori où il naît\n" +
+             "(tremblements, écrasement, rotation continuent sans à-coup) ; 0 = toute la gelée part à la vitesse moyenne.")]
+    [Range(0f, 1f)] public float inheritMotion = 1f;
 
     [Header("Couleurs")]
     [Tooltip("Couleur des niveaux : [0] = niveau 1 (après 1 fusion), [1] = niveau 2… (la dernière se répète).\n" +
@@ -71,6 +97,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         public float time, radius0, radius1, written;
         public float stretch; // allongement des capsules (m) qui donne à l'anneau le périmètre de la cacahuète
         public float[] bend; // angle de repos de chaque joint (rad) qui tient la cacahuète
+        public bool absorb; // méthode 'Absorption' (ses propres durée, courbe, raideur)
     }
 
     struct Candidate
@@ -88,6 +115,9 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     readonly Vector2[] _loop = new Vector2[LoopSamples];
     readonly float[] _arc = new float[LoopSamples + 1];
     readonly float[] _bend = new float[32], _stretch = new float[32], _angles = new float[32];
+    readonly Vector2[] _oldPosition = new Vector2[64], _oldVelocity = new Vector2[64];
+    readonly float[] _oldSpin = new float[64], _rays = new float[LoopSamples], _blur = new float[LoopSamples],
+        _limit = new float[LoopSamples];
     int _eventsStep = -1;
 
     public int Merges { get; private set; }
@@ -121,6 +151,9 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     public float LevelStiffness(int level) => SizeStiffness(LevelDiameter(level) / Template.diameter);
 
     public int LevelOf(Gumori blob) => Level(blob);
+
+    // Durée de la fusion avec la méthode choisie (fenêtres de surveillance, éclat, fin de niveau).
+    public float MergeDuration => style == FusionStyle.Absorb ? absorbTime : mergeTime;
 
     Gumori Template => (_dropper != null ? _dropper : GetComponent<GumoriDropper>()).template;
 
@@ -182,12 +215,14 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             var f = _fusing[i];
             if (f.blob == null || !f.blob.isActiveAndEnabled) { _fusing.RemoveAt(i); continue; } // retiré (fin de niveau)
             f.time += dt;
-            float u = Mathf.Clamp01(f.time / mergeTime);
-            float e = u >= 1f ? 1f : Mathf.Clamp01(mergeCurve != null ? mergeCurve.Evaluate(u) : u);
+            float duration = f.absorb ? absorbTime : mergeTime;
+            var curve = f.absorb ? absorbCurve : mergeCurve;
+            float u = Mathf.Clamp01(f.time / duration);
+            float e = u >= 1f ? 1f : Mathf.Clamp01(curve != null ? curve.Evaluate(u) : u);
             int m = f.bend.Length;
             for (int j = 0; j < m; j++) { _bend[j] = f.bend[j] * (1f - e); _stretch[j] = f.stretch * (1f - e); }
             f.blob.SetShape(_stretch, _bend);
-            f.blob.SetBendStiffness(u >= 1f ? 1f : Mathf.Pow(startStiffness, 1f - e));
+            f.blob.SetBendStiffness(u >= 1f ? 1f : Mathf.Pow(f.absorb ? absorbStiffness : startStiffness, 1f - e));
             float radius = Mathf.Lerp(f.radius0, f.radius1, e);
             if (u >= 1f || Mathf.Abs(radius - f.written) >= 0.01f)
             {
@@ -256,15 +291,20 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         {
             var ca = a.Capsule(i);
             var cb = b.Capsule(i);
-            centerA += ca.position;
-            centerB += cb.position;
-            velocity += ca.linearVelocity + cb.linearVelocity;
+            Vector2 pa = ca.position, pb = cb.position, va = ca.linearVelocity, vb = cb.linearVelocity;
+            centerA += pa;
+            centerB += pb;
+            velocity += va + vb;
+            _oldPosition[i] = pa; _oldPosition[n + i] = pb;
+            _oldVelocity[i] = va; _oldVelocity[n + i] = vb;
+            _oldSpin[i] = ca.angularVelocity; _oldSpin[n + i] = cb.angularVelocity;
         }
         centerA /= n;
         centerB /= n;
         velocity /= 2 * n;
 
-        BuildPeanut(centerA, centerB, a.RestRingRadius);
+        bool absorb = style == FusionStyle.Absorb && BuildUnion(a, b, n, 0.5f * (centerA + centerB));
+        if (!absorb) BuildPeanut(centerA, centerB, a.RestRingRadius);
         const int count = LoopSamples;
         float length = _arc[count];
 
@@ -283,8 +323,17 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             var body = merged.Capsule(k);
             _angles[k] = Mathf.Atan2(tangent.y, tangent.x) - 0.5f * Mathf.PI;
             body.transform = new PhysicsTransform(PointAt(s, count), PhysicsRotate.FromRadians(_angles[k]));
-            body.linearVelocity = velocity;
-            body.angularVelocity = 0f;
+            if (absorb)
+            {
+                int near = Nearest(PointAt(s, count), 2 * n);
+                body.linearVelocity = Vector2.Lerp(velocity, _oldVelocity[near], inheritMotion);
+                body.angularVelocity = inheritMotion * _oldSpin[near];
+            }
+            else
+            {
+                body.linearVelocity = velocity;
+                body.angularVelocity = 0f;
+            }
         }
 
         // La cacahuète est tenue telle quelle : capsules allongées à son périmètre (sinon, si 'growth' < 2, les joints la contractent
@@ -300,8 +349,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         }
         merged.SetCapsuleRadius(radius0);
         merged.SetShape(_stretch, bend);
-        merged.SetBendStiffness(startStiffness);
-        _fusing.Add(new Fusing { blob = merged, radius0 = radius0, radius1 = merged.CapsuleThickness, written = radius0, bend = bend, stretch = stretch });
+        merged.SetBendStiffness(absorb ? absorbStiffness : startStiffness);
+        _fusing.Add(new Fusing { absorb = absorb, blob = merged, radius0 = radius0, radius1 = merged.CapsuleThickness, written = radius0, bend = bend, stretch = stretch });
         Merges++;
         Merged?.Invoke(merged, level, 0.5f * (centerA + centerB));
     }
@@ -316,6 +365,20 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     }
 
     const int LoopSamples = 128;
+    static readonly Vector2[] RayTable = BuildRayTable();
+
+    static Vector2[] BuildRayTable()
+    {
+        var rays = new Vector2[LoopSamples];
+        for (int i = 0; i < LoopSamples; i++)
+        {
+            float angle = i * 2f * Mathf.PI / LoopSamples;
+            rays[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+        }
+        return rays;
+    }
+
+    static Vector2 Ray(int i) => RayTable[i];
 
     // Cacahuète : union adoucie des deux cercles (axe des capsules, rayon 'ringRadius', centrés sur les deux gumori), avec un col
     // de demi-largeur 'waist' × rayon entre eux. Échantillonnée par rayons depuis le milieu (bord le plus éloigné de chaque rayon) :
@@ -347,6 +410,121 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         }
         _arc[0] = 0f;
         for (int i = 1; i <= LoopSamples; i++) _arc[i] = _arc[i - 1] + Vector2.Distance(_loop[i - 1], _loop[i % LoopSamples]);
+    }
+
+    // Contour réel de l'union des deux gumori (polygones de l'axe de leurs capsules, rangés dans _oldPosition) : pour chaque rayon
+    // depuis le milieu, le bord le plus éloigné (boucle sans croisement, sens trigonométrique, comme la cacahuète), mais jamais
+    // au-delà du premier autre gumori croisé ('NeighborLimits') : un voisin logé dans un creux (gumori très mous qui s'enveloppent)
+    // reste dehors. Rayons sans bord (milieu hors des deux) bouchés entre leurs voisins ; creux du col arrondi : rayon gardé au moins
+    // égal à sa moyenne locale (pondérée en triangle sur ≈ 'absorbNeck' × rayon de part et d'autre), dans la place libre seulement.
+    // Faux si trop peu de rayons touchent (la cacahuète sert alors).
+    bool BuildUnion(Gumori a, Gumori b, int n, Vector2 middle)
+    {
+        float ringRadius = a.RestRingRadius, thickness = a.CapsuleThickness;
+        NeighborLimits(a, b, n, middle, thickness);
+        int hits = 0;
+        float mean = 0f;
+        for (int i = 0; i < LoopSamples; i++)
+        {
+            var ray = Ray(i);
+            float best = -1f, limit = _limit[i] + 0.25f * thickness;
+            bool crossed = false;
+            for (int ring = 0; ring < 2; ring++)
+                for (int k = 0; k < n; k++)
+                {
+                    Vector2 p = _oldPosition[ring * n + k], q = _oldPosition[ring * n + (k + 1) % n];
+                    Vector2 edge = q - p, w = p - middle;
+                    float denom = ray.x * edge.y - ray.y * edge.x;
+                    if (Mathf.Abs(denom) < 1e-9f) continue;
+                    float t = (w.x * edge.y - w.y * edge.x) / denom;
+                    float u = (w.x * ray.y - w.y * ray.x) / denom;
+                    if (t <= 0f || u < 0f || u > 1f) continue;
+                    crossed = true;
+                    if (t > best && t <= limit) best = t;
+                }
+            if (best <= 0f && crossed) best = Mathf.Max(0.1f * ringRadius, _limit[i]);
+            _rays[i] = best;
+            if (best > 0f) { hits++; mean += best; }
+        }
+        if (hits < LoopSamples / 2) return false;
+        mean /= hits;
+        if (hits < LoopSamples)
+        {
+            for (int i = 0; i < LoopSamples; i++)
+            {
+                if (_rays[i] > 0f) continue;
+                int back = 1, ahead = 1;
+                while (_rays[(i - back + LoopSamples) % LoopSamples] <= 0f) back++;
+                while (_rays[(i + ahead) % LoopSamples] <= 0f) ahead++;
+                float filled = Mathf.Lerp(_rays[(i - back + LoopSamples) % LoopSamples], _rays[(i + ahead) % LoopSamples], back / (float)(back + ahead));
+                _blur[i] = Mathf.Max(0.1f * ringRadius, Mathf.Min(filled, _limit[i]));
+            }
+            for (int i = 0; i < LoopSamples; i++) if (_rays[i] <= 0f) _rays[i] = _blur[i];
+        }
+
+        int width = Mathf.Clamp(Mathf.RoundToInt(absorbNeck * ringRadius / mean * LoopSamples / (2f * Mathf.PI)), 0, LoopSamples / 4);
+        for (int i = 0; i < LoopSamples; i++)
+        {
+            float sum = _rays[i] * (width + 1), weight = width + 1;
+            for (int k = 1; k <= width; k++)
+            {
+                float wk = width + 1 - k;
+                sum += wk * (_rays[(i + k) % LoopSamples] + _rays[(i - k + LoopSamples) % LoopSamples]);
+                weight += 2f * wk;
+            }
+            _blur[i] = Mathf.Max(_rays[i], Mathf.Min(sum / weight, _limit[i]));
+        }
+        for (int i = 0; i < LoopSamples; i++) _loop[i] = middle + Ray(i) * _blur[i];
+        _arc[0] = 0f;
+        for (int i = 1; i <= LoopSamples; i++) _arc[i] = _arc[i - 1] + Vector2.Distance(_loop[i - 1], _loop[i % LoopSamples]);
+        return true;
+    }
+
+    // Pour chaque rayon, distance (depuis le milieu) où l'axe du nouvel anneau toucherait la première capsule d'un autre gumori
+    // (somme des épaisseurs) ; l'infini si rien. Tri grossier par la distance des centres.
+    void NeighborLimits(Gumori a, Gumori b, int n, Vector2 middle, float thickness)
+    {
+        float reach = 0f;
+        for (int i = 0; i < 2 * n; i++) reach = Mathf.Max(reach, (_oldPosition[i] - middle).magnitude);
+        reach += 2f * thickness;
+        for (int i = 0; i < LoopSamples; i++) _limit[i] = float.MaxValue;
+        var inPlay = _dropper.InPlay;
+        for (int g = 0; g < inPlay.Count; g++)
+        {
+            var other = inPlay[g];
+            if (other == a || other == b) continue;
+            float r = 0.5f * other.diameter + other.CapsuleThickness;
+            if ((other.Center - middle).sqrMagnitude > (reach + r) * (reach + r)) continue;
+            float clearance = thickness + other.CapsuleThickness;
+            for (int k = 0; k < other.CapsuleCount; k++)
+            {
+                Vector2 c = other.Capsule(k).position - middle;
+                for (int i = 0; i < LoopSamples; i++)
+                {
+                    Vector2 ray = Ray(i);
+                    float along = c.x * ray.x + c.y * ray.y;
+                    if (along <= 0f) continue;
+                    float across = c.x * ray.y - c.y * ray.x;
+                    if (across * across >= clearance * clearance) continue;
+                    float stop = along - Mathf.Sqrt(clearance * clearance - across * across);
+                    if (stop < _limit[i]) _limit[i] = stop;
+                }
+            }
+        }
+    }
+
+
+    // Capsule des deux anciens gumori la plus proche de p (la première en cas d'égalité : ordre fixe).
+    int Nearest(Vector2 p, int count)
+    {
+        int best = 0;
+        float bestDistance = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            float d = (_oldPosition[i] - p).sqrMagnitude;
+            if (d < bestDistance) { bestDistance = d; best = i; }
+        }
+        return best;
     }
 
     // Distance signée (approchée) au bord de l'union adoucie des deux cercles : négative dedans.

@@ -22,7 +22,7 @@ public class GumoriFx : MonoBehaviour
     public Shader shader;
 
     [Header("Fusion")]
-    [Tooltip("Moment de l'éclat, en fraction de la durée de fusion (mergeTime de GumoriFusion) : 0 = dès que les deux gumori se\n" +
+    [Tooltip("Moment de l'éclat, en fraction de la durée de fusion (mergeTime ou absorbTime de GumoriFusion) : 0 = dès que les deux gumori se\n" +
              "touchent, 1 = quand le nouveau est redevenu rond. Avant : seulement une lueur douce derrière, on voit la fusion.")]
     [Range(0f, 1f)] public float popAt = 0.8f;
     [Tooltip("Gouttes de gelée projetées à l'éclat (+ 1 par niveau, + 3 par maillon de chaîne).")]
@@ -187,7 +187,7 @@ public class GumoriFx : MonoBehaviour
 
     static Vector4 Hdr(Color c, float k) => new Vector4(c.r * k, c.g * k, c.b * k, 1f);
 
-    float PopDelay => _fusion != null ? popAt * _fusion.mergeTime : 0f;
+    float PopDelay => _fusion != null ? popAt * _fusion.MergeDuration : 0f;
 
     // Début de la fusion : lueur douce derrière les deux gumori, annonce, ralenti (on voit la fusion au ralenti) ; l'éclat suit.
     void Merge(GumoriScore.Hit hit)

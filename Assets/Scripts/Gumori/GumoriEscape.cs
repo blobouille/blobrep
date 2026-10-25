@@ -14,7 +14,7 @@ using UnityEngine;
 public class GumoriEscape : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Détection")]
-    [Tooltip("Durée (s) de surveillance d'un gumori après sa fusion (en plus de 'mergeTime' de GumoriFusion).")]
+    [Tooltip("Durée (s) de surveillance d'un gumori après sa fusion (en plus de la durée de fusion de GumoriFusion).")]
     [Min(0f)] public float watchTime = 1f;
     [Tooltip("Test tous les N pas (120 pas/s). Plus grand = moins coûteux, sortie un peu plus tardive.")]
     [Min(1)] public int checkInterval = 2;
@@ -68,7 +68,7 @@ public class GumoriEscape : MonoBehaviour, ILevelPhysics, ILevelTick
 
     void OnMerged(Gumori merged, int level, Vector2 position)
     {
-        int steps = Mathf.RoundToInt((_fusion.mergeTime + watchTime) / Time.fixedDeltaTime);
+        int steps = Mathf.RoundToInt((_fusion.MergeDuration + watchTime) / Time.fixedDeltaTime);
         _watch.Add(new Watch { blob = merged, until = LevelSimulation.Step + steps });
     }
 

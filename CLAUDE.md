@@ -161,6 +161,16 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    capsules allongées à son périmètre), puis ramenée au cercle en `mergeTime` selon `mergeCurve` ; capsules qui s'épaississent.
    Avant : laissée s'arrondir seule = quasi instantané, et avec `growth` < 2 les joints contractaient le périmètre d'un coup. Écarté : recoudre les capsules réelles des deux anneaux (un blob écrasé par sa chute se replie,
    l'anneau recousu se croise en 8 et y reste bloqué). Rejeu exact au bit près (d'un bloc et pas à pas, 33 fusions).
+   Deux méthodes au choix depuis le 2026-10-25 (`GumoriFusion.style`, À TESTER à l'œil par l'utilisateur ; Cacahuète par défaut,
+   scènes inchangées) : Cacahuète (ci-dessus) ou ABSORPTION : l'anneau neuf part de la forme RÉELLE des deux gumori (contour de
+   l'union de leurs polygones de capsules, rayons depuis le milieu, bord le plus éloigné), jamais au-delà du premier voisin
+   croisé, col arrondi (`absorbNeck`) dans la place libre seulement ; chaque capsule garde la vitesse de la capsule d'origine
+   la plus proche (`inheritMotion`) ; s'arrondit en `absorbTime` selon `absorbCurve`, molle au départ (`absorbStiffness`).
+   Réglages propres (durée effective lue par Escape / Goal / Fx via `MergeDuration`). Mesuré (`Captures/bancs/fusion_run.sh`,
+   même partie scriptée) : chevauchement des voisins à la naissance, terrestre 17,3 → 3,0 cm en moyenne (> 5 cm : 28/32 →
+   2/31), Space 7,1 → 1,5 cm (25/32 → 0/28), Space : sorties forcées 5 → 0, démêlages 30 → 10 ; même coût ; identique au bit
+   près sur 2 essais. Premier essai sans la limite des voisins : un voisin logé dans le creux entre les deux (ou dans un creux
+   d'un gumori mou) se retrouvait DEDANS (5 en Space)
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
    ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement

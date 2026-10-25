@@ -169,7 +169,7 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
         if (Reached)
         {
             // La chaîne en cours se finit (ses points comptent) : plus de fusion pendant une fenêtre de chaîne + une fusion.
-            float wait = _score.comboWindow + (_fusion != null ? _fusion.mergeTime : 0f);
+            float wait = _score.comboWindow + (_fusion != null ? _fusion.MergeDuration : 0f);
             if (LevelSimulation.Step - _lastMergeStep < Mathf.RoundToInt(wait / Time.fixedDeltaTime)) return;
             _endTime = Time.time;
             Result = State.Won;
