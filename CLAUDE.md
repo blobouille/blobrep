@@ -12,10 +12,14 @@ Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers,
 `avant-slime`. Leur code a été retiré du projet le 2026-10-25 (voir « Code du jeu »).
 
 Noms (décision du 2026-10-23) : le jeu et son univers (personnages réutilisables dans d'autres jeux) = « Gumori » (marque à
-déposer, classes 9 et 41) ; nom commercial de la micro-entreprise = « Gumori » aussi (une seule identité ; « Igueldan »
-gardé en réserve pour une future société). Libres à l'INPI le 2026-10-23, gumori.com aussi ; pseudo @gumori pris (variante
+déposer, classes 9 et 41, et nom du jeu sur les stores) ; nom commercial de la micro-entreprise = « Gumori Games »
+(décision du 2026-10-25, avant : « Gumori » ; dénomination légale = nom de l'exploitant ; « Igueldan » gardé en réserve
+pour une future société). Libres à l'INPI le 2026-10-23, gumori.com aussi ; pseudo @gumori pris (variante
 @gumori.games, X : sans point ; compte Google « Gumori Games », gumori.games@gmail.com). Structure : micro-entreprise d'abord, société (EURL / SASU) plus tard si le jeu rapporte. Communication en anglais, sortie mondiale. Modèle : gratuit + publicité (surtout récompensée),
-récompenses au hasard gagnées en jouant seulement ; achats intégrés envisagés plus tard. Toute récompense de pub qui agit sur la
+récompenses au hasard gagnées en jouant ; achats intégrés plus tard, DONT des tirages au hasard PAYANTS (loot boxes,
+décision du 2026-10-25) : chances affichées avant l'achat (Apple / Google), garantie de rare au bout de N tirages,
+interrupteur par pays réglable à distance (Belgique : interdits ; Brésil : mineurs ; Australie : note 15+ minimum), tirage
+fait côté serveur, jamais dans la simulation. Toute récompense de pub qui agit sur la
 partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistrée), sinon les replays divergent.
 
 ## Piliers
@@ -37,6 +41,29 @@ partie (secousse, continuer…) doit passer par `LevelInput` (entrée enregistr�
 - Slimes spéciaux rares (3–4 max) : collant, lourd, arc-en-ciel (fusionne avec tout), acide (mange un petit voisin)
 - Collection : slimes rares / shiny gagnés en fin de partie. Attention : en PERDRE crée de la rancœur ; pistes : il part en
   balade et revient, ou un seul « compagnon » à la fois
+- En ligne (idée du 2026-10-25, plus tard) : amis (s'ajouter, voir la collection de l'autre, profil public choisi par le
+  joueur), événements en ligne limités dans le temps. Piste : Unity Gaming Services (Authentication en compte invisible puis
+  lié à Google / Apple, pas de compte e-mail ; Cloud Save en JSON à nous ; Friends ; Leaderboards ; Remote Config pour les
+  événements), appels isolés dans une seule classe (`GumoriCloud`) pour pouvoir changer de service. Un événement = des
+  données (graine, règles, récompenses) lues AVANT la partie, jamais pendant : la partie reste déterministe et rejouable.
+  Scores vérifiables en rejouant les entrées côté serveur. RGPD : suppression de compte, e-mail non demandé
+- Histoire (décision du 2026-10-25, ligne directrice légère, pas un jeu à histoire), découpée en ACTES, un méchant par
+  grosse mise à jour :
+  - Acte 1 (sortie) : FONDER LE VILLAGE. Les gumori vivent dispersés, seuls, piégés dans de vieux bocaux (cause à choisir :
+    tempête, marée, entrepôt abandonné). Le joueur (gardien, l'avatar) brise les bocaux : chaque niveau = un bocal (le
+    réservoir), fusionner = plus forts ensemble, assez pour briser le verre, finale (division + envol) = la libération.
+    Les libérés le suivent librement et fondent le village ; chaque zone finie y ajoute un bâtiment (maison, fontaine,
+    pont…) jusqu'au CHÂTEAU en fin d'acte. Pas de vrai méchant : le défi = les bocaux, peut-être un gros gumori grognon à
+    rallier en fin de zone. Gumori pas encore libérés = silhouettes GRISÉES (village, collection), qui prennent leur
+    couleur quand on les libère
+  - Acte 2 (grosse mise à jour) : la GRISAILLE (méchant Gris, boudeur plutôt que cruel, trouve les couleurs « trop »)
+    VOLE les couleurs du village et des gumori du joueur : nouvelle carte, brume grise qui recule à chaque victoire, les
+    TERNES à battre en fin de zone (gumori vidés de leur couleur, gris délavé, PAS le corps noir ; battus = recolorés, ils
+    rejoignent le village), Gris à la fin (il trouve sa propre couleur et rejoint le village). Apparitions de Gris dans
+    les niveaux seulement écrites dans les données du niveau (déterministe)
+  - Actes suivants : un nouveau méchant / une nouvelle menace par grosse mise à jour
+  Village = bocal-jouet : les gumori y vivent LIBRES et restent par choix (vocabulaire : « tes amis », « ton village »,
+  jamais « possédés » : le joueur n'est pas un collectionneur)
 - Bocal-jouet : écran d'accueil où la collection se laisse toucher, écraser, secouer (attachement, aucune contrainte)
 - Deuxième piste de cœur de jeu, en réserve : « chute molle » (un slime tombe dans un puits ; tenu = mou, il se faufile ;
   relâché = dur, il rebondit et casse). Écartées : remplir un moule (incompréhensible sans démonstration), slime qui se
@@ -266,6 +293,10 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Plus fort avec le niveau et la chaîne :
      tremblement de l'écran, pulsation du fond, annonce « ×3 Super ! » (dès 2 maillons), ralenti (dès 4 maillons ou niveau 9),
      éclair plein écran, confettis (record dès le niveau 5, niveau max). Éclaboussures aux chocs, pointillés de visée
+   - Fondu de design à la fusion (2026-10-25, `GumoriSkin.fadeDesign`, coupé par défaut, À TESTER à l'œil) : le né passe en
+     fondu enchaîné du design de ses parents au sien sur `MergeDuration` (`fadeCurve`) : nouveau design dessous, ancien
+     par-dessus qui s'efface (opacité = alpha des sommets, multiplié dans `Slime/Body`), accessoires qui se fondent aussi
+     (pas de pousse à l'éclat). Banc : `Captures/bancs/fade_shot.sh` (ralenti, `Captures/fusion/fondu_*.png`)
    - `GumoriBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `GumoriSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au

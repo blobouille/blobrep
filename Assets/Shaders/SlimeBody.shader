@@ -559,7 +559,7 @@ Shader "Slime/Body"
                     rim = lerp(rim, lerp(body, 1.0, 0.45) * 1.15, pow(lit, 4.0) * 0.7);
                     rim = lerp(rim, lerp(accent, float3(0.42, 0.38, 0.58), 0.65), Dark(body)); // sinon invisible sur fond nuit
                     rim = lerp(rim, float3(1.6, 1.6, 1.6), flash);
-                    return float4(rim * a, a);
+                    return float4(rim * a, a) * i.color.a;
                 }
                 if (part == 2)
                 {
@@ -571,14 +571,14 @@ Shader "Slime/Body"
                     c += 0.22 * smoothstep(-0.2, -0.6, lp.x) * smoothstep(0.1, 0.5, lp.y);
                     c *= 1.0 + i.light.w * smoothstep(0.55, 1.0, lp.y) * (0.75 + 0.25 * sin(t * 4.0));
                     c = lerp(c, float3(1.6, 1.6, 1.6), flash);
-                    return float4(c * a, a);
+                    return float4(c * a, a) * i.color.a;
                 }
                 if (part == 3)
                 {
                     // Anneau lumineux (auréole) : à moitié additif.
                     float a = smoothstep(0.0, 0.35, e) * smoothstep(1.0, 0.65, e);
                     float3 c = i.color.rgb * (1.0 + i.light.w * (0.8 + 0.2 * sin(t * 3.0)));
-                    return float4(c * a, a * 0.55);
+                    return float4(c * a, a * 0.55) * i.color.a;
                 }
 
                 float2 p = i.deco.xy;
@@ -667,7 +667,7 @@ Shader "Slime/Body"
                 }
 
                 col = lerp(col, float3(1.6, 1.6, 1.6), flash);
-                return float4(col * alpha, alpha);
+                return float4(col * alpha, alpha) * i.color.a; // alpha des sommets = opacité (fondu de design pendant une fusion)
             }
             ENDHLSL
         }

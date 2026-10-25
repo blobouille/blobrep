@@ -60,6 +60,12 @@ public class GumoriSkin : MonoBehaviour
     [Range(0f, 1f)] public float mergeFlash = 0.45f;
     [Tooltip("Distance (en diamètres du nouveau gumori) à laquelle les voisins regardent une fusion, étonnés.")]
     [Min(0f)] public float curiosity = 2f;
+    [Tooltip("Fusion : le nouveau gumori passe en fondu enchaîné du design de ses parents au sien (motif, visage, accessoires),\n" +
+             "sur toute la durée de la fusion (GumoriFusion.MergeDuration). Sinon : il prend son design d'un coup et ses\n" +
+             "accessoires poussent à l'éclat.")]
+    public bool fadeDesign;
+    [Tooltip("Allure du fondu : 0 → 1 en abscisse = durée de la fusion, ordonnée = part du nouveau design.")]
+    public AnimationCurve fadeCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Header("Aperçus")]
     [Tooltip("Gumori à lâcher et suivant dessinés avec leur design.")]
@@ -142,6 +148,8 @@ public class GumoriSkin : MonoBehaviour
         public Vector2 center, velocity, look, attention;
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
         public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
+        public int morphFrom = -1; // fondu de design : niveau des parents, et avancement (0 → 1, sur la durée de la fusion)
+        public float morph = 1f;
         public GumoriDesign design; // design imposé (vitrine), sinon celui du niveau
         // Vitesses des derniers pas vus (choc = vitesse perdue sur ImpactWindow pas, quelle que soit la cadence d'affichage).
         public readonly Vector2[] pastVelocity = new Vector2[8];
@@ -278,7 +286,7 @@ public class GumoriSkin : MonoBehaviour
     {
         if (hit.blob == null || !_looks.TryGetValue(hit.blob, out var look)) return;
         look.waitPop = false;
-        look.pop = 0f;
+        if (look.morphFrom < 0) look.pop = 0f;
         look.flash = mergeFlash;
         look.wow = 0f;
         look.happy = happyTime;
@@ -328,11 +336,14 @@ public class GumoriSkin : MonoBehaviour
             if (p.merge)
             {
                 // Pendant la fusion : bouche ronde, accessoires cachés jusqu'à l'éclat (sans GumoriFx : tout de suite).
-                look.waitPop = _fx != null && _fx.isActiveAndEnabled;
-                look.wow = look.waitPop ? 3f : 0.35f;
+                bool fade = fadeDesign && look.level > 0 && _fusion != null;
+                look.waitPop = !fade && _fx != null && _fx.isActiveAndEnabled;
+                look.wow = _fx != null && _fx.isActiveAndEnabled ? 3f : 0.35f;
                 look.happy = happyTime;
-                look.pop = 0f;
-                if (!look.waitPop) look.flash = mergeFlash;
+                look.pop = fade ? 1f : 0f;
+                look.morphFrom = fade ? look.level - 1 : -1;
+                look.morph = fade ? 0f : 1f;
+                if (!look.waitPop && !fade) look.flash = mergeFlash;
                 float reach = curiosity * 2f * look.radius;
                 foreach (var other in _looks.Values)
                 {
@@ -486,7 +497,21 @@ public class GumoriSkin : MonoBehaviour
                 _sp[i * k + j] = CatmullRom(p0, p1, p2, p3, u);
             }
         }
-        EmitSlime(Resolve(look), look, c, count, rot, blob.diameter);
+        if (look.morphFrom >= 0) EmitMorph(look, c, count, rot, blob.diameter);
+        else EmitSlime(Resolve(look), look, c, count, rot, blob.diameter);
+    }
+
+    // Fondu enchaîné de design pendant une fusion : nouveau design dessous, design des parents par-dessus qui s'efface ;
+    // accessoires du dos d'abord (derrière les deux corps), ceux de devant au-dessus de leur corps.
+    void EmitMorph(Look look, Vector2 c, int n, float rot, float diameter)
+    {
+        float t = Mathf.Clamp01(fadeCurve != null && fadeCurve.length > 0 ? fadeCurve.Evaluate(look.morph) : look.morph);
+        GumoriDesign from = Design(look.morphFrom), to = Resolve(look);
+        EmitSlime(from, look, c, n, rot, diameter, 1f - t, Parts.Back);
+        EmitSlime(to, look, c, n, rot, diameter, t, Parts.Back);
+        EmitSlime(to, look, c, n, rot, diameter, 1f, Parts.Body);
+        EmitSlime(to, look, c, n, rot, diameter, t, Parts.Front);
+        EmitSlime(from, look, c, n, rot, diameter, 1f - t, Parts.Body | Parts.Front);
     }
 
     void EnsureSamples(int count)
@@ -517,6 +542,11 @@ public class GumoriSkin : MonoBehaviour
         look.attentionTime -= dt;
         look.flash = Mathf.Max(0f, look.flash - dt / 0.3f);
         if (!look.waitPop) look.pop = Mathf.Min(1f, look.pop + dt / 0.5f);
+        if (look.morphFrom >= 0)
+        {
+            look.morph += dt / Mathf.Max(1e-3f, _fusion != null ? _fusion.MergeDuration : 1f);
+            if (look.morph >= 1f) { look.morph = 1f; look.morphFrom = -1; }
+        }
 
         look.blinkIn -= dt;
         if (look.blinkIn <= 0f)
@@ -730,6 +760,7 @@ public class GumoriSkin : MonoBehaviour
         if (_vertexCount == _vb.Length) System.Array.Resize(ref _vb, 2 * _vb.Length);
         ref var v = ref _vb[_vertexCount];
         v.position = new Vector3(p.x, p.y, 0f);
+        color.a = _opacity;
         v.color = color;
         v.uv0 = uv0;
         v.uv1 = uv1;
@@ -750,9 +781,22 @@ public class GumoriSkin : MonoBehaviour
 
     // Un gumori : accessoires de derrière, gelée (éventail depuis le centre), liseré du contour, accessoires de devant.
     // _sp : points du contour, régulièrement répartis au repos (point k à l'angle 2πk/n du corps) ; 'rot' = rotation du corps.
-    void EmitSlime(GumoriDesign d, Look look, Vector2 c, int n, float rot, float diameter)
+    [System.Flags]
+    enum Parts { Back = 1, Body = 2, Front = 4, All = 7 }
+
+    // Opacité de tout ce qui est émis (alpha des sommets, multiplié par le shader).
+    byte _opacity = 255;
+
+    void EmitSlime(GumoriDesign d, Look look, Vector2 c, int n, float rot, float diameter, float opacity = 1f, Parts parts = Parts.All)
     {
-        if (d == null) return;
+        if (d == null || opacity <= 0.002f) return;
+        _opacity = (byte)Mathf.RoundToInt(Mathf.Clamp01(opacity) * 255f);
+        EmitSlimeParts(d, look, c, n, rot, diameter, parts);
+        _opacity = 255;
+    }
+
+    void EmitSlimeParts(GumoriDesign d, Look look, Vector2 c, int n, float rot, float diameter, Parts parts)
+    {
         for (int k = 0; k < n; k++)
         {
             Vector2 t = _sp[(k + 1) % n] - _sp[(k + n - 1) % n];
@@ -778,7 +822,12 @@ public class GumoriSkin : MonoBehaviour
         float radius = 0.5f * diameter;
         float accScale = ElasticOut(look.pop);
 
-        EmitAccessories(d, false, n, rot, frame, radius, accScale, aa);
+        if ((parts & Parts.Back) != 0) EmitAccessories(d, false, n, rot, frame, radius, accScale, aa);
+        if ((parts & Parts.Body) == 0)
+        {
+            if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
+            return;
+        }
 
         // Directions au repos (contour régulier) tournées par multiplication : repère du décor (rot - frame), de la lumière (rot).
         var rest = Units(n);
@@ -811,7 +860,7 @@ public class GumoriSkin : MonoBehaviour
             Tri(a + 1, a + 2, b + 2); Tri(a + 1, b + 2, b + 1);
         }
 
-        EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
+        if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
     }
 
     static int Pack6(Color linear)
