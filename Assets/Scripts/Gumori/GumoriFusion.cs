@@ -34,10 +34,6 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(3, 32)] public int maxSides = 32;
     [Tooltip("Nombre max de fusions successives : au-delà, deux gumori de même taille ne fusionnent plus. 0 = sans limite.")]
     [Min(0)] public int maxLevel = 10;
-    [Tooltip("Un gumori encore en train de fusionner peut refusionner dès qu'il touche un gumori de sa taille (fusion dès le choc).\n" +
-             "Décoché : il attend la fin de sa fusion ; un gumori lancé sur lui rebondit, et ne fusionne qu'à la fin s'ils se\n" +
-             "touchent encore (mesuré en Space : 280 à 400 chocs refusés par partie avec l'absorption, qui dure plus longtemps).")]
-    public bool mergeWhileFusing = true;
     [Tooltip("Tenue des gros gumori face à la gravité, comparée au gumori lâché :\n" +
              "1 = tous se comportent pareil (même affaissement relatif, juste plus gros) ;\n" +
              "> 1 = plus ils sont gros, plus ils sont durs (2 = comme sans ajustement) ; < 1 = plus ils sont gros, plus ils sont mous ;\n" +
@@ -54,7 +50,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Header("Animation (mitose à l'envers)")]
     [Tooltip("Durée (s) pour que les deux gumori n'en fassent plus qu'un : la cacahuète est TENUE par les joints, puis ramenée\n" +
              "vers le cercle en suivant 'mergeCurve' ; ses capsules s'épaississent en même temps.\n" +
-             "Pendant ce temps il peut refusionner seulement si 'mergeWhileFusing' est coché.")]
+             "Pendant ce temps il ne peut pas refusionner (il le fera à la fin s'il touche encore un gumori de sa taille).")]
     [Min(0.01f)] public float mergeTime = 0.8f;
     [Tooltip("Avancement de la fusion dans le temps : 0 = cacahuète, 1 = rond. Horizontale = durée (0 → 1 = 'mergeTime').\n" +
              "Ex. : lente au début puis rapide = le col hésite puis s'ouvre d'un coup.")]
@@ -67,7 +63,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Range(0.05f, 1f)] public float waist = 0.4f;
 
     [Header("Absorption (méthode 'Absorption')")]
-    [Tooltip("Durée (s) pour que les deux gumori se fondent en un seul rond. Refusion pendant ce temps : voir 'mergeWhileFusing'.")]
+    [Tooltip("Durée (s) pour que les deux gumori se fondent en un seul rond. Pendant ce temps il ne peut pas refusionner.")]
     [Min(0.01f)] public float absorbTime = 0.9f;
     [Tooltip("Avancement de l'absorption dans le temps : 0 = forme réelle des deux gumori, 1 = rond. Horizontale = durée\n" +
              "(0 → 1 = 'absorbTime'). Ex. : lente au début = ils restent un instant collés avant de se fondre.")]
@@ -267,7 +263,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             int ia = GumoriDropper.IsInPlay(a) ? a.Index : -1, ib = GumoriDropper.IsInPlay(b) ? b.Index : -1;
             if (ia < 0 || ib < 0) { _keys.Add(pair.Key); continue; } // gumori fusionné ou retiré
             if (maxLevel > 0 && Level(a) >= maxLevel) continue;
-            if (!mergeWhileFusing && (IsFusing(a) || IsFusing(b))) continue;
+            if (IsFusing(a) || IsFusing(b)) continue;
             _candidates.Add(ia < ib
                 ? new Candidate { a = a, b = b, first = ia, second = ib }
                 : new Candidate { a = b, b = a, first = ib, second = ia });
