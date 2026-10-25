@@ -183,6 +183,11 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    ouverture morphologique du contour (poussait les voisins), retourner les coudes à ± 2π (jamais arrivé), pression Space.
    Coût d'un pas de fusion : 1,0 ms en absorption, 2,7 ms en cacahuète (sa marche de rayons). Bancs : `fusion_variants.sh`
    (réglages essayés sans toucher la scène, ex. "1 seed=5 stiff=0.6"), `fusion_trace.cs` (SVG des anneaux), `fusion_trace2.cs`
+   Fusion dès le choc (2026-10-25, signalé par l'utilisateur : deux pareils lancés l'un sur l'autre rebondissaient, puis
+   fusionnaient seulement s'ils restaient collés) : un gumori encore en fusion ne pouvait pas refusionner, et l'absorption dure
+   0,9 s ; mesuré en Space (`fusion_miss.cs`), 280 à 400 chocs entre pareils refusés par partie, aucun raté par rebond dans le
+   même pas. `mergeWhileFusing` (défaut coché, les deux méthodes) : refusion permise ; tous les chocs fusionnent au pas suivant
+   (29/29, 35/35), aucun anneau croisé, identique au bit près (2 essais). Change aussi les parties en Cacahuète
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
    ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement
