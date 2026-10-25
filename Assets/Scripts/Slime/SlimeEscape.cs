@@ -5,8 +5,9 @@ using UnityEngine;
 // gros que des slimes écrasés dans la pile. Il peut alors chevaucher la membrane d'un voisin, et Box2D le pousse du mauvais côté
 // (dedans), ou refermer son propre col sur un petit pris dans le creux. Détection : pendant 'watchTime' après chaque fusion, le
 // nouveau slime et ses voisins sont testés (centre du petit dans le polygone des capsules du gros). Sortie : la membrane du gros
-// laisse passer le petit (même groupe de collision), qui glisse dehors à 'escapeSpeed', vers l'extérieur et vers le haut, puis
-// la reprend dès qu'il est dégagé. Le petit touche tout le reste normalement. Tout dans LevelTick, dans l'ordre de création.
+// laisse passer le petit (même groupe de collision), qui glisse dehors à 'escapeSpeed' par le bord le plus PROCHE du gros (pas
+// vers le haut : il traversait tout le gros et remontait à la surface de la pile, mesuré jusqu'à 3,5 m), puis la reprend dès
+// qu'il en est dégagé. Le petit touche tout le reste normalement. Tout dans LevelTick, dans l'ordre de création.
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BlobFusion))]
@@ -19,12 +20,14 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
     [Min(1)] public int checkInterval = 2;
 
     [Header("Sortie")]
-    [Tooltip("Vitesse de sortie (km/h) du slime enfermé, vers l'extérieur du gros.")]
+    [Tooltip("Vitesse de sortie (km/h) du slime enfermé, vers le bord le plus proche du gros.")]
     [SpeedKmh] [Min(0f)] public float escapeSpeed = 3f;
-    [Tooltip("Penche la sortie vers le haut : 0 = droit vers l'extérieur, 1 = à 45° vers le haut en moyenne.\n" +
-             "Vers le haut, il ne finit pas coincé sous le gros contre le fond.")]
-    [Min(0f)] public float upBias = 1f;
-    [Tooltip("Durée max (s) d'une sortie : au-delà, la membrane redevient solide quoi qu'il arrive.")]
+    [Tooltip("Angle max (°) sous l'horizontale de la sortie : un bord plus bas n'est pas choisi (le petit finirait coincé sous " +
+             "le gros contre le fond). 0 = jamais vers le bas, 90 = n'importe quel bord.")]
+    [Range(0f, 90f)] public float maxDownAngle = 30f;
+    [Tooltip("Durée (s) après laquelle la membrane redevient solide dès que le petit ne la chevauche plus, même s'il est encore " +
+             "dedans. Encore à cheval : attendu jusqu'à 3 × cette durée (rendue à cheval, Box2D les séparait d'un coup et le " +
+             "petit était projeté).")]
     [Min(0.1f)] public float maxEscapeTime = 3f;
 
     struct Watch
@@ -36,7 +39,7 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
     struct Escape
     {
         public BLOB blob, ring;
-        public int until;
+        public int until, last;
     }
 
     BlobDropper _dropper;
@@ -76,7 +79,8 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
         {
             var e = _escapes[i];
             bool alive = e.blob != null && e.blob.isActiveAndEnabled;
-            if (!alive || e.ring == null || !e.ring.isActiveAndEnabled || step >= e.until || IsClear(e.blob, e.ring))
+            if (!alive || e.ring == null || !e.ring.isActiveAndEnabled || step >= e.last || IsClear(e.blob, e.ring) ||
+                (step >= e.until && !Overlaps(e.blob, e.ring)))
             {
                 if (alive) e.blob.SetCollisionGroup(e.blob.OwnGroup);
                 _escapes.RemoveAt(i);
@@ -115,7 +119,8 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
     void StartEscape(BLOB blob, BLOB ring)
     {
         blob.SetCollisionGroup(ring.OwnGroup);
-        _escapes.Add(new Escape { blob = blob, ring = ring, until = LevelSimulation.Step + Mathf.RoundToInt(maxEscapeTime / Time.fixedDeltaTime) });
+        int steps = Mathf.RoundToInt(maxEscapeTime / Time.fixedDeltaTime);
+        _escapes.Add(new Escape { blob = blob, ring = ring, until = LevelSimulation.Step + steps, last = LevelSimulation.Step + 3 * steps });
         Escapes++;
     }
 
@@ -126,13 +131,10 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
         return false;
     }
 
-    // Vitesse vers l'extérieur du gros (penchée vers le haut) d'au moins 'escapeSpeed' : le reste du mouvement est gardé.
+    // Vitesse vers le bord le plus proche du gros d'au moins 'escapeSpeed' : le reste du mouvement est gardé.
     void Push(BLOB blob, BLOB ring)
     {
-        Vector2 away = Center(blob) - Center(ring);
-        away = away.sqrMagnitude > 1e-6f ? away.normalized : Vector2.up;
-        Vector2 dir = (away + upBias * Vector2.up).normalized;
-        if (dir.sqrMagnitude < 1e-6f) dir = Vector2.up;
+        Vector2 dir = ExitDirection(Center(blob), ring);
         for (int i = 0; i < blob.CapsuleCount; i++)
         {
             var body = blob.Capsule(i);
@@ -140,6 +142,47 @@ public class SlimeEscape : MonoBehaviour, ILevelPhysics, ILevelTick
             float along = Vector2.Dot(v, dir);
             if (along < escapeSpeed) body.linearVelocity = v + dir * (escapeSpeed - along);
         }
+    }
+
+    // Du centre du petit vers le point le plus proche de la membrane du gros, parmi les directions pas plus basses que
+    // 'maxDownAngle'. Centre déjà dehors : droit vers l'extérieur, le plus court chemin pour finir de se dégager.
+    Vector2 ExitDirection(Vector2 c, BLOB ring)
+    {
+        Vector2 rc = Center(ring);
+        Vector2 away = c - rc;
+        away = away.sqrMagnitude > 1e-6f ? away.normalized : Vector2.up;
+        if (!Inside(ring, c)) return away;
+        float minY = -Mathf.Sin(maxDownAngle * Mathf.Deg2Rad) - 1e-4f;
+        float best = float.MaxValue;
+        Vector2 dir = Vector2.zero;
+        int n = ring.CapsuleCount;
+        Vector2 a = ring.Capsule(n - 1).position;
+        for (int i = 0; i < n; i++)
+        {
+            Vector2 b = ring.Capsule(i).position, ab = b - a;
+            float t = Mathf.Clamp01(Vector2.Dot(c - a, ab) / Mathf.Max(1e-8f, ab.sqrMagnitude));
+            Vector2 to = a + t * ab - c;
+            float d2 = to.sqrMagnitude;
+            a = b;
+            if (d2 < 1e-8f || d2 >= best || to.y < minY * Mathf.Sqrt(d2)) continue;
+            best = d2;
+            dir = to / Mathf.Sqrt(d2);
+        }
+        if (best == float.MaxValue) dir = new Vector2(away.x >= 0f ? 1f : -1f, 0f);
+        return dir;
+    }
+
+    // Une capsule du petit chevauche-t-elle une capsule du gros ?
+    static bool Overlaps(BLOB blob, BLOB ring)
+    {
+        float gap = blob.CapsuleThickness + ring.CapsuleThickness, g2 = gap * gap;
+        for (int i = 0; i < blob.CapsuleCount; i++)
+        {
+            Vector2 p = blob.Capsule(i).position;
+            for (int k = 0; k < ring.CapsuleCount; k++)
+                if ((ring.Capsule(k).position - p).sqrMagnitude < g2) return true;
+        }
+        return false;
     }
 
     // Dégagé : centre hors du gros, et à plus de (son rayon + épaisseur de la membrane) de chaque capsule du gros.

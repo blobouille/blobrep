@@ -217,8 +217,13 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    DEDANS (reproduit : deux niveau 1 contre un niveau 5 → le niveau 2 né à l'intérieur, et il y restait même après que le
    gros a refusionné). Détection pendant `mergeTime` + `watchTime` après chaque fusion (centre du petit dans le polygone des
    capsules du gros, tri grossier par une capsule) ; sortie : le petit prend le groupe de collision du gros
-   (`BLOB.SetCollisionGroup`, il traverse sa membrane et touche tout le reste), poussé à `escapeSpeed` vers l'extérieur et le
-   haut, groupe rendu dès qu'il est dégagé. Vérifié : partie en rafale de 3600 pas (65 fusions, 1 sortie), plus aucun slime
+   (`BLOB.SetCollisionGroup`, il traverse sa membrane et touche tout le reste), poussé à `escapeSpeed` vers le bord le plus
+   PROCHE du gros (jamais plus bas que `maxDownAngle` 30° sous l'horizontale), groupe rendu dès qu'il est dégagé, et jamais
+   tant qu'il chevauche encore la membrane (au plus 3 × `maxEscapeTime`). Avant (2026-10-25, signalé par l'utilisateur) :
+   sortie vers l'extérieur ET le haut, le petit traversait tout le gros et remontait à la surface de la pile (mesuré en
+   Space, graine 2 : +3,5 et +2,6 m), et la membrane était rendue à cheval au bout de 3 s (Box2D les séparait d'un coup).
+   Après : même partie, −0,2 m ; pire cas sur 4 graines, +1,25 m (petit enfermé dans le haut d'un gros, sorti par le haut).
+   Banc : `Captures/bancs/space_fly.cs`. Vérifié : partie en rafale de 3600 pas (65 fusions, 1 sortie), plus aucun slime
    enfermé, identique au bit près sur 3 essais
 2. Choisir la représentation des slimes selon les mesures (blob actuel allégé / anneau simple / cercle + gélatine visuelle)
 3. Fusion des slimes de même couleur (faite en version brute, voir étape 1), ligne de débordement, score : premier vrai prototype jouable
