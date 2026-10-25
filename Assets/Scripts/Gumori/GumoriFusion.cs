@@ -70,10 +70,14 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     public AnimationCurve absorbCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     [Tooltip("Raideur en flexion au début de l'absorption, en fraction de celle du gumori (remonte à 1 avec l'avancement).\n" +
              "Bas = gelée très molle qui ondule et tremble en se fondant ; 1 = la forme suit exactement la courbe.")]
-    [Range(0.01f, 1f)] public float absorbStiffness = 0.35f;
+    [Range(0.01f, 1f)] public float absorbStiffness = 1f;
     [Tooltip("Arrondi du creux entre les deux gumori au départ (en fraction de leur rayon). 0 = le creux reste pointu (forme\n" +
              "exacte) ; plus grand = le pont de gelée entre eux est déjà plus large.")]
     [Range(0f, 1.5f)] public float absorbNeck = 0.5f;
+    [Tooltip("Lissage de la forme visée par les joints au départ (passes de lissage de leurs angles ; les capsules partent quand\n" +
+             "même de la forme réelle). La forme réelle a des coins vifs et des zigzags que la gelée molle replie : deux capsules\n" +
+             "voisines passent l'une sur l'autre et l'habillage se chevauche. 0 = forme exacte ; plus = coins adoucis dès le départ.")]
+    [Range(0, 16)] public int absorbSmoothing = 4;
     [Tooltip("Élan gardé : 1 = chaque morceau du nouvel anneau garde la vitesse de la partie des deux gumori où il naît\n" +
              "(tremblements, écrasement, rotation continuent sans à-coup) ; 0 = toute la gelée part à la vitesse moyenne.")]
     [Range(0f, 1f)] public float inheritMotion = 1f;
@@ -96,6 +100,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         public Gumori blob;
         public float time, radius0, radius1, written;
         public float stretch; // allongement des capsules (m) qui donne à l'anneau le périmètre de la cacahuète
+        public float[] stretches; // absorption : allongement de chaque capsule (sa corde sur la forme réelle), sinon null
         public float[] bend; // angle de repos de chaque joint (rad) qui tient la cacahuète
         public bool absorb; // méthode 'Absorption' (ses propres durée, courbe, raideur)
     }
@@ -115,7 +120,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     readonly Vector2[] _loop = new Vector2[LoopSamples];
     readonly float[] _arc = new float[LoopSamples + 1];
     readonly float[] _bend = new float[32], _stretch = new float[32], _angles = new float[32];
-    readonly Vector2[] _oldPosition = new Vector2[64], _oldVelocity = new Vector2[64];
+    readonly Vector2[] _oldPosition = new Vector2[64], _oldVelocity = new Vector2[64], _newVelocity = new Vector2[32], _smoothVelocity = new Vector2[32];
+    (Vector2 x0, Vector2 x1) _parentVelocity;
     readonly float[] _oldSpin = new float[64], _rays = new float[LoopSamples], _blur = new float[LoopSamples],
         _limit = new float[LoopSamples];
     int _eventsStep = -1;
@@ -164,6 +170,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         _fusing.Clear();
         _eventsStep = LevelSimulation.Step;
         Merges = 0;
+        TurnFixes = 0;
     }
 
     void OnDisable()
@@ -220,7 +227,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             float u = Mathf.Clamp01(f.time / duration);
             float e = u >= 1f ? 1f : Mathf.Clamp01(curve != null ? curve.Evaluate(u) : u);
             int m = f.bend.Length;
-            for (int j = 0; j < m; j++) { _bend[j] = f.bend[j] * (1f - e); _stretch[j] = f.stretch * (1f - e); }
+            for (int j = 0; j < m; j++) { _bend[j] = f.bend[j] * (1f - e); _stretch[j] = (f.stretches != null ? f.stretches[j] : f.stretch) * (1f - e); }
             f.blob.SetShape(_stretch, _bend);
             f.blob.SetBendStiffness(u >= 1f ? 1f : Mathf.Pow(f.absorb ? absorbStiffness : startStiffness, 1f - e));
             float radius = Mathf.Lerp(f.radius0, f.radius1, e);
@@ -316,41 +323,56 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         var merged = _dropper.SpawnLevel(0.5f * (centerA + centerB), level);
         int m = merged.CapsuleCount;
         float step = length / m;
+        if (absorb) ParentVelocities(n);
+        float restSegment = 2f * Mathf.PI * merged.RestRingRadius / m;
+        float[] chords = absorb ? new float[m] : null;
         for (int k = 0; k < m; k++)
         {
-            float s = (k + 0.5f) * step;
-            Vector2 tangent = PointAt(s + 0.5f * step, count) - PointAt(s - 0.5f * step, count);
             var body = merged.Capsule(k);
-            _angles[k] = Mathf.Atan2(tangent.y, tangent.x) - 0.5f * Mathf.PI;
-            body.transform = new PhysicsTransform(PointAt(s, count), PhysicsRotate.FromRadians(_angles[k]));
             if (absorb)
             {
-                int near = Nearest(PointAt(s, count), 2 * n);
-                body.linearVelocity = Vector2.Lerp(velocity, _oldVelocity[near], inheritMotion);
-                body.angularVelocity = inheritMotion * _oldSpin[near];
+                // Capsule posée sur la corde entre deux points du contour, à sa longueur : ses bouts tombent exactement sur ceux
+                // de ses voisines (posées au milieu de l'arc, sur un contour irrégulier, les joints naissaient faussés et se
+                // refermaient d'un coup : anneau plié).
+                Vector2 from = PointAt(k * step, count), to = PointAt((k + 1) * step, count), chord = to - from;
+                _angles[k] = Mathf.Atan2(chord.y, chord.x) - 0.5f * Mathf.PI;
+                body.transform = new PhysicsTransform(0.5f * (from + to), PhysicsRotate.FromRadians(_angles[k]));
+                chords[k] = chord.magnitude - restSegment;
+                int near = Nearest(0.5f * (from + to), 2 * n);
+                _newVelocity[k] = _oldVelocity[near] - (near < n ? _parentVelocity.x0 : _parentVelocity.x1);
+                continue;
             }
-            else
+            float s = (k + 0.5f) * step;
+            Vector2 tangent = PointAt(s + 0.5f * step, count) - PointAt(s - 0.5f * step, count);
+            _angles[k] = Mathf.Atan2(tangent.y, tangent.x) - 0.5f * Mathf.PI;
+            body.transform = new PhysicsTransform(PointAt(s, count), PhysicsRotate.FromRadians(_angles[k]));
             {
                 body.linearVelocity = velocity;
                 body.angularVelocity = 0f;
             }
         }
+        if (absorb) InheritMotion(merged, m, n, velocity);
 
         // La cacahuète est tenue telle quelle : capsules allongées à son périmètre (sinon, si 'growth' < 2, les joints la contractent
         // d'un coup), et angles de repos des joints = ses angles. Les joints précontraints visent (angle relatif) = angle de repos,
         // l'anneau fermé en ajoute 2π/m à tous : angle de repos = angle de la cacahuète − 2π/m. Ramenés à 0 en 'mergeTime'.
-        float stretch = Mathf.Max(0f, step - 2f * Mathf.PI * merged.RestRingRadius / m);
+        float stretch = step - 2f * Mathf.PI * merged.RestRingRadius / m;
+        // Absorption : la forme réelle de deux gumori écrasés l'un contre l'autre peut être PLUS COURTE que le nouvel anneau au
+        // repos ; capsules raccourcies d'autant (bloquées à 0, elles naissaient comprimées et l'anneau flambait en zigzag).
+        if (!absorb) stretch = Mathf.Max(0f, stretch);
         var bend = new float[m];
         for (int j = 0; j < m; j++)
         {
             float turn = Mathf.DeltaAngle(_angles[j == 0 ? m - 1 : j - 1] * Mathf.Rad2Deg, _angles[j] * Mathf.Rad2Deg) * Mathf.Deg2Rad;
             bend[j] = turn - 2f * Mathf.PI / m;
-            _stretch[j] = stretch;
+            _stretch[j] = absorb ? chords[j] : stretch;
         }
+        if (absorb) SmoothTurns(bend, m, absorbSmoothing);
+        if (absorb) CloseTurns(bend, m);
         merged.SetCapsuleRadius(radius0);
         merged.SetShape(_stretch, bend);
         merged.SetBendStiffness(absorb ? absorbStiffness : startStiffness);
-        _fusing.Add(new Fusing { absorb = absorb, blob = merged, radius0 = radius0, radius1 = merged.CapsuleThickness, written = radius0, bend = bend, stretch = stretch });
+        _fusing.Add(new Fusing { absorb = absorb, blob = merged, radius0 = radius0, radius1 = merged.CapsuleThickness, written = radius0, bend = bend, stretch = stretch, stretches = chords });
         Merges++;
         Merged?.Invoke(merged, level, 0.5f * (centerA + centerB));
     }
@@ -462,6 +484,17 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             for (int i = 0; i < LoopSamples; i++) if (_rays[i] <= 0f) _rays[i] = _blur[i];
         }
 
+        // Coins vifs et zigzags adoucis (passes 1-2-1 sur les rayons, sans jamais dépasser la limite d'un voisin).
+        for (int p = 0; p < 2 * absorbSmoothing; p++)
+        {
+            for (int i = 0; i < LoopSamples; i++) _blur[i] = _rays[i];
+            for (int i = 0; i < LoopSamples; i++)
+            {
+                float r = 0.25f * _blur[(i + LoopSamples - 1) % LoopSamples] + 0.5f * _blur[i] + 0.25f * _blur[(i + 1) % LoopSamples];
+                _rays[i] = Mathf.Max(0.1f * ringRadius, Mathf.Min(r, Mathf.Max(_blur[i], _limit[i])));
+            }
+        }
+
         int width = Mathf.Clamp(Mathf.RoundToInt(absorbNeck * ringRadius / mean * LoopSamples / (2f * Mathf.PI)), 0, LoopSamples / 4);
         for (int i = 0; i < LoopSamples; i++)
         {
@@ -479,6 +512,68 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         for (int i = 1; i <= LoopSamples; i++) _arc[i] = _arc[i - 1] + Vector2.Distance(_loop[i - 1], _loop[i % LoopSamples]);
         return true;
     }
+
+    // Vitesse moyenne de chacun des deux anciens gumori.
+    void ParentVelocities(int n)
+    {
+        Vector2 va = Vector2.zero, vb = Vector2.zero;
+        for (int i = 0; i < n; i++) { va += _oldVelocity[i]; vb += _oldVelocity[n + i]; }
+        _parentVelocity = (va / n, vb / n);
+    }
+
+    // Élan gardé : chaque capsule prend le mouvement PROPRE (vitesse moins celle de son gumori : tremblement, écrasement,
+    // rotation) de la capsule d'origine la plus proche, lissé le long de l'anneau, ajouté à la vitesse moyenne. La vitesse
+    // d'approche entre les deux (choc d'un gumori lancé) est absorbée par la fusion : gardée, la moitié rapide de l'anneau
+    // passait à travers l'autre (ses capsules ne se heurtent pas entre elles) et le froissait en plis.
+    void InheritMotion(Gumori merged, int m, int n, Vector2 mean)
+    {
+        for (int p = 0; p < Mathf.Max(2, absorbSmoothing); p++)
+        {
+            for (int k = 0; k < m; k++) _smoothVelocity[k] = _newVelocity[k];
+            for (int k = 0; k < m; k++)
+                _newVelocity[k] = 0.25f * _smoothVelocity[(k + m - 1) % m] + 0.5f * _smoothVelocity[k] + 0.25f * _smoothVelocity[(k + 1) % m];
+        }
+        for (int k = 0; k < m; k++)
+        {
+            var body = merged.Capsule(k);
+            body.linearVelocity = mean + inheritMotion * _newVelocity[k];
+            body.angularVelocity = 0f;
+        }
+    }
+
+    // Angles de repos lissés (passes 1-2-1, anneau fermé : la somme, donc le tour complet, est gardée).
+    void SmoothTurns(float[] bend, int m, int passes)
+    {
+        for (int p = 0; p < passes; p++)
+        {
+            for (int j = 0; j < m; j++) _angles[j] = bend[j];
+            for (int j = 0; j < m; j++) bend[j] = 0.25f * _angles[(j + m - 1) % m] + 0.5f * _angles[j] + 0.25f * _angles[(j + 1) % m];
+        }
+    }
+
+    // Un anneau fermé tourne d'un tour exactement : la somme des angles de repos doit valoir 0. Un coude presque en demi-tour
+    // (forme réelle très tordue) pouvait être compté dans le mauvais sens (± 2π) : la forme visée devenait un 8, et l'anneau
+    // s'y enroulait en s'arrondissant (gelée qui se chevauche). Le coude le plus fort est remis dans l'autre sens, puis le
+    // petit reste réparti sur tous.
+    void CloseTurns(float[] bend, int m)
+    {
+        float sum = 0f;
+        for (int j = 0; j < m; j++) sum += bend[j];
+        while (Mathf.Abs(sum) > Mathf.PI)
+        {
+            int worst = 0;
+            for (int j = 1; j < m; j++)
+                if (sum > 0f ? bend[j] > bend[worst] : bend[j] < bend[worst]) worst = j;
+            float fix = sum > 0f ? -2f * Mathf.PI : 2f * Mathf.PI;
+            bend[worst] += fix;
+            sum += fix;
+            TurnFixes++;
+        }
+        for (int j = 0; j < m; j++) bend[j] -= sum / m;
+    }
+
+    // Coudes remis dans le bon sens par CloseTurns depuis le départ (contrôle).
+    public int TurnFixes { get; private set; }
 
     // Pour chaque rayon, distance (depuis le milieu) où l'axe du nouvel anneau toucherait la première capsule d'un autre gumori
     // (somme des épaisseurs) ; l'infini si rien. Tri grossier par la distance des centres.

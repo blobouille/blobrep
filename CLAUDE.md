@@ -171,6 +171,18 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    2/31), Space 7,1 → 1,5 cm (25/32 → 0/28), Space : sorties forcées 5 → 0, démêlages 30 → 10 ; même coût ; identique au bit
    près sur 2 essais. Premier essai sans la limite des voisins : un voisin logé dans le creux entre les deux (ou dans un creux
    d'un gumori mou) se retrouvait DEDANS (5 en Space)
+   Habillage qui se chevauchait au début de l'absorption (signalé par l'utilisateur, 2026-10-25) : l'anneau se PLIAIT (une
+   capsule repliée sur sa voisine, coude de 130–176°, 2 à 24 pas après la naissance ; mesuré : anneau des capsules qui se
+   recoupe, ≈ 300–500 pas par partie Space contre 0 en cacahuète). Causes, dans l'ordre : (1) l'élan gardé incluait la vitesse
+   d'APPROCHE des deux parents (gumori lancé : jusqu'à 7 m/s d'écart) et les capsules d'un même anneau ne se heurtent pas :
+   la moitié rapide traversait l'autre → seul le mouvement PROPRE de chaque parent est gardé (vitesse moins la sienne), lissé
+   le long de l'anneau, sans rotation par capsule ; (2) gelée trop molle au départ (`absorbStiffness` 0,35 sur des joints
+   Space déjà mous) → défaut 1 (raideur normale du gumori : 0, 9, 0 pas croisés sur 3 graines ; 0,6–0,8 : 3 à 40). Aussi :
+   capsules posées sur les cordes du contour, chacune à sa longueur (allongement par capsule, négatif permis : `Gumori.SetShape`
+   accepte jusqu'à − ½ longueur), contour et angles visés lissés (`absorbSmoothing` passes). Essayé sans effet : fermeture /
+   ouverture morphologique du contour (poussait les voisins), retourner les coudes à ± 2π (jamais arrivé), pression Space.
+   Coût d'un pas de fusion : 1,0 ms en absorption, 2,7 ms en cacahuète (sa marche de rayons). Bancs : `fusion_variants.sh`
+   (réglages essayés sans toucher la scène, ex. "1 seed=5 stiff=0.6"), `fusion_trace.cs` (SVG des anneaux), `fusion_trace2.cs`
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
    ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement

@@ -136,7 +136,7 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     }
 
     // Forme voulue de l'anneau, en une écriture (une par joint, une forme de capsule de temps en temps) :
-    // - stretch[i] (m, ≥ 0) : allongement de la capsule i ; l'écart entre ses deux joints grandit d'autant (les joints l'écartent
+    // - stretch[i] (m, ≥ − ½ longueur) : allongement de la capsule i (négatif = raccourcie) ; l'écart entre ses deux joints grandit d'autant (les joints l'écartent
     //   de ses voisines). Sa forme suit par pas de 'StretchShapeStep' : changer une forme reconstruit ses contacts dans Box2D
     //   (à chaque pas pour 32 capsules : ≈ +125 µs). Masse et inertie inchangées (Box2D ne les recalcule pas).
     // - bend[j] (rad) : angle de repos du joint j (capsule j-1 → j), 0 = d'origine.
@@ -148,7 +148,7 @@ public class Gumori : MonoBehaviour, ILevelPhysics
         int n = _bodies.Length;
         for (int i = 0; i < n; i++)
         {
-            float extra = Mathf.Max(0f, stretch[i]);
+            float extra = Mathf.Max(-0.5f * CapsuleLength, stretch[i]);
             _stretch[i] = extra;
             var shape = _shapes[i];
             if (shape.isValid && (extra == 0f ? _shapeStretch[i] != 0f : Mathf.Abs(extra - _shapeStretch[i]) >= StretchShapeStep))
