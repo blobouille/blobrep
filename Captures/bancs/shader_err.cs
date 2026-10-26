@@ -1,5 +1,5 @@
 var sb = new System.Text.StringBuilder();
-foreach (var name in new[] { "Slime/Map", "Slime/MapSprite", "Slime/MapCard" })
+foreach (var name in new[] { "Slime/Fx", "Slime/Body" })
 {
     var s = Shader.Find(name);
     if (s == null) { sb.AppendLine(name + " introuvable"); continue; }

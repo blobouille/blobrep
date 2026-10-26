@@ -103,17 +103,21 @@ public class GumoriSkin : MonoBehaviour
         public int level;
         public Vector2 center;
         public float radius, scale = 1f;
+        // Enfermé (bocal) : bouche ronde d'appel, regard vers 'lookAt', au lieu du visage heureux.
+        public bool trapped;
+        public Vector2 lookAt;
         internal Look look;
     }
 
     public VirtualSlime NewVirtual(int level, float radius) => new VirtualSlime { level = level, radius = radius, look = NewLook(level, radius) };
 
-    // Seulement pendant DrawExtras. Visage heureux, regard vers le haut.
+    // Seulement pendant DrawExtras. Visage heureux, regard vers le haut (enfermé : bouche ronde, regard vers 'lookAt').
     public void DrawVirtual(VirtualSlime v, float dt)
     {
         v.look.level = v.level;
-        v.look.happy = 1f;
-        v.look.attention = v.center + Vector2.up * 4f;
+        v.look.happy = v.trapped ? 0f : 1f;
+        if (v.trapped) v.look.wow = 0.5f;
+        v.look.attention = v.trapped ? v.lookAt : v.center + Vector2.up * 4f;
         v.look.attentionTime = 1f;
         EmitRound(v.look, v.center, v.radius, dt, v.scale, Time.time);
     }

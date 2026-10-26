@@ -3,12 +3,13 @@ using UnityEngine;
 
 // Niveau réussi : chaque gumori se divise (la fusion à l'envers) jusqu'au plus petit, avec un éclat et un son à chaque
 // division, et les plus petits s'envolent par le haut de l'écran. Purement visuel : la simulation a retiré les vrais gumori
-// (GumoriGoal) ; ceux-ci sont dessinés par GumoriSkin, sans physique, avec une graine fixe pour le hasard.
+// (GumoriGoal, SpaceLevel) ; ceux-ci sont dessinés par GumoriSkin, sans physique, avec une graine fixe pour le hasard.
 [DisallowMultipleComponent]
 public class GumoriFinale : MonoBehaviour
 {
     [Header("Références (trouvées seules si vides)")]
     public GumoriGoal goal;
+    public SpaceLevel spaceLevel;
     public GumoriSkin skin;
     public GumoriFx fx;
     public GumoriSound sound;
@@ -65,6 +66,13 @@ public class GumoriFinale : MonoBehaviour
             _dropper = goal.GetComponent<GumoriDropper>();
             _fusion = goal.GetComponent<GumoriFusion>();
         }
+        if (spaceLevel == null) spaceLevel = FindAnyObjectByType<SpaceLevel>();
+        if (spaceLevel != null)
+        {
+            spaceLevel.Finished += OnFinished;
+            _dropper = spaceLevel.GetComponent<GumoriDropper>();
+            _fusion = spaceLevel.GetComponent<GumoriFusion>();
+        }
         if (skin != null) skin.DrawExtras += OnDraw;
         LevelRestart.Restarted += OnRestarted;
     }
@@ -72,6 +80,7 @@ public class GumoriFinale : MonoBehaviour
     void OnDisable()
     {
         if (goal != null) goal.Finished -= OnFinished;
+        if (spaceLevel != null) spaceLevel.Finished -= OnFinished;
         if (skin != null) skin.DrawExtras -= OnDraw;
         LevelRestart.Restarted -= OnRestarted;
         _pieces.Clear();

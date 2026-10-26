@@ -77,6 +77,9 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
     Vector2 _pointer;
 
     public IReadOnlyList<Gumori> Rack => _rack;
+    // Nombre de tirs permis (0 = sans limite), donné par l'objectif du niveau (SpaceLevel).
+    [System.NonSerialized] public int shotLimit;
+    public int ShotsLeft => shotLimit > 0 ? Mathf.Max(0, shotLimit - Shots.Count) : int.MaxValue;
 
     void OnEnable()
     {
@@ -155,7 +158,7 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
         _pending.Clear();
         PruneRack();
 
-        if (_arrivals > 0 && _time >= _nextArrival && Arrive())
+        if (_arrivals > 0 && ShotsLeft > 0 && _time >= _nextArrival && Arrive())
         {
             _arrivals--;
             _nextArrival = _time + arrivalDelay;
@@ -227,6 +230,7 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
         if (slot < 0 || slot >= _rack.Count) return;
         var blob = _rack[slot];
         if (!Alive(blob)) return;
+        if (ShotsLeft <= 0) return;
         _rack.RemoveAt(slot);
         Leave(1);
         blob.AddVelocity(request.velocity - blob.Velocity);
@@ -266,6 +270,7 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
 
     Gumori Pick(Vector2 p)
     {
+        if (ShotsLeft <= 0) return null;
         Gumori best = null;
         float bestD = float.MaxValue;
         for (int i = 0; i < _rack.Count; i++)

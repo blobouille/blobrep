@@ -4,8 +4,11 @@ JEU DE SLIMES (décision du 2026-10-21) : jeu mobile en écran VERTICAL, autour 
 tomber, s'écraser, trembler et fusionner. Point de départ du gameplay : un « Suika » (jeu de la pastèque) de slimes : on lâche
 des slimes dans un réservoir, deux slimes de même couleur qui se touchent fusionnent en un plus gros (« division cellulaire à
 l'envers »). Déborder n'est PAS la fin (décision du 2026-10-21) : on peut empiler au-dessus du bord jusqu'au bout ; on PERD
-quand un slime tombe hors du réservoir. Très simple, très addictif, très satisfaisant. Le cœur de jeu définitif
-n'est PAS encore décidé : on prototype d'abord la sensation.
+quand un slime tombe hors du réservoir. Très simple, très addictif, très satisfaisant.
+Cœur de jeu (décision du 2026-10-26) : la mécanique SPACE (boîte fermée, gumori très mous, réserve et LANCER, voir étape 5)
+est gardée, jugée bien plus intéressante ; le jeu « terrestre » (lâcher façon Suika) est mis de côté (code et scène gardés).
+Les niveaux varient par des MÉCANIQUES de niveau (bocaux, moulin…), le geste reste le même (combiner), comme Candy Crush ;
+chaque mécanique doit se lire en une seconde sur un écran de téléphone, une nouveauté à la fois.
 
 Avant : un jeu de momentum avec un BLOB (balle souple) poussé par des flippers, puis un skateur (abandonnés). Tout cet état
 (code, scènes, ancien CLAUDE.md complet avec toutes les mesures) est conservé par les tags git `blob-et-debut-skate` et
@@ -374,6 +377,25 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      pics 29–49 → 12–18 ; à 2 s pire (reste trop gros trop longtemps, coincé). Identique au bit près (2 essais).
      Tester les réglages du monde par eval : `var w = PhysicsWorld.defaultWorld; w.contactSpeed = …` (affecter directement
      `PhysicsWorld.defaultWorld.x` ne compile pas, et l'échec passe inaperçu dans une suite de commandes)
+   - Premier niveau Space (2026-10-26, scène À PART `Slime/space niveau 1`, copie de `space endless 1`, graine 2, À TESTER
+     par l'utilisateur) : « Les bocaux ». Objectif `SpaceLevel` : libérer les 3 bocaux en 15 tirs (étoiles selon les tirs
+     restants : ≥ 15 % / ≥ 30 %), consigne au départ (cachée au premier tir), HUD « 1 / 3 bocaux » + tirs restants, panneau
+     de fin (étoiles, Rejouer), fête de `GumoriFinale`. Réglages de la scène : stats du lâcher masquées.
+     - BOCAL (`GumoriJars`) : gumori enfermé dans une bulle de verre statique (cercle Box2D, rayon = gumori + 0,16 m) ; une
+       fusion dont une capsule du né passe à moins de `reach` 0,45 m du verre le fêle, au bout de `hits` fêlures il se brise
+       et libère son gumori (un vrai, au pas suivant). Une même fusion peut fêler deux bocaux. Dessin : le gumori enfermé
+       (même design, bouche ronde d'appel, regarde la réserve, flotte), verre à couvercle, fêlures, tremblement, éclats
+       + onde + « bloup » au bris. Placement : en BAS (gravité faible, la pile reste basse : un bocal en l'air à 7,9 m
+       n'a jamais été atteint)
+     - MOULIN (`GumoriMill`) : pales en sucre d'orge (barre de 2 × 1,7 m) sur une charnière motorisée, 25 °/s, couple
+       limité (cale sous une pile trop lourde au lieu d'écraser) ; option d'inversion de sens en pas. Placé au-dessus du
+       bocal du milieu, il brasse et pousse les gumori dessus. Bout des pales < 2 cm par pas
+     Mesuré (bot `Captures/bancs/level_bot.cs`, vise un pareil près d'un bocal ; captures `level_shots.sh` →
+     `Captures/niveau/`) : gagné en 10 et 12 tirs, raté (2 / 3) à un autre rythme ; moulin jamais calé ; 0,3–0,45 ms par
+     pas (PC) ; identique au bit près (2 essais). Réservoir terrestre : hash inchangé. Pas encore relié à la carte.
+     Pistes suivantes (une par niveau, lisibles sur téléphone) : bascule, trappe qui s'ouvre au bout de N fusions,
+     ingrédient à faire descendre jusqu'à une sortie, Ternes (gris, ne fusionnent pas, recolorés par une fusion voisine),
+     boîte qui tourne
 6. Avatar à créer : le blob du joueur sur la carte, mélange de tous les accessoires et shaders possibles des slimes
    (en attendant : le Roi)
 
@@ -457,6 +479,8 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
     limite donnée à `GumoriDropper.dropLimit`), `GumoriEscape` (sort les gumori enfermés dans un autre), `GumoriWallHold`
     (parois qui retiennent au lieu de relancer)
   - Space : `GumoriLauncher` (réserve et tir), `GumoriFoam` (pression), `GumoriUntangle`, `GumoriSoftMerge`, `SpaceEndless`
+  - Mécaniques de niveau (Space) : `GumoriJars` (bocaux), `GumoriMill` (moulin), `SpaceLevel` (objectif : bocaux en N tirs) ;
+    dessinées par `Cosmetics/GumoriLevelArt`
   - Parties : `GumoriCampaign` (niveaux de l'Aventure), `GumoriSession` (partie choisie, progression dans PlayerPrefs,
     gardée en mémoire, graines tirées au hasard), `GumoriLevelSetup` (applique la partie choisie au réservoir, boutons de
     fin ; Play direct dans l'éditeur = réglages de la scène, rien ne change), `GumoriUi` (boutons et textes OnGUI communs,
