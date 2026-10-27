@@ -27,8 +27,8 @@ public class GumoriCampaignEditor : Editor
 
         // Règles du jeu lues dans le réservoir ouvert (niveau max des gumori, points par fusion, marges des difficultés).
         var goal = Object.FindAnyObjectByType<GumoriGoal>();
-        var fusion = goal != null ? goal.GetComponent<GumoriFusion>() : null;
-        var score = goal != null ? goal.GetComponent<GumoriScore>() : null;
+        var fusion = goal != null ? GumoriDropper.Find<GumoriFusion>(goal) : null;
+        var score = goal != null ? GumoriDropper.Find<GumoriScore>(goal) : null;
         bool rules = goal != null && fusion != null && score != null;
         if (!rules) EditorGUILayout.HelpBox("Ouvre la scène réservoir pour voir les objectifs calculés (mêmes réglages que le jeu).", MessageType.Info);
 

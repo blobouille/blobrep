@@ -141,7 +141,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
 - DA commune : rond, mou, gélatineux, kawaii (grands yeux brillants, joues, petite bouche) ; les variations sont dans les
   cases, jamais dans cette base. Couleurs écrites en sRGB (#RRGGBB, comme une palette), converties par `GumoriDesign.Hex`
 - Chaque gumori de base est un THÈME qui a un sens avec sa couleur (petit tigre orange, cristal violet, bonbon rose, eau
-  bleue, ruche jaune, magma rouge, chantilly, ourson en chocolat, cactus vert, nébuleuse noire), pas une couleur avec un
+  bleue, ruche jaune, magma rouge, vanille, ourson en chocolat, cactus vert, nébuleuse noire), pas une couleur avec un
   motif posé au hasard. Un gumori trop simple (une couleur + un détail) est « boring » : lui donner un thème, sans
   sur-compliquer
 - Paliers (décision du 2026-10-24) : COMMUN (dont la version de base, celle vue en jeu, + autres thèmes de la famille), RARE
@@ -156,15 +156,16 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
   celle des lâchers (sinon la suite des niveaux change et les replays divergent)
 - Versions de base (une par niveau) : Tigrou (orange, rayures + oreilles de chat), Cristal (violet, facettes + 3 cristaux),
   Bonbon (rose, paillettes + nœud), Bulle (bleu, eau), Abeille (jaune, alvéoles + antennes), Braise (rouge, magma : fissures
-  courbes qui coulent + cornes, féroce), Chantilly (crème rosée, vermicelles + cerise dorée), Ourson (chocolat, filets de
+  courbes qui coulent + cornes, féroce), Vanille (crème ivoire, vermicelles + cerise rouge ; remplace Chantilly, crème rosée
+  à cerise dorée, le 2026-10-27, préférée par l'utilisateur), Ourson (chocolat, filets de
   chocolat blanc + museau + oreilles), Cactus (vert, côtes + épines + fleur), Nébuleuse (noir, galaxie douce, rêveur), Roi
-  (spécial). Communs : Clémentine (orange, pois), Raisin (violet, bulles), Lagon (bleu, pois cyan), Vanille (crème ivoire,
-  cerise rouge), Bourgeon (vert, pousse de fleur), Ninjakura (rose sakura, fleurs de sakura, bandeau, masque, katana,
-  féroce ; demandé le 2026-10-25). Rares : Citron (jaune, ondes, yeux étoilés), Braise bleue (lave bleue),
-  Lune (noir façon Pokémon ténèbres : anneaux lunaires, yeux lumineux, croc, ailes de chauve-souris). Ultra rares : Cristal
-  étincelant (gerbe de 5 cristaux, holo), Fée (ailes de fée, yeux étoilés, holo), Braise d'or (lave dorée, yeux lumineux,
-  braises), Nébuleuse étoilée (galaxie lumineuse, auréole, étincelles), Ninjakura en fleurs (deux katanas croisés,
-  pétales de sakura qui tombent, fleurs et plaque qui luisent). Gros plans : `Captures/bancs/shot_ninja.cs`
+  (spécial). Variantes gardées le 2026-10-27 (les autres retirées à la demande de l'utilisateur) : rare Braise bleue (lave
+  bleue) ; ultra rares Cristal étincelant (gerbe de 5 cristaux, holo), Fée (ailes de fée, yeux étoilés, holo), Braise d'or
+  (lave dorée, yeux lumineux, braises), Nébuleuse étoilée (galaxie lumineuse, auréole, étincelles). Les éléments qu'aucun
+  gumori ne porte plus (motifs bulles, pois, ondes, anneaux lunaires, sakura ; reflet pétales ; têtes pousse, bandeau ; dos
+  chauve-souris et katanas ; bouches croc et masque) gardent leur dessin, rangés à part : menu « Inutilisés/… » des enums, en fin de chaîne dans `Slime/Body` et dans
+  `GumoriSkin.EmitAccessories` (anciens designs retirés : Clémentine, Raisin, Lagon, Bourgeon, Ninjakura, Citron, Lune,
+  Ninjakura en fleurs ; dans git avant le 2026-10-27)
 - Vitrine (Scene view, hors Play) : un tableau, une colonne par famille (à la taille de son niveau) ; 1re rangée = versions
   de base, puis une rangée par palier (communs, rares, ultra rares). Captures par `unity command eval_file` :
   `Captures/bancs/shot_gallery.cs` (tableau) et `Captures/bancs/shot_zoom.cs` (gros plans)
@@ -230,11 +231,7 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    (2 essais). Bancs : `fusion_bvb.cs` (cas signalé, "attente pas_suivis inclinaison"), `fusion_bvb_shot.sh` (images →
    `Captures/fusion/bvb_*.png`), `fusion_compare.cs` (chevauchement par naissance, pas croisés). Les anciennes parties ne
    se rejouent plus pareil (sans importance, voir Déterminisme)
-   Habillage d'une forme en U (`GumoriSkin`) : l'éventail depuis un seul centre se repliait sur lui-même dans le creux
-   (gelée en papier plié). Si l'éventail se replie (triangles retournés > 2 % de l'aire), le centre est gardé dans la
-   gelée (à 0,15 rayon du bord) et relié à tous les points du contour qu'il VOIT (visage normal) ; les poches cachées
-   (bouts des bras) sont découpées en oreilles (petites facettes visibles dans le motif, le temps du U). Forme normale :
-   éventail inchangé
+   Habillage d'une forme en U : voir « Gelée élastique » (étape 4, `GumoriSkin`)
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
    ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement
@@ -312,16 +309,25 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Scene view. Rebord translucide (2026-10-23, façon Slime Rancher) : pourtour de gelée plus claire de la couleur du slime,
      où l'on devine le fond, épaisseur en fraction du rayon (`rimWidth` 0,074, `rimOpacity` 0,538, `rimLighten` 0,35,
      réglés par l'utilisateur, mêmes valeurs dans toutes les scènes ; `_Rim` du shader, `rimWidth` 0 = sans).
-     Gelée = éventail de triangles depuis un centre (le visage est dessiné autour de lui). Peau tendue dans le creux d'un
-     gumori plié en V autour du moulin (signalé par l'utilisateur, 2026-10-26) : le centre moyen des capsules tombait HORS
-     du corps. `GumoriSkin.FanCenter` : centre moyen tant que tout le contour (polygone des capsules) s'y voit, sinon
-     minimum lisse de |x − c|² + côtés vus de dos au carré × leur longueur (`fanStiffness` 10, `fanTolerance` 0), puis
-     lissé dans le temps (`fanSmoothing` 0,1 s). Premier essai (point le plus proche d'où tout se voit, sur le contour
-     lissé) jugé raté par l'utilisateur : motif et visage TREMBLAIENT (saut du centre jusqu'à 18 cm d'une image à l'autre :
-     les bosses entre capsules et les coins de la zone visible changeaient sans cesse). Bancs `Captures/bancs/fan_center.cs`
-     (formes fixes) : V 37 % de l'aire en peau hors du corps → 1,8 %, banane 1,1 → 0,2, U 46 → 12 %, ovale inchangé ;
-     `fan_jitter_synth.cs` (pli en V puis dépli, 4 s, capsules qui glissent, bruit 3 mm) : saut moyen 37 → 4,5 mm par
-     image, max 182 → 14 mm, peau hors du corps 3 → 0,4 %. À valider à l'œil par l'utilisateur
+     Gelée = éventail de triangles depuis le centre moyen (le visage est dessiné autour de lui, repère 0 du motif).
+     GELÉE ÉLASTIQUE (2026-10-27, signalé par l'utilisateur : gumori plié autour du moulin, plis de papier, yeux et motif
+     coupés ou disparus ; « une balle qu'on étire : la texture s'étire et se tasse, elle ne disparaît pas »). Un éventail
+     depuis UN point ne peut pas couvrir une forme en V / U sans que ses triangles se croisent. Pour un gumori vraiment plié
+     (plus petit triangle de l'éventail sur l'anneau des capsules < 0,25 × le triangle moyen, retour à l'éventail au-dessus de
+     0,4), la gelée devient un disque à 3 anneaux intérieurs qui suit le contour comme une feuille élastique
+     (`GumoriSkin.SolveJelly`) : chaque triangle cherche sa forme au repos (tournée ; échelle = moyenne géométrique de la
+     sienne et de celle du gumori : il peut se tasser dans un bras mince), sommets intérieurs = moyenne de ce que demandent
+     leurs triangles, 3 passes par image reprises de l'image d'avant (12 au départ d'un pli), calcul sauté quand le contour
+     n'a pas bougé et que la gelée est au repos ; plié de plus de ≈ 10° quelque part, aucun sommet ne sort de la peau
+     (ramené à 3 % du rayon à l'intérieur). Calculé sur l'anneau des capsules (16–32 points), lissé à la résolution du
+     contour (Catmull-Rom le long des anneaux) ; fondu éventail ↔ gelée élastique en 0,12 s (temps réel). Rond = même dessin.
+     Mesuré (bot du niveau à bocaux, plis les plus forts, `Captures/bancs/fold_shot.sh` + `jelly_check.cs`) : peau hors du
+     corps 0,2 / 5,5 / 4,4 % (feuille rigide sans ces deux règles : 34 / 11 / 10 %), triangles retournés 6–10 % (tassés le
+     long du creux, invisibles) ; plus de plis de papier, yeux tassés au lieu de coupés (`Captures/fusion/gelee_elastique.png`).
+     Coût en partie réelle (`skin_motion_ref.cs`, 1 800 images, 12 gumori) : habillage 0,30 → 0,45 ms par image, pire 1,3 ms
+     (essais : feuille pour tous 1,5 ms ; test « dans la peau » à chaque passe 3,4 ms). Remplace `FanCenter` (centre poussé
+     dans le corps, réglages `fan*` retirés ; bancs `fan_center.cs` / `fan_jitter*.cs` ne compilent plus) et le découpage en
+     oreilles du U (facettes, visage écrasé)
    - `GumoriFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
@@ -390,21 +396,18 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Vocabulaire (2026-10-23) : jeu « TERRESTRE » = le réservoir normal (`Slime/reservoir`), jeu « SPACE » = Space Endless.
      Les correctifs du terrestre n'ont pas forcément lieu d'être en space : `GumoriWallHold` (parois qui retiennent) COUPÉ
      dans la scène space (interaction bizarre au bord, les slimes doivent pouvoir s'en écarter). `GumoriFoam` : cible d'aire
-     toujours positive (avant, un slime retourné était TENU à l'envers) + dépliage : une capsule où l'anneau tourne vers
-     l'intérieur de plus de `foldAngle` 60° est poussée vers l'extérieur à 4 km/h (slime à moitié retourné, pincé entre
-     deux gros, signalé par l'utilisateur). Mesuré, partie de 1200 pas : aucun slime à l'envers, plis passagers 4 → 2
-     relevés, aucun à la fin ; identique au bit près (2 essais).
+     toujours positive (avant, un slime retourné était TENU à l'envers). Dépliage (`foldAngle`, 2026-10-23) RETIRÉ le 2026-10-27 (coupé dans les scènes par
+     l'utilisateur, rendu inutile par `selfCollision`).
      Slimes qui sautaient après une fusion (2026-10-23) : mesuré merge par merge (montée réelle d'un pas à l'autre), 5 sauts
      > 2,5 m/s vers le haut par partie de 1200 pas, dus surtout à `GumoriUntangle` : il rendait les groupes de collision dès
      qu'aucun CENTRE de capsule n'était dans l'autre, capsules encore à cheval → Box2D les séparait d'un coup. Rendus
      maintenant seulement une fois dégagés de l'épaisseur des capsules : 1 saut restant. `GumoriEscape` de la scène space
      adouci (1,2 m/s au lieu de 3, vers l'extérieur sans pente vers le haut ; réglages terrestres copiés). `GumoriSoftMerge`
-     (vitesse du né et de ses voisins limitée à 4 km/h pendant 0,8 s) : effet non mesurable (le coup part PENDANT le pas
-     physique), gardé. Reste : un tout petit né pincé entre deux gros gonflés peut jaillir comme un pépin (pression).
+     (vitesse du né et de ses voisins limitée à 4 km/h pendant 0,8 s) : effet non mesurable, RETIRÉ le 2026-10-27. Reste : un tout petit né pincé entre deux gros gonflés peut jaillir comme un pépin (pression).
      « Coup d'énergie » après fusion (suite, 2026-10-23) : à sa naissance, le slime fusionné occupe 1,4 à 1,9 × sa surface
      finale (tracé sur ses deux parents) et doit rétrécir de 30–50 % ; sans pression pendant la mitose, la foule l'écrasait,
      puis la pression revenait d'un coup (mesuré : un niveau 4 lancé à 3,5 m/s pile à la fin de sa mitose). `GumoriFoam` :
-     pression dès la naissance, surface cible en rampe (lissée) de sa surface de naissance à sa cible en `growTime` 1,2 s.
+     pression dès la naissance, surface cible en rampe (lissée) de sa surface de naissance à sa cible en `growTime` 1,2 s (RETIRÉ le 2026-10-27 : coupé dans les scènes par l'utilisateur, inutile avec l'absorption recousue).
      Banc propre sans tir (lit de 14 slimes, 6 paires posées vitesse nulle, 3 dispositions) : coup moyen 9–21 → 3–5,
      pics 29–49 → 12–18 ; à 2 s pire (reste trop gros trop longtemps, coincé). Identique au bit près (2 essais).
      Tester les réglages du monde par eval : `var w = PhysicsWorld.defaultWorld; w.contactSpeed = …` (affecter directement
@@ -498,7 +501,17 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
   clavier), `LevelRestart` (R : détruit et recrée toute la physique `ILevelPhysics`), `WorldSettings` (seul endroit qui règle
   le monde : gravité, sous-pas, `simulationWorkers` = 1), `GizmoPickArea`, `SpeedKmhAttribute`, `LowLevelRaycastGrabber`
   (souris de debug : NON déterministe)
-- `Scripts/Level/` : courbes `CurvePath2D` + `CurveCollider2D` (chaînes Box2D : parois du réservoir, boîte Space)
+- `Scripts/Level/` : courbes `CurvePath2D` + `CurveCollider2D` (chaînes Box2D : parois du réservoir, boîte Space).
+  Briques des mécaniques de niveau (2026-10-27) : `JarShape2D` (bocal : génère la courbe d'un bocal ouvert, cotes
+  INTÉRIEURES : rayon du ventre, hauteur, arrondi du fond, largeur / hauteur du goulot, épaule, évasement, épaisseur ;
+  collision en contour = paroi solide dedans ET dehors ; poignées dans la Scene view ; menu GameObject > 2D Object > Bocal ;
+  contour debug en jeu en attendant son habillage). `MovingPath` (+ `IPathRider`, `PathShapes`, éditeur), repris du tag
+  `avant-slime` : les enfants d'une trajectoire la suivent (vitesse, aller-retour / téléport / boucle, espacement, formes
+  toutes faites) ; un `CurveCollider2D` enfant d'une trajectoire devient un corps kinematic piloté en vitesse (statique
+  sinon, inchangé). Piège : Box2D refuse SANS PRÉVENIR toute une chaîne dont deux points sont à moins de ≈ 5 mm (le bocal
+  en avait à 0,3 mm à l'épaule : les gumori le traversaient) ; `CurveCollider2D` retire les points à moins de 1 cm (aucun
+  dans les scènes existantes : inchangées). Contour (Outline) d'une courbe ouverte : tracée dans le sens anti-horaire,
+  `flipSide` décoché. Bocal à remplir (petits gumori qui passent le goulot, fusionnent et épousent le verre, bris) : À FAIRE
 - `Scripts/Gumori/` : le jeu.
   - `Gumori` : corps d'un gumori, anneau de capsules reliées par des joints fixes (précontraints : ils visent un angle relatif
     nul, seules les différences d'angle comptent). Limite d'étirement (`limitStretch`, 2026-10-26, coupée par défaut, À
@@ -506,7 +519,17 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
     `stretchLimit` × 2 × rayon des capsules (1 = cercles des bouts tangents, aucun trou). Mesuré (`Captures/bancs/stretch_one.cs`,
     bot du niveau à bocaux, ressort linéaire × 0,15) : paires ouvertes au-delà de 1,02 : 13,6 % → 0,16 %, pire 11,6 → 1,6 ;
     elle cède encore quand un gros gumori force en coin entre deux capsules d'un petit (butée résolue avec la fermeté des
-    CONTACTS du monde, le `tuningFrequency` des joints n'y change rien) ; ≈ +50 % de coût par pas. `SetShape` (forme imposée), `SetCollisionGroup`, et ce que tous les
+    CONTACTS du monde, le `tuningFrequency` des joints n'y change rien) ; ≈ +50 % de coût par pas.
+    Contact entre ses propres capsules (`selfCollision`, 2026-10-27, demandé par l'utilisateur : un gumori écrasé doit
+    rester un anneau à deux parois côte à côte, pas une pile de capsules retournée sur elle-même ; ACTIVÉ par défaut, À
+    VALIDER à l'œil) : un cercle « cœur » au milieu de chaque capsule (rayon `selfThickness` × rayon des capsules, plafonné
+    à 45 % de l'écart entre deux capsules séparées d'une seule), groupe POSITIF propre au gumori et aucun masque : il ne
+    touche que les cœurs du même gumori (deux voisines : écartées par leur joint, `collideConnected` faux). Hitbox,
+    contacts avec les autres, `Untangle` / `Escape` inchangés. Sans masse ni événements. Coupé pendant une fusion
+    (`SetSelfCollision`, rallumé quand il est rond). Mesuré (`Captures/bancs/self_bench.cs`, bot du niveau à bocaux) :
+    anneaux retournés 0,66 % des relevés → 0, parois enfoncées de plus d'une épaisseur 6,5 % → 0, pire 2 → 0,5 épaisseur ;
+    0,46 → 0,53 ms par pas (Space), 0,26 → 0,30 (terrestre, `fusion_compare.cs`) ; identique au bit près (2 essais
+    chacun) ; les parties changent (terrestre scriptée : 20 → 39 fusions). `SetShape` (forme imposée), `SetCollisionGroup`, et ce que tous les
     scripts partagent : `Center`, `Velocity`, `AddVelocity` (même vitesse à tout l'anneau), `Contains` (point dans le
     polygone des capsules), `Index` (rang dans la liste). Les capsules portent leur `Gumori` en `userData.objectValue`
     (`Gumori.FromShape`)
@@ -515,7 +538,7 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
     après chaque fusion comptée), `GumoriGoal` (coups max + objectif de points calculé selon la difficulté, fin de niveau ;
     limite donnée à `GumoriDropper.dropLimit`), `GumoriEscape` (sort les gumori enfermés dans un autre), `GumoriWallHold`
     (parois qui retiennent au lieu de relancer)
-  - Space : `GumoriLauncher` (réserve et tir), `GumoriFoam` (pression), `GumoriUntangle`, `GumoriSoftMerge`, `SpaceEndless`
+  - Space : `GumoriLauncher` (réserve et tir), `GumoriFoam` (pression), `GumoriUntangle`, `SpaceEndless`
   - Mécaniques de niveau (Space) : `GumoriJars` (bocaux), `GumoriMill` (moulin), `SpaceLevel` (objectif : bocaux en N tirs) ;
     dessinées par `Cosmetics/GumoriLevelArt`
   - Parties : `GumoriCampaign` (niveaux de l'Aventure), `GumoriSession` (partie choisie, progression dans PlayerPrefs,
@@ -530,7 +553,15 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
 - Scènes : `Assets/Scenes/Slime/` (carte, réservoir, space endless, space endless 1)
 
 ## Organisation des scripts
-- `Scripts/Gumori/` : tout le jeu (gumori, réservoir, lâcher, parties). Code utilisable en build (pas de `UnityEditor`)
+- `Scripts/Gumori/` : tout le jeu. Code utilisable en build (pas de `UnityEditor`). Rangé (2026-10-27, avant tout sur un seul
+  objet « Lâcher ») comme les sous-objets de « Jeu » dans les scènes : `GumoriDropper` (objet « Jeu » : gumori en jeu, suite)
+  au-dessus, puis `Fusion/` (`GumoriFusion`, `GumoriEscape`), `Règles/` (`GumoriScore`, `GumoriGoal`, `SpaceEndless`,
+  `SpaceLevel` ; objet « Règles » qui porte aussi `GumoriLevelSetup`), `Réserve/` (`GumoriLauncher`), `Corps/` (`Gumori`,
+  `GumoriFoam`, `GumoriUntangle`, `GumoriWallHold`), `Mécaniques/` (`GumoriJars`, `GumoriMill`), `Parties/` (`GumoriCampaign`,
+  `GumoriSession`, `GumoriLevelSetup`, `GumoriUi`). Mêmes catégories dans le menu Add Component (« Gumori/… »). Un système
+  trouve les autres par `GumoriDropper.Find<T>(this)` (parent « Jeu » puis ses enfants) ou `dropper.Part<T>()`, jamais
+  `GetComponent` (plus sur le même objet). L'ordre des sous-objets = ordre des `LevelTick` : refonte vérifiée identique au
+  bit près (`Captures/bancs/ref_run.sh` : terrestre, space endless 1, niveau à bocaux)
 - `Scripts/Core/` : moteur ; `Scripts/Cosmetics/` : effets purement visuels (ils LISENT l'état, jamais d'écriture, jamais
   dans `LevelTick`, dans `LateUpdate`) ; `Editor/` : inspecteurs et poignées (pas inclus dans le jeu)
 - Déplacer / renommer un script uniquement via Unity (`AssetDatabase.MoveAsset`) : le `.meta` suit, les scènes gardent leurs références

@@ -8,6 +8,7 @@ using UnityEngine.Rendering;
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(800)]
+[AddComponentMenu("Gumori/Habillage/GumoriBackdrop")]
 public class GumoriBackdrop : MonoBehaviour
 {
     [Header("Fond")]

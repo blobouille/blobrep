@@ -149,7 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::monde_settings
   gameSpeed: 1
-  gravite: {x: 0, y: -10}
+  gravity: {x: 0, y: -10}
   simulationSubSteps: 5
   simulationWorkers: 1
   continuousAllowed: 1
@@ -365,14 +365,13 @@ MonoBehaviour:
   jointDamping: 2
   jointLinearFrequency: 32
   jointLinearDamping: 2
+  limitStretch: 0
+  stretchLimit: 1
   friction: 0.5
   bounciness: 0
   fastCollisions: 0
-  heavyKey: 3
-  heavyGravity: 3
-  heavyRampTime: 0.1
-  heavyReleaseTime: 0.05
-  heavyMaxFallSpeed: 0
+  selfCollision: 1
+  selfThickness: 1
 --- !u!4 &1844535542
 Transform:
   m_ObjectHideFlags: 0
@@ -522,17 +521,17 @@ MonoBehaviour:
     mouth: 2
     attitude: 3
     blush: 0
-  - name: Chantilly
+  - name: Vanille
     family: 6
     rarity: 0
-    body: {r: 1.0000001, g: 0.86315733, b: 0.89626944, a: 1}
-    shade: {r: 0.7454043, g: 0.5209957, b: 0.5775805, a: 1}
+    body: {r: 0.9646864, g: 0.89626944, b: 0.7681512, a: 1}
+    shade: {r: 0.69387186, g: 0.5457246, b: 0.35153267, a: 1}
     pattern: 12
     accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
     glow: 0
     sheen: 0
     head: 11
-    headColor: {r: 1.0000001, g: 0.5775805, b: 0.04666509, a: 1}
+    headColor: {r: 0.7681512, g: 0.019382365, b: 0.043735035, a: 1}
     back: 0
     backColor: {r: 1, g: 1, b: 1, a: 1}
     eyes: 0
@@ -608,108 +607,6 @@ MonoBehaviour:
     attitude: 2
     blush: 1
   variants:
-  - name: "Cl\xE9mentine"
-    family: 0
-    rarity: 0
-    body: {r: 1.0000001, g: 0.38132608, b: 0.04666509, a: 1}
-    shade: {r: 0.7454043, g: 0.11953845, b: 0.010329825, a: 1}
-    pattern: 2
-    accent: {r: 1.0000001, g: 0.76052463, b: 0.4341537, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 0
-    blush: 1
-  - name: Raisin
-    family: 1
-    rarity: 0
-    body: {r: 0.27049786, g: 0.03954624, b: 0.6038274, a: 1}
-    shade: {r: 0.06847818, g: 0.006512092, b: 0.17144112, a: 1}
-    pattern: 1
-    accent: {r: 0.79129803, g: 0.5775805, b: 1.0000001, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 1
-    attitude: 0
-    blush: 1
-  - name: Lagon
-    family: 3
-    rarity: 0
-    body: {r: 0.031896036, g: 0.17464742, b: 0.7454043, a: 1}
-    shade: {r: 0.008568127, g: 0.05951125, b: 0.3419145, a: 1}
-    pattern: 2
-    accent: {r: 0.15896086, g: 0.80695236, b: 0.7454043, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 0
-    blush: 1
-  - name: Vanille
-    family: 6
-    rarity: 0
-    body: {r: 0.9646864, g: 0.89626944, b: 0.7681512, a: 1}
-    shade: {r: 0.69387186, g: 0.5457246, b: 0.35153267, a: 1}
-    pattern: 12
-    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
-    glow: 0
-    sheen: 0
-    head: 11
-    headColor: {r: 0.7681512, g: 0.019382365, b: 0.043735035, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 1
-    attitude: 0
-    blush: 1
-  - name: Bourgeon
-    family: 8
-    rarity: 0
-    body: {r: 0.2581829, g: 0.6724433, b: 0.042311415, a: 1}
-    shade: {r: 0.04970657, g: 0.27889434, b: 0.014443846, a: 1}
-    pattern: 0
-    accent: {r: 0.76052463, g: 1.0000001, b: 0.47932026, a: 1}
-    glow: 0
-    sheen: 0
-    head: 9
-    headColor: {r: 1.0000001, g: 0.34670413, b: 0.5972019, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 1
-    blush: 1
-  - name: Citron
-    family: 4
-    rarity: 1
-    body: {r: 1.0000001, g: 0.5647116, b: 0.02315337, a: 1}
-    shade: {r: 0.7454043, g: 0.25415215, b: 0.00303527, a: 1}
-    pattern: 3
-    accent: {r: 1.0000001, g: 0.921582, b: 0.5271152, a: 1}
-    glow: 0.8
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 1
-    mouth: 0
-    attitude: 0
-    blush: 0
   - name: Braise bleue
     family: 5
     rarity: 1
@@ -726,23 +623,6 @@ MonoBehaviour:
     eyes: 0
     mouth: 2
     attitude: 3
-    blush: 0
-  - name: Lune
-    family: 9
-    rarity: 1
-    body: {r: 0.015996296, g: 0.011612247, b: 0.024157636, a: 1}
-    shade: {r: 0.0036765079, g: 0.00303527, b: 0.006048834, a: 1}
-    pattern: 11
-    accent: {r: 1.0000001, g: 0.6653874, b: 0.06847818, a: 1}
-    glow: 1.6
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 1
-    backColor: {r: 0.07036011, g: 0.04666509, b: 0.12477183, a: 1}
-    eyes: 2
-    mouth: 4
-    attitude: 0
     blush: 0
   - name: "Cristal \xE9tincelant"
     family: 1
@@ -828,6 +708,31 @@ MonoBehaviour:
   happyTime: 1.6
   mergeFlash: 0.45
   curiosity: 2
+  fadeDesign: 0
+  fadeCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   drawPreviews: 0
   gallery: 0
   galleryInPlay: 0

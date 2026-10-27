@@ -11,6 +11,7 @@ using UnityEngine.InputSystem;
 // ses étoiles apparaissent, les nuages s'écartent, l'avatar saute au niveau suivant et sa fiche s'ouvre. Économise les images
 // quand rien ne bouge (OnDemandRendering).
 [DisallowMultipleComponent]
+[AddComponentMenu("Gumori/Carte/GumoriMapMenu")]
 public class GumoriMapMenu : MonoBehaviour
 {
     public GumoriMap map;

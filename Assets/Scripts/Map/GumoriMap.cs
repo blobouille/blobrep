@@ -12,6 +12,7 @@ using UnityEngine.Rendering;
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(-100)]
+[AddComponentMenu("Gumori/Carte/GumoriMap")]
 public class GumoriMap : MonoBehaviour
 {
     [Header("Campagne")]

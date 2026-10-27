@@ -12,6 +12,7 @@ using UnityEngine.Rendering;
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(900)]
+[AddComponentMenu("Gumori/Habillage/GumoriSkin")]
 public class GumoriSkin : MonoBehaviour
 {
     [Header("Slimes")]
@@ -30,15 +31,6 @@ public class GumoriSkin : MonoBehaviour
     [Range(2f, 20f)] public float pixelsPerSample = 6f;
     [Tooltip("Épaisseur du liseré sombre du contour, en m (absolu, même épaisseur pour tous).")]
     [Min(0f)] public float outlineWidth = 0.05f;
-    [Tooltip("Gumori plié (V autour d'un obstacle) : le centre de la gelée (et le visage) revient dans le corps. Temps de\n" +
-             "lissage de ce déplacement, en s : plus haut = motif et visage glissent plus doucement, mais rattrapent plus tard.")]
-    [Min(0f)] public float fanSmoothing = 0.1f;
-    [Tooltip("Pli toléré avant de déplacer le centre de la gelée, en fraction du rayon du gumori : plus haut = le centre (et\n" +
-             "le visage) bouge moins souvent, mais un peu de peau peut dépasser dans le creux d'un pli. 0 = au moindre creux.")]
-    [Range(0f, 1f)] public float fanTolerance = 0f;
-    [Tooltip("Force avec laquelle les côtés vus de dos repoussent le centre de la gelée dans le corps (sans unité) : plus\n" +
-             "haut = moins de peau dans le creux d'un pli, mais un centre plus nerveux. 0 = jamais déplacé (comme avant).")]
-    [Min(0f)] public float fanStiffness = 10f;
     [Tooltip("Rebord translucide de la gelée (sa couleur, plus claire, on voit un peu le fond à travers) : épaisseur en fraction\n" +
              "du rayon, donc proportionnelle à la taille du gumori. 0 = aucun.")]
     [Range(0f, 0.4f)] public float rimWidth = 0.074f;
@@ -159,8 +151,10 @@ public class GumoriSkin : MonoBehaviour
         public Vector4 shape;
         public float wobble, wobbleRaw, stretch, stepTime;
         public Vector2 center, velocity, look, attention;
-        public Vector2 fanOffset; // centre de la gelée − centre moyen, lissé (FanCenter)
-        public bool hasFan;
+        public Vector2[] jelly; // sommets de la gelée élastique (SolveJelly), repris d'une image à l'autre
+        public int jellyM;
+        public float jellyBlend; // 0 = éventail, 1 = gelée élastique
+        public bool jellySettled; // dernier calcul arrivé au repos
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
         public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
         public int morphFrom = -1; // fondu de design : niveau des parents, et avancement (0 → 1, sur la durée de la fusion)
@@ -282,7 +276,7 @@ public class GumoriSkin : MonoBehaviour
         // En Play, cherché une seule fois (la carte n'a pas de GumoriDropper : pas de recherche à chaque image).
         if (dropper == null && !(_searched && Application.isPlaying)) dropper = FindAnyObjectByType<GumoriDropper>();
         _searched = true;
-        if (_fusion == null && dropper != null) _fusion = dropper.GetComponent<GumoriFusion>();
+        if (_fusion == null && dropper != null) _fusion = dropper.Part<GumoriFusion>();
     }
 
     void OnRestarted()
@@ -512,14 +506,25 @@ public class GumoriSkin : MonoBehaviour
                 _sp[i * k + j] = CatmullRom(p0, p1, p2, p3, u);
             }
         }
-        float radius = 0.5f * blob.diameter;
-        Vector2 fan = FanCenter(_surf, m, c, -fanTolerance * radius, fanStiffness / radius) - c;
-        if (!look.hasFan || fanSmoothing <= 0f) look.fanOffset = fan;
-        else look.fanOffset = Vector2.Lerp(fan, look.fanOffset, Mathf.Exp(-dt / fanSmoothing));
-        look.hasFan = true;
-        Vector2 fc = c + look.fanOffset;
-        if (look.morphFrom >= 0) EmitMorph(look, fc, count, rot, blob.diameter);
-        else EmitSlime(Resolve(look), look, fc, count, rot, blob.diameter);
+        // Gelée élastique seulement pour un gumori vraiment plié (l'éventail se replierait), en fondu sur JellyFade s ; sinon
+        // l'éventail (même dessin au repos, bien moins coûteux).
+        float quality = float.MaxValue, mean = 0f;
+        for (int i = 0; i < m; i++)
+        {
+            Vector2 a = _surf[i] - c, b = _surf[(i + 1) % m] - c;
+            float cross = a.x * b.y - a.y * b.x;
+            mean += cross;
+            quality = Mathf.Min(quality, cross);
+        }
+        quality = mean > 1e-8f ? quality * m / mean : -1f;
+        bool want = quality < (look.jellyBlend > 0f ? JellyRelease : JellyTrigger);
+        look.jellyBlend = Mathf.MoveTowards(look.jellyBlend, want ? 1f : 0f, Time.unscaledDeltaTime / JellyFade);
+        if (look.jellyBlend > 0f) SolveJelly(look, m, c);
+        else look.jellyM = 0;
+        _jelly = look;
+        if (look.morphFrom >= 0) EmitMorph(look, c, count, rot, blob.diameter);
+        else EmitSlime(Resolve(look), look, c, count, rot, blob.diameter);
+        _jelly = null;
     }
 
     // Fondu enchaîné de design pendant une fusion : nouveau design dessous, design des parents par-dessus qui s'efface ;
@@ -859,13 +864,7 @@ public class GumoriSkin : MonoBehaviour
             _dd[k] = new Vector2(rd.x * u.x - rd.y * u.y, rd.y * u.x + rd.x * u.y);
             _dl[k] = new Vector2(rl.x * u.x - rl.y * u.y, rl.y * u.x + rl.x * u.y);
         }
-        bool folds = FanFolds(c, n);
-        if (folds) c = KeepInside(c, n, FaceDepth * radius);
-        int center = AddVertex(c, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, surface), body);
-        for (int k = 0; k < n; k++)
-            AddVertex(_sp[k], new Vector4(_dd[k].x, _dd[k].y, 0f, 0f), new Vector4(_dl[k].x, _dl[k].y, _flash, surface), body);
-        if (!folds || !Triangulate(center, c, n))
-            for (int k = 0; k < n; k++) Tri(center, center + 1 + k, center + 1 + (k + 1) % n);
+        EmitJelly(look, c, n, body, surface);
 
         float w = outlineWidth, ew = _k5.w;
         int r0 = _vertexCount;
@@ -887,184 +886,240 @@ public class GumoriSkin : MonoBehaviour
         if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
     }
 
-    // L'éventail depuis c se replie-t-il (triangles retournés : forme en U, gumori né d'une fusion autour d'un voisin) ?
-    bool FanFolds(Vector2 c, int n)
+    // ---- Gelée : maillage élastique ----
+    // Disque au repos : un centre (repère 0, le visage), JellyRings anneaux intérieurs et le contour. Avant : un éventail de
+    // triangles depuis un seul centre ; plié (U autour du moulin, d'un voisin), ses triangles se croisaient : plis de papier,
+    // yeux et motif coupés ou disparus. Maintenant les anneaux intérieurs suivent le contour comme une feuille élastique :
+    // chaque triangle cherche à garder sa forme au repos (tournée, à l'échelle de l'aire du gumori), sommets intérieurs
+    // = moyenne de ce que leurs triangles demandent (quelques passes par image, reprises de l'image d'avant). Motif et
+    // visage s'étirent et se tassent au lieu de disparaître. Calculé sur l'anneau des capsules (16 à 32 points), puis
+    // lissé à la résolution du contour dessiné (Catmull-Rom le long de chaque anneau). Rond = même dessin que l'éventail.
+    const int JellyRings = 3, JellyPasses = 3, JellyFirstPasses = 12;
+    const float JellyTolerance = 2e-3f;
+    // Pli : plus petit triangle de l'éventail (depuis le centre moyen, sur l'anneau des capsules) rapporté au triangle moyen ;
+    // 1 = rond, < 0 = triangle retourné. Gelée élastique en dessous de JellyTrigger, éventail de nouveau au-dessus de
+    // JellyRelease (écart : pas d'aller-retour d'une image à l'autre).
+    const float JellyTrigger = 0.25f, JellyRelease = 0.4f, JellyFade = 0.12f;
+
+    sealed class JellyRest
     {
-        float total = 0f, folded = 0f;
-        for (int k = 0; k < n; k++)
-        {
-            float a = Cross(_sp[k] - c, _sp[(k + 1) % n] - c);
-            total += a;
-            if (a < 0f) folded -= a;
-        }
-        return folded > FoldTolerance * Mathf.Abs(total);
+        public int vertices, interior;
+        public int[] tris;
+        public Vector2[] offsets; // sommet au repos − centre de son triangle (3 par triangle)
+        public float[] inverseNorms; // 1 / Σ |offset|² de chaque triangle
+        public float[] inverseCounts; // 1 / nombre de triangles de chaque sommet intérieur
+        public float area; // aire du polygone de contour au repos (rayon 1)
     }
 
-    const float FoldTolerance = 0.02f, FaceDepth = 0.15f;
+    readonly Dictionary<int, JellyRest> _jellyRest = new Dictionary<int, JellyRest>();
+    Vector2[] _jellyAcc = new Vector2[0], _jellyFine = new Vector2[0];
 
-    // Point gardé dans la gelée, à au moins 'depth' de son bord (sinon ramené à cette profondeur depuis le point du bord le
-    // plus proche) : sur une forme en U, le centre de l'éventail peut tomber dans le creux et le visage disparaîtrait.
-    Vector2 KeepInside(Vector2 c, int n, float depth)
+    Look _jelly; // gumori dont la gelée vient d'être calculée (UpdateBlob), sinon éventail depuis le centre
+
+    static float RingRadius(int j) => (float)j / (JellyRings + 1);
+
+    JellyRest GetJellyRest(int m)
+    {
+        if (_jellyRest.TryGetValue(m, out var rest)) return rest;
+        var u = Units(m);
+        rest = new JellyRest { interior = 1 + JellyRings * m, vertices = 1 + (JellyRings + 1) * m, area = 0.5f * m * Mathf.Sin(TAU / m) };
+        var pos = new Vector2[rest.vertices];
+        for (int j = 1; j <= JellyRings + 1; j++)
+            for (int k = 0; k < m; k++) pos[1 + (j - 1) * m + k] = u[k] * RingRadius(j);
+        var tris = new List<int>();
+        for (int k = 0; k < m; k++) tris.AddRange(new[] { 0, 1 + k, 1 + (k + 1) % m });
+        for (int j = 1; j <= JellyRings; j++)
+            for (int k = 0; k < m; k++)
+            {
+                int a = 1 + (j - 1) * m + k, b = 1 + (j - 1) * m + (k + 1) % m, c = a + m, d = b + m;
+                tris.AddRange(new[] { a, c, d, a, d, b });
+            }
+        rest.tris = tris.ToArray();
+        rest.offsets = new Vector2[rest.tris.Length];
+        rest.inverseNorms = new float[rest.tris.Length / 3];
+        rest.inverseCounts = new float[rest.interior];
+        for (int t = 0; t < rest.tris.Length; t += 3)
+        {
+            Vector2 g = (pos[rest.tris[t]] + pos[rest.tris[t + 1]] + pos[rest.tris[t + 2]]) / 3f;
+            float norm = 0f;
+            for (int i = 0; i < 3; i++)
+            {
+                rest.offsets[t + i] = pos[rest.tris[t + i]] - g;
+                norm += rest.offsets[t + i].sqrMagnitude;
+                if (rest.tris[t + i] < rest.interior) rest.inverseCounts[rest.tris[t + i]]++;
+            }
+            rest.inverseNorms[t / 3] = 1f / norm;
+        }
+        for (int i = 0; i < rest.interior; i++) rest.inverseCounts[i] = 1f / rest.inverseCounts[i];
+        _jellyRest.Add(m, rest);
+        return rest;
+    }
+
+    // Sommets de la gelée de ce gumori (bord = _surf, les m points de l'anneau des capsules), repris de l'image d'avant.
+    void SolveJelly(Look look, int m, Vector2 c)
+    {
+        var rest = GetJellyRest(m);
+        int last = JellyRings * m;
+        int passes = JellyPasses;
+        if (look.jelly == null || look.jellyM != m)
+        {
+            if (look.jelly == null || look.jelly.Length < rest.vertices) look.jelly = new Vector2[rest.vertices];
+            look.jelly[0] = c;
+            for (int j = 1; j <= JellyRings; j++)
+                for (int k = 0; k < m; k++) look.jelly[1 + (j - 1) * m + k] = c + (_surf[k] - c) * RingRadius(j);
+            look.jellyM = m;
+            passes = JellyFirstPasses;
+        }
+        var q = look.jelly;
+        float area = 0f, drift = 0f;
+        for (int k = 0; k < m; k++)
+        {
+            Vector2 a = _surf[k], b = _surf[(k + 1) % m], d = a - q[1 + last + k];
+            area += a.x * b.y - a.y * b.x;
+            drift = Mathf.Max(drift, d.sqrMagnitude);
+        }
+        float scale = Mathf.Sqrt(Mathf.Max(1e-8f, 0.5f * Mathf.Abs(area)) / rest.area);
+        float tolerance = JellyTolerance * scale * JellyTolerance * scale;
+        // Contour immobile depuis le dernier calcul (gumori au repos dans la pile) : gelée inchangée.
+        if (passes == JellyPasses && drift < tolerance && look.jellySettled) return;
+        look.jellySettled = false;
+        for (int k = 0; k < m; k++) q[1 + last + k] = _surf[k];
+        if (_jellyAcc.Length < rest.interior) _jellyAcc = new Vector2[rest.interior];
+        var tris = rest.tris;
+        var off = rest.offsets;
+        for (int pass = 0; pass < passes; pass++)
+        {
+            System.Array.Clear(_jellyAcc, 0, rest.interior);
+            for (int t = 0; t < tris.Length; t += 3)
+            {
+                int ia = tris[t], ib = tris[t + 1], ic = tris[t + 2];
+                float qax = q[ia].x, qay = q[ia].y, qbx = q[ib].x, qby = q[ib].y, qcx = q[ic].x, qcy = q[ic].y;
+                float gx = (qax + qbx + qcx) * (1f / 3f), gy = (qay + qby + qcy) * (1f / 3f);
+                float oax = off[t].x, oay = off[t].y, obx = off[t + 1].x, oby = off[t + 1].y, ocx = off[t + 2].x, ocy = off[t + 2].y;
+                qax -= gx; qay -= gy; qbx -= gx; qby -= gy; qcx -= gx; qcy -= gy;
+                float dot = oax * qax + oay * qay + obx * qbx + oby * qby + ocx * qcx + ocy * qcy;
+                float cross = oax * qay - oay * qax + obx * qby - oby * qbx + ocx * qcy - ocy * qcx;
+                float len = Mathf.Sqrt(dot * dot + cross * cross);
+                // Échelle propre au triangle (il garde sa forme, pas sa taille : il peut se tasser dans un bras mince),
+                // tirée vers celle du gumori (moyenne géométrique) pour garder un peu de tenue.
+                float cs = scale, sn = 0f;
+                if (len > 1e-12f)
+                {
+                    float s = Mathf.Sqrt(len * rest.inverseNorms[t / 3] * scale) / len;
+                    cs = s * dot; sn = s * cross;
+                }
+                if (ia < rest.interior) { _jellyAcc[ia].x += gx + cs * oax - sn * oay; _jellyAcc[ia].y += gy + sn * oax + cs * oay; }
+                if (ib < rest.interior) { _jellyAcc[ib].x += gx + cs * obx - sn * oby; _jellyAcc[ib].y += gy + sn * obx + cs * oby; }
+                if (ic < rest.interior) { _jellyAcc[ic].x += gx + cs * ocx - sn * ocy; _jellyAcc[ic].y += gy + sn * ocx + cs * ocy; }
+            }
+            float moved = 0f;
+            var counts = rest.inverseCounts;
+            for (int i = 0; i < rest.interior; i++)
+            {
+                float px = _jellyAcc[i].x * counts[i], py = _jellyAcc[i].y * counts[i];
+                float dx = px - q[i].x, dy = py - q[i].y, d = dx * dx + dy * dy;
+                if (d > moved) moved = d;
+                q[i].x = px; q[i].y = py;
+            }
+
+            if (moved < tolerance) { look.jellySettled = true; break; }
+        }
+        // Sans vrai pli (aucun coin rentrant de plus de ≈ 10° : un gumori plaqué contre un voisin a souvent une face à peine
+        // creuse), la gelée reste d'elle-même dans la peau : test sauté.
+        bool folded = false;
+        for (int k = 0; k < m && !folded; k++)
+        {
+            Vector2 a = _surf[(k + m - 1) % m], b = _surf[k], e = _surf[(k + 1) % m];
+            float ux = b.x - a.x, uy = b.y - a.y, vx = e.x - b.x, vy = e.y - b.y;
+            float turn = ux * vy - uy * vx;
+            folded = turn < 0f && turn * turn > FoldSine * FoldSine * (ux * ux + uy * uy) * (vx * vx + vy * vy);
+        }
+        if (folded)
+            for (int i = 0; i < rest.interior; i++) q[i] = KeepInSkin(q[i], m, JellyMargin * scale);
+    }
+
+    const float FoldSine = 0.17f;
+
+    const float JellyMargin = 0.03f;
+
+    // La gelée ne sort jamais de sa peau (polygone _surf) : un sommet dehors, ou à moins de 'margin' du bord, est ramené à
+    // 'margin' à l'intérieur depuis le point du bord le plus proche.
+    Vector2 KeepInSkin(Vector2 p, int m, float margin)
     {
         bool inside = false;
-        float best = float.MaxValue;
-        Vector2 near = c, inward = Vector2.zero;
-        for (int k = 0; k < n; k++)
+        float best = float.MaxValue, nx = p.x, ny = p.y, ex = 0f, ey = 0f;
+        float px = p.x, py = p.y;
+        var s = _surf;
+        for (int k = 0, j = m - 1; k < m; j = k++)
         {
-            Vector2 a = _sp[k], b = _sp[(k + 1) % n], e = b - a;
-            if ((a.y > c.y) != (b.y > c.y) && c.x < a.x + (c.y - a.y) / (b.y - a.y) * e.x) inside = !inside;
-            float len2 = e.sqrMagnitude;
+            float ax = s[j].x, ay = s[j].y, dx = s[k].x - ax, dy = s[k].y - ay;
+            if ((ay > py) != (s[k].y > py) && px < ax + (py - ay) / dy * dx) inside = !inside;
+            float len2 = dx * dx + dy * dy;
             if (len2 < 1e-12f) continue;
-            Vector2 q = a + e * Mathf.Clamp01(Vector2.Dot(c - a, e) / len2);
-            float d = (c - q).sqrMagnitude;
-            if (d < best) { best = d; near = q; inward = new Vector2(-e.y, e.x) / Mathf.Sqrt(len2); }
+            float t = ((px - ax) * dx + (py - ay) * dy) / len2;
+            t = t < 0f ? 0f : t > 1f ? 1f : t;
+            float cx = ax + dx * t, cy = ay + dy * t, d = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+            if (d < best) { best = d; nx = cx; ny = cy; ex = dx; ey = dy; }
         }
-        if (inside && best >= depth * depth) return c;
-        return near + inward * depth;
+        if (inside && best >= margin * margin) return p;
+        float inv = margin / Mathf.Max(1e-6f, Mathf.Sqrt(ex * ex + ey * ey));
+        return new Vector2(nx - ey * inv, ny + ex * inv);
     }
-    bool[] _visible = new bool[0];
-    int[] _piece = new int[0], _earPrev = new int[0], _earNext = new int[0];
-    Vector2[] _piecePos = new Vector2[0];
 
-    // Gelée d'une forme que l'éventail ne sait pas couvrir sans se replier (U, gumori né d'une fusion autour d'un voisin) :
-    // c (dans la gelée) relié à chaque point du contour qu'il VOIT (éventail normal autour du visage, repère 0 en c), et
-    // chaque poche cachée entre deux de ces rayons (le bout d'un bras du U) découpée en oreilles. Les rayons sont des
-    // diagonales intérieures qui ne se croisent pas : les morceaux ne se chevauchent pas. Faux si un morceau ne se découpe
-    // pas (contour qui se recoupe) : l'éventail sert alors.
-    bool Triangulate(int center, Vector2 c, int n)
+    // Gelée dessinée : centre, anneaux intérieurs (n points chacun) et contour _sp. Repère du motif (uv0) et de la lumière
+    // (uv1) : rayon de l'anneau × direction au repos, comme l'éventail.
+    void EmitJelly(Look look, Vector2 c, int n, Color32 body, float surface)
     {
-        if (_visible.Length < n + 1)
+        bool solved = _jelly == look && look.jellyBlend > 0f && look.jelly != null && look.jellyM > 0 && n % look.jellyM == 0;
+        if (!solved)
         {
-            _visible = new bool[n + 1]; _piece = new int[n + 2]; _earPrev = new int[n + 2]; _earNext = new int[n + 2];
-            _piecePos = new Vector2[n + 2];
+            int fan = AddVertex(c, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, surface), body);
+            for (int t = 0; t < n; t++)
+                AddVertex(_sp[t], new Vector4(_dd[t].x, _dd[t].y, 0f, 0f), new Vector4(_dl[t].x, _dl[t].y, _flash, surface), body);
+            for (int t = 0; t < n; t++) Tri(fan, fan + 1 + t, fan + 1 + (t + 1) % n);
+            return;
         }
-        int first = -1;
-        for (int k = 0; k < n; k++)
+        int m = look.jellyM, k = n / m;
+        float w = look.jellyBlend;
+        if (_jellyFine.Length < JellyRings * n) _jellyFine = new Vector2[JellyRings * n];
+        var q = look.jelly;
+        Vector2 center = Vector2.Lerp(c, q[0], w);
+        for (int j = 1; j <= JellyRings; j++)
         {
-            _visible[k] = Sees(c, k, n);
-            if (_visible[k] && first < 0) first = k;
-        }
-        if (first < 0) return false;
-        int start = _indexCount, from = first;
-        do
-        {
-            int to = (from + 1) % n;
-            while (!_visible[to]) to = (to + 1) % n;
-            if (to == (from + 1) % n) Tri(center, center + 1 + from, center + 1 + to);
-            else
+            int baseFine = (j - 1) * n, baseCoarse = 1 + (j - 1) * m;
+            float r = RingRadius(j);
+            for (int i = 0; i < m; i++)
             {
-                int count = 0;
-                _piece[count] = center; _piecePos[count++] = c;
-                for (int k = from; ; k = (k + 1) % n)
+                Vector2 p0 = q[baseCoarse + (i + m - 1) % m], p1 = q[baseCoarse + i], p2 = q[baseCoarse + (i + 1) % m], p3 = q[baseCoarse + (i + 2) % m];
+                for (int s = 0; s < k; s++)
                 {
-                    _piece[count] = center + 1 + k; _piecePos[count++] = _sp[k];
-                    if (k == to) break;
+                    int t = i * k + s;
+                    _jellyFine[baseFine + t] = Vector2.Lerp(c + (_sp[t] - c) * r, CatmullRom(p0, p1, p2, p3, (float)s / k), w);
                 }
-                if (!EarClip(count)) { _indexCount = start; return false; }
             }
-            from = to;
-        } while (from != first);
-        return true;
-    }
-
-    // Le segment c → point k du contour ne traverse aucun côté.
-    bool Sees(Vector2 c, int k, int n)
-    {
-        Vector2 p = _sp[k], d = p - c;
-        for (int j = 0; j < n; j++)
-        {
-            int j1 = (j + 1) % n;
-            if (j == k || j1 == k) continue;
-            Vector2 a = _sp[j], b = _sp[j1], e = b - a;
-            float d1 = Cross(d, a - c), d2 = Cross(d, b - c), d3 = Cross(e, c - a), d4 = Cross(e, p - a);
-            if (d1 * d2 < 0f && d3 * d4 < 0f) return false;
         }
-        return true;
-    }
 
-    // Découpe en oreilles d'un polygone simple dans le sens trigonométrique (_piecePos, sommets du maillage _piece).
-    bool EarClip(int count)
-    {
-        for (int k = 0; k < count; k++) { _earPrev[k] = (k + count - 1) % count; _earNext[k] = (k + 1) % count; }
-        int left = count, i = 0, miss = 0;
-        while (left > 3)
+        int v0 = AddVertex(center, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, surface), body);
+        for (int j = 1; j <= JellyRings + 1; j++)
         {
-            int p = _earPrev[i], q = _earNext[i];
-            if (IsEar(p, i, q))
+            float r = j > JellyRings ? 1f : RingRadius(j);
+            for (int t = 0; t < n; t++)
             {
-                Tri(_piece[p], _piece[i], _piece[q]);
-                _earNext[p] = q; _earPrev[q] = p;
-                left--; miss = 0; i = q;
-            }
-            else
-            {
-                i = q;
-                if (++miss > left) return false;
+                Vector2 p = j > JellyRings ? _sp[t] : _jellyFine[(j - 1) * n + t];
+                AddVertex(p, new Vector4(_dd[t].x * r, _dd[t].y * r, 0f, 0f), new Vector4(_dl[t].x * r, _dl[t].y * r, _flash, surface), body);
             }
         }
-        Tri(_piece[_earPrev[i]], _piece[i], _piece[_earNext[i]]);
-        return true;
-    }
-
-    bool IsEar(int p, int i, int q)
-    {
-        Vector2 a = _piecePos[p], b = _piecePos[i], e = _piecePos[q];
-        if (Cross(b - a, e - b) <= 0f) return false;
-        for (int k = _earNext[q]; k != p; k = _earNext[k])
+        for (int t = 0; t < n; t++) Tri(v0, v0 + 1 + t, v0 + 1 + (t + 1) % n);
+        for (int j = 1; j <= JellyRings; j++)
         {
-            Vector2 x = _piecePos[k];
-            if (Cross(b - a, x - a) > 0f && Cross(e - b, x - b) > 0f && Cross(a - e, x - e) > 0f) return false;
-        }
-        return true;
-    }
-
-    static float Cross(Vector2 u, Vector2 v) => u.x * v.y - u.y * v.x;
-
-    // Centre de l'éventail de la gelée (le visage est dessiné autour de lui), sur le polygone des capsules (pas le contour
-    // lissé : ses bosses entre capsules le feraient bouger sans cesse). Le centre moyen 'c' tant que tout le contour s'y voit,
-    // sinon le minimum de |x − c|² + 'stiffness' / rayon × Σ longueur du côté × (côté vu « de dos »)² : chaque côté vu de dos
-    // repousse le centre vers l'intérieur, proportionnellement à sa longueur. Fonction lisse et strictement convexe : son
-    // minimum varie en continu avec la forme (le point exact le plus proche sautait d'un coin à l'autre quand les capsules
-    // glissaient). Sans ça, un gumori plié en V autour d'un obstacle a son centre HORS du corps et l'éventail tend une peau
-    // dans le creux. 'margin' < 0 tolère des côtés vus de dos jusqu'à cette distance (petits triangles retournés dans un
-    // creux léger, invisibles) : le centre ne bouge que pour un vrai pli.
-    const int FanIterations = 8;
-
-    static Vector2 FanCenter(Vector2[] p, int n, Vector2 c, float margin, float weight)
-    {
-        Vector2 x = c;
-        for (int it = 0; it < FanIterations; it++)
-        {
-            // Gauss-Newton sur la somme de carrés : H = I + w Σ L n nᵀ, g = (x − c) − w Σ L (margin − d) n.
-            float hxx = 1f, hxy = 0f, hyy = 1f;
-            Vector2 g = x - c;
-            bool any = false;
-            Vector2 a = p[n - 1];
-            for (int k = 0; k < n; k++)
+            int inner = v0 + 1 + (j - 1) * n, outer = inner + n;
+            for (int t = 0; t < n; t++)
             {
-                Vector2 b = p[k], e = b - a;
-                float len = e.magnitude;
-                if (len > 1e-6f)
-                {
-                    Vector2 nor = new Vector2(-e.y, e.x) / len;
-                    float d = Vector2.Dot(nor, x - a);
-                    if (d < margin)
-                    {
-                        float wl = weight * len;
-                        hxx += wl * nor.x * nor.x; hxy += wl * nor.x * nor.y; hyy += wl * nor.y * nor.y;
-                        g -= nor * (wl * (margin - d));
-                        any = true;
-                    }
-                }
-                a = b;
+                int t1 = (t + 1) % n;
+                Tri(inner + t, outer + t, outer + t1);
+                Tri(inner + t, outer + t1, inner + t1);
             }
-            if (!any) break;
-            float det = hxx * hyy - hxy * hxy;
-            Vector2 step = new Vector2(hyy * g.x - hxy * g.y, hxx * g.y - hxy * g.x) / det;
-            x -= step;
-            if (step.sqrMagnitude < 1e-8f) break;
         }
-        return x;
     }
 
     static int Pack6(Color linear)
@@ -1093,19 +1148,6 @@ public class GumoriSkin : MonoBehaviour
         Color col = d.headColor;
         switch (d.head)
         {
-            case GumoriHead.Leaf:
-                if (front) return;
-                {
-                    Anchor(100f, n, rot, frame, out var p, out var nor);
-                    _poly.Clear();
-                    _poly.Add(new Vector2(-0.04f, -0.15f)); _poly.Add(new Vector2(0.04f, -0.15f));
-                    _poly.Add(new Vector2(0.045f, 0.26f)); _poly.Add(new Vector2(-0.025f, 0.26f));
-                    Polygon(p, nor, size, new Vector2(0f, 0f), col * 0.75f, 0f, aa);
-                    float sway = 0.08f * Mathf.Sin(Time.time * 2f);
-                    Leaf(p, nor, size, new Vector2(0.01f, 0.24f), -0.75f + sway, 0.62f, 0.2f, col, aa);
-                    Leaf(p, nor, size, new Vector2(0f, 0.2f), 0.85f + sway, 0.42f, 0.15f, col * 0.9f, aa);
-                }
-                break;
             case GumoriHead.Antennae:
                 if (front) return;
                 for (int s = -1; s <= 1; s += 2)
@@ -1166,36 +1208,6 @@ public class GumoriSkin : MonoBehaviour
                 if (front) return;
                 for (int i = 0; i < 3; i++)
                     Crystal(92f + (i - 1) * 21f, i == 1 ? 0.66f : (i == 0 ? 0.45f : 0.4f), i == 1 ? 0.1f : 0.08f, n, rot, frame, size, col, d.glow + 0.5f, aa);
-                break;
-            case GumoriHead.CrystalCluster:
-                if (front) return;
-                for (int i = 0; i < 5; i++)
-                    Crystal(92f + (i - 2) * 17f, ClusterLength[i], i == 2 ? 0.1f : 0.075f, n, rot, frame, size,
-                        i % 2 == 0 ? col : Color.Lerp(col, Color.white, 0.35f), d.glow + 0.5f, aa);
-                break;
-            case GumoriHead.Halo:
-                if (!front) return;
-                {
-                    Anchor(90f, n, rot, frame, out var p, out var nor);
-                    Vector2 tan = new Vector2(nor.y, -nor.x);
-                    Vector2 hc = p + nor * (size * (0.32f + 0.04f * Mathf.Sin(Time.time * 2f)));
-                    float ax = 0.44f * size, ay = 0.12f * size, th = 0.07f * size;
-                    const int N = 28;
-                    var u1 = new Vector4(0f, 0f, _flash, 1.5f);
-                    int h0 = _vertexCount;
-                    for (int i = 0; i < N; i++)
-                    {
-                        float a = TAU * i / N;
-                        Vector2 e = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                        AddVertex(hc + tan * (e.x * (ax - th)) + nor * (e.y * (ay - th)), new Vector4(0f, 0f, 3f, 0f), u1, col);
-                        AddVertex(hc + tan * (e.x * (ax + th)) + nor * (e.y * (ay + th)), new Vector4(0f, 0f, 3f, 1f), u1, col);
-                    }
-                    for (int i = 0; i < N; i++)
-                    {
-                        int a = h0 + 2 * i, b = h0 + 2 * ((i + 1) % N);
-                        Tri(a, a + 1, b + 1); Tri(a, b + 1, b);
-                    }
-                }
                 break;
             case GumoriHead.Crown:
                 if (!front) return;
@@ -1261,6 +1273,50 @@ public class GumoriSkin : MonoBehaviour
                     Polygon(p, nor, size, new Vector2(0f, 0.14f), col, 0f, aa);
                     Circle(new Vector2(-0.06f, 0.2f), 0.04f, 10);
                     Polygon(p, nor, size, new Vector2(-0.06f, 0.2f), Color.white, 0.4f, aa);
+                }
+                break;
+            case GumoriHead.CrystalCluster:
+                if (front) return;
+                for (int i = 0; i < 5; i++)
+                    Crystal(92f + (i - 2) * 17f, ClusterLength[i], i == 2 ? 0.1f : 0.075f, n, rot, frame, size,
+                        i % 2 == 0 ? col : Color.Lerp(col, Color.white, 0.35f), d.glow + 0.5f, aa);
+                break;
+            case GumoriHead.Halo:
+                if (!front) return;
+                {
+                    Anchor(90f, n, rot, frame, out var p, out var nor);
+                    Vector2 tan = new Vector2(nor.y, -nor.x);
+                    Vector2 hc = p + nor * (size * (0.32f + 0.04f * Mathf.Sin(Time.time * 2f)));
+                    float ax = 0.44f * size, ay = 0.12f * size, th = 0.07f * size;
+                    const int N = 28;
+                    var u1 = new Vector4(0f, 0f, _flash, 1.5f);
+                    int h0 = _vertexCount;
+                    for (int i = 0; i < N; i++)
+                    {
+                        float a = TAU * i / N;
+                        Vector2 e = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                        AddVertex(hc + tan * (e.x * (ax - th)) + nor * (e.y * (ay - th)), new Vector4(0f, 0f, 3f, 0f), u1, col);
+                        AddVertex(hc + tan * (e.x * (ax + th)) + nor * (e.y * (ay + th)), new Vector4(0f, 0f, 3f, 1f), u1, col);
+                    }
+                    for (int i = 0; i < N; i++)
+                    {
+                        int a = h0 + 2 * i, b = h0 + 2 * ((i + 1) % N);
+                        Tri(a, a + 1, b + 1); Tri(a, b + 1, b);
+                    }
+                }
+                break;
+            // Inutilisés (aucun gumori ne les porte plus ; gardés au cas où)
+            case GumoriHead.Leaf:
+                if (front) return;
+                {
+                    Anchor(100f, n, rot, frame, out var p, out var nor);
+                    _poly.Clear();
+                    _poly.Add(new Vector2(-0.04f, -0.15f)); _poly.Add(new Vector2(0.04f, -0.15f));
+                    _poly.Add(new Vector2(0.045f, 0.26f)); _poly.Add(new Vector2(-0.025f, 0.26f));
+                    Polygon(p, nor, size, new Vector2(0f, 0f), col * 0.75f, 0f, aa);
+                    float sway = 0.08f * Mathf.Sin(Time.time * 2f);
+                    Leaf(p, nor, size, new Vector2(0.01f, 0.24f), -0.75f + sway, 0.62f, 0.2f, col, aa);
+                    Leaf(p, nor, size, new Vector2(0f, 0.2f), 0.85f + sway, 0.42f, 0.15f, col * 0.9f, aa);
                 }
                 break;
             case GumoriHead.Headband:
@@ -1347,8 +1403,8 @@ public class GumoriSkin : MonoBehaviour
         Polygon(p, nor, size, end, KatanaGold, glow * 0.5f, aa);
     }
 
-    // Case « dos » : derrière le corps, de part et d'autre (s = −1 gauche, +1 droite). Dans le repère local d'un point du bord,
-    // « vers le haut du gumori » vaut −s le long de la tangente.
+    // Case « dos » (seules les ailes de fée servent encore ; les autres gardées au cas où) : derrière le corps, de part et
+    // d'autre (s = −1 gauche, +1 droite). Dans le repère local d'un point du bord, « vers le haut du gumori » vaut −s le long de la tangente.
     void EmitBack(GumoriDesign d, int n, float rot, float frame, float size, float aa)
     {
         Color col = d.backColor;

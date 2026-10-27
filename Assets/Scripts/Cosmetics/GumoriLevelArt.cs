@@ -7,6 +7,7 @@ using UnityEngine.Rendering;
 // Shader Slime/Fx (types 8 bocal, 9 barre), dessiné devant les gumori.
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(850)]
+[AddComponentMenu("Gumori/Habillage/GumoriLevelArt")]
 public class GumoriLevelArt : MonoBehaviour
 {
     [Header("Références (trouvées seules si vides)")]
@@ -58,7 +59,7 @@ public class GumoriLevelArt : MonoBehaviour
         if (launcher == null) launcher = FindAnyObjectByType<GumoriLauncher>();
         if (shader == null) shader = Shader.Find("Slime/Fx");
         _mills = FindObjectsByType<GumoriMill>(FindObjectsSortMode.None);
-        if (jars != null && jars.dropper != null) _fusion = jars.dropper.GetComponent<GumoriFusion>();
+        if (jars != null && jars.dropper != null) _fusion = jars.dropper.Part<GumoriFusion>();
         if (shader != null) _material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave, renderQueue = 3010 };
         _mesh = new Mesh { name = "Éléments du niveau", hideFlags = HideFlags.HideAndDontSave };
         _mesh.MarkDynamic();

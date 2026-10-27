@@ -194,28 +194,7 @@ Shader "Slime/Body"
             float3 Pattern(int pattern, float2 p, float3 col, float3 shade, float3 accent, float glow, float seed, float faceMask, float t)
             {
                 float r = length(p);
-                if (pattern == 1) // bulles qui montent
-                {
-                    col = Bubbles(p, col, accent, seed, t, faceMask, 7, 0.9);
-                }
-                else if (pattern == 2) // pois
-                {
-                    float2 g = p * 3.2 + seed;
-                    float2 cell = floor(g);
-                    float2 q = frac(g) - 0.5 - 0.3 * (Hash22(cell) - 0.5);
-                    float on = step(0.3, Hash21(cell + 3.7));
-                    float rad = 0.17 + 0.1 * Hash21(cell + 1.3);
-                    col = lerp(col, accent, Fill(length(q) - rad) * on * lerp(0.25, 0.6, faceMask));
-                }
-                else if (pattern == 3) // ondes lumineuses
-                {
-                    float w = sin(r * 15.0 - t * 3.5) * 0.5 + 0.5;
-                    float band = smoothstep(0.65, 0.95, w) * smoothstep(1.0, 0.25, r);
-                    float core = exp(-r * r * 9.0);
-                    col = lerp(col, accent, band * 0.45 * lerp(0.4, 1.0, faceMask));
-                    col += accent * (core * 0.6 + band * 0.25) * glow;
-                }
-                else if (pattern == 4) // alvéoles de miel
+                if (pattern == 4) // alvéoles de miel
                 {
                     float2 g = p * 4.2 + seed;
                     float2 s = float2(1.0, 1.7320508);
@@ -278,15 +257,6 @@ Shader "Slime/Body"
                     col = lerp(col, col * rainbow * 1.15, 0.8);
                     col += float3(1.0, 1.0, 1.0) * Glitter(p, 8.0, 0.35, seed, t) * (1.0 + glow);
                 }
-                else if (pattern == 11) // anneaux lunaires : un anneau au front, un de chaque côté, qui luisent
-                {
-                    float d1 = abs(length(p - float2(0.0, 0.6)) - 0.15) - 0.035;
-                    float d2 = abs(SdEllipse(float2(abs(p.x), p.y) - float2(0.72, -0.3), float2(0.1, 0.17))) - 0.03;
-                    float d = min(d1, d2);
-                    float pulse = 0.75 + 0.25 * sin(t * 2.0 + seed);
-                    col += accent * glow * 0.35 * pulse * exp(-max(d, 0.0) * 16.0);
-                    col = lerp(col, accent * (1.0 + glow * pulse), Fill(d));
-                }
                 else if (pattern == 12) // vermicelles de couleur
                 {
                     float2 g = p * 5.0 + seed;
@@ -342,6 +312,37 @@ Shader "Slime/Body"
                     float on = smoothstep(0.92, 0.78, length(p));
                     col = lerp(col, accent, Fill(d - 0.018) * on * lerp(0.2, 1.0, faceMask));
                 }
+                // Inutilisés (aucun gumori ne les porte plus ; gardés au cas où)
+                else if (pattern == 1) // bulles qui montent
+                {
+                    col = Bubbles(p, col, accent, seed, t, faceMask, 7, 0.9);
+                }
+                else if (pattern == 2) // pois
+                {
+                    float2 g = p * 3.2 + seed;
+                    float2 cell = floor(g);
+                    float2 q = frac(g) - 0.5 - 0.3 * (Hash22(cell) - 0.5);
+                    float on = step(0.3, Hash21(cell + 3.7));
+                    float rad = 0.17 + 0.1 * Hash21(cell + 1.3);
+                    col = lerp(col, accent, Fill(length(q) - rad) * on * lerp(0.25, 0.6, faceMask));
+                }
+                else if (pattern == 3) // ondes lumineuses
+                {
+                    float w = sin(r * 15.0 - t * 3.5) * 0.5 + 0.5;
+                    float band = smoothstep(0.65, 0.95, w) * smoothstep(1.0, 0.25, r);
+                    float core = exp(-r * r * 9.0);
+                    col = lerp(col, accent, band * 0.45 * lerp(0.4, 1.0, faceMask));
+                    col += accent * (core * 0.6 + band * 0.25) * glow;
+                }
+                else if (pattern == 11) // anneaux lunaires : un anneau au front, un de chaque côté, qui luisent
+                {
+                    float d1 = abs(length(p - float2(0.0, 0.6)) - 0.15) - 0.035;
+                    float d2 = abs(SdEllipse(float2(abs(p.x), p.y) - float2(0.72, -0.3), float2(0.1, 0.17))) - 0.03;
+                    float d = min(d1, d2);
+                    float pulse = 0.75 + 0.25 * sin(t * 2.0 + seed);
+                    col += accent * glow * 0.35 * pulse * exp(-max(d, 0.0) * 16.0);
+                    col = lerp(col, accent * (1.0 + glow * pulse), Fill(d));
+                }
                 else if (pattern == 16) // fleurs de sakura éparses (cœur foncé), surtout en bas et sur les côtés
                 {
                     float2 g = p * 2.4 + seed;
@@ -358,7 +359,8 @@ Shader "Slime/Body"
                 return col;
             }
 
-            // Reflet par-dessus tout le gumori : 1 holo (carte brillante : arc-en-ciel en bandes qui passent), 2 étincelles.
+            // Reflet par-dessus tout le gumori (ultra rares) : 1 holo (carte brillante : arc-en-ciel en bandes qui passent),
+            // 2 étincelles, 3 braises, 4 pétales de sakura (inutilisé : aucun gumori n'en porte plus ; gardé au cas où).
             float3 Sheen(int sheen, float2 p, float3 col, float3 accent, float seed, float faceMask, float t)
             {
                 if (sheen == 1)

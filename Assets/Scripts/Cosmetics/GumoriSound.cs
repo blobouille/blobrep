@@ -17,6 +17,7 @@ using UnityEngine;
 // Purement audio : événements de la simulation mis en file, joués hors simulation ; rien pendant le rejeu accéléré.
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(960)]
+[AddComponentMenu("Gumori/Habillage/GumoriSound")]
 public class GumoriSound : MonoBehaviour
 {
     [Header("Liens")]
@@ -142,8 +143,8 @@ public class GumoriSound : MonoBehaviour
         if (skin == null) skin = FindAnyObjectByType<GumoriSkin>();
         if (dropper != null)
         {
-            _fusion = dropper.GetComponent<GumoriFusion>();
-            _score = dropper.GetComponent<GumoriScore>();
+            _fusion = dropper.Part<GumoriFusion>();
+            _score = dropper.Part<GumoriScore>();
             dropper.Dropped += OnDropped;
         }
         if (_score != null) _score.Scored += OnScored;

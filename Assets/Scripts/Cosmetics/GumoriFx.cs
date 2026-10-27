@@ -12,6 +12,7 @@ using UnityEngine.Rendering;
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(950)]
+[AddComponentMenu("Gumori/Habillage/GumoriFx")]
 public class GumoriFx : MonoBehaviour
 {
     [Header("Liens")]
@@ -152,8 +153,8 @@ public class GumoriFx : MonoBehaviour
         if (backdrop == null) backdrop = FindAnyObjectByType<GumoriBackdrop>();
         if (dropper != null)
         {
-            if (_fusion == null) _fusion = dropper.GetComponent<GumoriFusion>();
-            if (_score == null) _score = dropper.GetComponent<GumoriScore>();
+            if (_fusion == null) _fusion = dropper.Part<GumoriFusion>();
+            if (_score == null) _score = dropper.Part<GumoriScore>();
         }
     }
 

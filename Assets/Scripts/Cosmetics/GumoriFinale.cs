@@ -5,6 +5,7 @@ using UnityEngine;
 // division, et les plus petits s'envolent par le haut de l'écran. Purement visuel : la simulation a retiré les vrais gumori
 // (GumoriGoal, SpaceLevel) ; ceux-ci sont dessinés par GumoriSkin, sans physique, avec une graine fixe pour le hasard.
 [DisallowMultipleComponent]
+[AddComponentMenu("Gumori/Habillage/GumoriFinale")]
 public class GumoriFinale : MonoBehaviour
 {
     [Header("Références (trouvées seules si vides)")]
@@ -63,15 +64,15 @@ public class GumoriFinale : MonoBehaviour
         if (goal != null)
         {
             goal.Finished += OnFinished;
-            _dropper = goal.GetComponent<GumoriDropper>();
-            _fusion = goal.GetComponent<GumoriFusion>();
+            _dropper = GumoriDropper.Find<GumoriDropper>(goal);
+            _fusion = GumoriDropper.Find<GumoriFusion>(goal);
         }
         if (spaceLevel == null) spaceLevel = FindAnyObjectByType<SpaceLevel>();
         if (spaceLevel != null)
         {
             spaceLevel.Finished += OnFinished;
-            _dropper = spaceLevel.GetComponent<GumoriDropper>();
-            _fusion = spaceLevel.GetComponent<GumoriFusion>();
+            _dropper = GumoriDropper.Find<GumoriDropper>(spaceLevel);
+            _fusion = GumoriDropper.Find<GumoriFusion>(spaceLevel);
         }
         if (skin != null) skin.DrawExtras += OnDraw;
         LevelRestart.Restarted += OnRestarted;

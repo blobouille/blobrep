@@ -12,6 +12,7 @@ using UnityEngine.InputSystem;
 // Entrées par LevelInput et créations dans LevelTick (ordre fixe) : déterministe. Affiche le nombre de gumori et le coût du pas.
 [ExecuteAlways]
 [DisallowMultipleComponent]
+[AddComponentMenu("Gumori/GumoriDropper")]
 public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Gumori")]
@@ -98,9 +99,17 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     public IReadOnlyList<Gumori> InPlay => _blobs;
     public static bool IsInPlay(Gumori gumori) => gumori != null && gumori.Index >= 0;
 
+    // Les systèmes du jeu sont rangés sous l'objet de ce composant (Fusion, Règles, Réserve, Corps) : on les retrouve par lui.
+    public T Part<T>() where T : Component => GetComponentInChildren<T>(true);
+    public static T Find<T>(Component from) where T : Component
+    {
+        var dropper = from.GetComponentInParent<GumoriDropper>(true);
+        return dropper != null ? dropper.Part<T>() : null;
+    }
+
     void OnEnable()
     {
-        _fusion = GetComponent<GumoriFusion>();
+        _fusion = Part<GumoriFusion>();
         _wallHalf = MeasureWalls();
         _rng = StartRng();
         _current = RollLevel();
@@ -171,7 +180,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     // Niveaux des 'count' premiers gumori lâchés (même graine, même tirage qu'en jeu), sans toucher à la partie en cours.
     public void PredictSequence(int count, System.Collections.Generic.List<int> levels)
     {
-        if (_fusion == null) _fusion = GetComponent<GumoriFusion>();
+        if (_fusion == null) _fusion = Part<GumoriFusion>();
         PredictSequence(seed, MaxRoll, smallBias, count, levels);
     }
 
@@ -364,7 +373,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnDrawGizmos()
     {
         if (template == null) return;
-        if (_fusion == null) _fusion = GetComponent<GumoriFusion>();
+        if (_fusion == null) _fusion = Part<GumoriFusion>();
         Gizmos.color = previewColor;
         Vector3 p = transform.position;
         float halfWidth = Application.isPlaying ? WallHalfWidth : MeasureWalls();

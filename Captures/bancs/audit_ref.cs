@@ -2,11 +2,11 @@
 // ouverte. Terrestre (pas de GumoriLauncher) : entrées fixes de det.cs sur 3600 pas. Space : un tir tous les 40 pas (space_fly)
 // sur 1800 pas. Hash des bits des positions ET vitesses de toutes les capsules, + score, fusions, sorties.
 var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
-var f = d.GetComponent<GumoriFusion>();
-var sc = d.GetComponent<GumoriScore>();
-var es = d.GetComponent<GumoriEscape>();
-var l = d.GetComponent<GumoriLauncher>();
-var goal = d.GetComponent<GumoriGoal>();
+var f = UnityEngine.Object.FindAnyObjectByType<GumoriFusion>();
+var sc = UnityEngine.Object.FindAnyObjectByType<GumoriScore>();
+var es = UnityEngine.Object.FindAnyObjectByType<GumoriEscape>();
+var l = UnityEngine.Object.FindAnyObjectByType<GumoriLauncher>();
+var goal = UnityEngine.Object.FindAnyObjectByType<GumoriGoal>();
 if (goal != null) goal.useGoal = false; // sinon l'objectif atteint retire tous les slimes (hash vide)
 d.seed = 2; // Space tire une graine au hasard à chaque Play
 uint SP = 1u << (int)GameKey.Space, RI = 1u << (int)GameKey.RightArrow, LE = 1u << (int)GameKey.LeftArrow;

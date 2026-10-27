@@ -395,7 +395,7 @@ MonoBehaviour:
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
-  - position: {x: -4.5, y: 1}
+  - position: {x: -4.284532, y: 4.0557146}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
@@ -403,7 +403,7 @@ MonoBehaviour:
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
-  - position: {x: 4.5, y: 1}
+  - position: {x: 4.049478, y: 3.7227192}
     handleIn: {x: 0, y: 0}
     handleOut: {x: 0, y: 0}
     mode: 0
@@ -643,17 +643,17 @@ MonoBehaviour:
     mouth: 2
     attitude: 3
     blush: 0
-  - name: Chantilly
+  - name: Vanille
     family: 6
     rarity: 0
-    body: {r: 1.0000001, g: 0.86315733, b: 0.89626944, a: 1}
-    shade: {r: 0.7454043, g: 0.5209957, b: 0.5775805, a: 1}
+    body: {r: 0.9646864, g: 0.89626944, b: 0.7681512, a: 1}
+    shade: {r: 0.69387186, g: 0.5457246, b: 0.35153267, a: 1}
     pattern: 12
     accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
     glow: 0
     sheen: 0
     head: 11
-    headColor: {r: 1.0000001, g: 0.5775805, b: 0.04666509, a: 1}
+    headColor: {r: 0.7681512, g: 0.019382365, b: 0.043735035, a: 1}
     back: 0
     backColor: {r: 1, g: 1, b: 1, a: 1}
     eyes: 0
@@ -729,125 +729,6 @@ MonoBehaviour:
     attitude: 2
     blush: 1
   variants:
-  - name: "Cl\xE9mentine"
-    family: 0
-    rarity: 0
-    body: {r: 1.0000001, g: 0.38132608, b: 0.04666509, a: 1}
-    shade: {r: 0.7454043, g: 0.11953845, b: 0.010329825, a: 1}
-    pattern: 2
-    accent: {r: 1.0000001, g: 0.76052463, b: 0.4341537, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 0
-    blush: 1
-  - name: Raisin
-    family: 1
-    rarity: 0
-    body: {r: 0.27049786, g: 0.03954624, b: 0.6038274, a: 1}
-    shade: {r: 0.06847818, g: 0.006512092, b: 0.17144112, a: 1}
-    pattern: 1
-    accent: {r: 0.79129803, g: 0.5775805, b: 1.0000001, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 1
-    attitude: 0
-    blush: 1
-  - name: Lagon
-    family: 3
-    rarity: 0
-    body: {r: 0.031896036, g: 0.17464742, b: 0.7454043, a: 1}
-    shade: {r: 0.008568127, g: 0.05951125, b: 0.3419145, a: 1}
-    pattern: 2
-    accent: {r: 0.15896086, g: 0.80695236, b: 0.7454043, a: 1}
-    glow: 0
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 0
-    blush: 1
-  - name: Vanille
-    family: 6
-    rarity: 0
-    body: {r: 0.9646864, g: 0.89626944, b: 0.7681512, a: 1}
-    shade: {r: 0.69387186, g: 0.5457246, b: 0.35153267, a: 1}
-    pattern: 12
-    accent: {r: 1.0000001, g: 1.0000001, b: 1.0000001, a: 1}
-    glow: 0
-    sheen: 0
-    head: 11
-    headColor: {r: 0.7681512, g: 0.019382365, b: 0.043735035, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 1
-    attitude: 0
-    blush: 1
-  - name: Bourgeon
-    family: 8
-    rarity: 0
-    body: {r: 0.2581829, g: 0.6724433, b: 0.042311415, a: 1}
-    shade: {r: 0.04970657, g: 0.27889434, b: 0.014443846, a: 1}
-    pattern: 0
-    accent: {r: 0.76052463, g: 1.0000001, b: 0.47932026, a: 1}
-    glow: 0
-    sheen: 0
-    head: 9
-    headColor: {r: 1.0000001, g: 0.34670413, b: 0.5972019, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 0
-    mouth: 0
-    attitude: 1
-    blush: 1
-  - name: Ninjakura
-    family: 2
-    rarity: 0
-    body: {r: 1.0000001, g: 0.45078588, b: 0.6239605, a: 1}
-    shade: {r: 0.69387186, g: 0.12477183, b: 0.27467737, a: 1}
-    pattern: 16
-    accent: {r: 1.0000001, g: 0.82278585, b: 0.88792324, a: 1}
-    glow: 0
-    sheen: 0
-    head: 13
-    headColor: {r: 0.042311415, g: 0.02315337, b: 0.06480328, a: 1}
-    back: 3
-    backColor: {r: 0.042311415, g: 0.02315337, b: 0.06480328, a: 1}
-    eyes: 0
-    mouth: 6
-    attitude: 3
-    blush: 0
-  - name: Citron
-    family: 4
-    rarity: 1
-    body: {r: 1.0000001, g: 0.5647116, b: 0.02315337, a: 1}
-    shade: {r: 0.7454043, g: 0.25415215, b: 0.00303527, a: 1}
-    pattern: 3
-    accent: {r: 1.0000001, g: 0.921582, b: 0.5271152, a: 1}
-    glow: 0.8
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 0
-    backColor: {r: 1, g: 1, b: 1, a: 1}
-    eyes: 1
-    mouth: 0
-    attitude: 0
-    blush: 0
   - name: Braise bleue
     family: 5
     rarity: 1
@@ -864,23 +745,6 @@ MonoBehaviour:
     eyes: 0
     mouth: 2
     attitude: 3
-    blush: 0
-  - name: Lune
-    family: 9
-    rarity: 1
-    body: {r: 0.015996296, g: 0.011612247, b: 0.024157636, a: 1}
-    shade: {r: 0.0036765079, g: 0.00303527, b: 0.006048834, a: 1}
-    pattern: 11
-    accent: {r: 1.0000001, g: 0.6653874, b: 0.06847818, a: 1}
-    glow: 1.6
-    sheen: 0
-    head: 0
-    headColor: {r: 1, g: 1, b: 1, a: 1}
-    back: 1
-    backColor: {r: 0.07036011, g: 0.04666509, b: 0.12477183, a: 1}
-    eyes: 2
-    mouth: 4
-    attitude: 0
     blush: 0
   - name: "Cristal \xE9tincelant"
     family: 1
@@ -950,34 +814,14 @@ MonoBehaviour:
     mouth: 0
     attitude: 1
     blush: 0
-  - name: Ninjakura en fleurs
-    family: 2
-    rarity: 2
-    body: {r: 1.0000001, g: 0.47932026, b: 0.6583749, a: 1}
-    shade: {r: 0.69387186, g: 0.10702312, b: 0.27049786, a: 1}
-    pattern: 16
-    accent: {r: 1.0000001, g: 0.88792324, b: 0.930111, a: 1}
-    glow: 0.6
-    sheen: 4
-    head: 13
-    headColor: {r: 0.042311415, g: 0.02315337, b: 0.06480328, a: 1}
-    back: 4
-    backColor: {r: 0.042311415, g: 0.02315337, b: 0.06480328, a: 1}
-    eyes: 0
-    mouth: 6
-    attitude: 3
-    blush: 0
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
-  fanSmoothing: 0.1
-  fanTolerance: 0
-  fanStiffness: 10
   rimWidth: 0.074
   rimOpacity: 0.538
   rimLighten: 0.35
   faceSize: 1.15
-  faceShrink: 0.35
+  faceShrink: 0.3
   uprightTime: 0
   blinkInterval: 3.5
   watchDrop: 0
@@ -1127,342 +971,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1967278709
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1967278711}
-  - component: {fileID: 1967278710}
-  - component: {fileID: 1967278712}
-  - component: {fileID: 1967278713}
-  - component: {fileID: 1967278714}
-  - component: {fileID: 1967278715}
-  - component: {fileID: 1967278716}
-  - component: {fileID: 1967278717}
-  - component: {fileID: 1967278718}
-  - component: {fileID: 1967278719}
-  - component: {fileID: 1967278720}
-  - component: {fileID: 1967278721}
-  - component: {fileID: 1967278722}
-  m_Layer: 0
-  m_Name: "L\xE2cher"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1967278710
+--- !u!114 &1967278710 stripped
 MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
+  m_CorrespondingSourceObject: {fileID: 6549103887785324153, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+  m_PrefabInstance: {fileID: 170653347091008540}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6966a287658d13b4e8ff6fef36a8f715, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlobDropper
-  template: {fileID: 2014553905}
-  maxBlobs: 0
-  seed: 2
-  maxDropLevel: 3
-  smallBias: 0.2
-  reservoir: {fileID: 1593634472}
-  halfWidth: 3.8
-  wallGap: 0.02
-  moveSpeed: 5
-  dropInterval: 0.6
-  dropKey: 6
-  leftKey: 6
-  rightKey: 6
-  showStats: 1
-  debugDraw: 0
-  showHitboxes: 0
-  hitboxColor: {r: 1, g: 0, b: 0, a: 0.9}
-  previewColor: {r: 1, g: 1, b: 1, a: 0.5}
-  nextPreviewOffset: {x: 6, y: -2}
-  nextPreviewViewport: {x: 3, y: 3}
-  nextPreviewDiameter: 1
---- !u!4 &1967278711
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 15.5, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1967278712
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7148e03219d4472458ae6cfabfea101e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlobFusion
-  growthMode: 1
-  growth: 1.4
-  geometricGrowth: 1.225
-  maxSides: 16
-  maxLevel: 10
-  sizeStiffness: 1
-  style: 1
-  mergeTime: 0.35
-  mergeCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  startStiffness: 0.156
-  waist: 0.708
-  absorbTime: 0.5
-  absorbCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  absorbStiffness: 0.5
-  absorbNeck: 0.5
-  absorbSmoothing: 1
-  inheritMotion: 1
-  levelColors:
-  - {r: 0.352, g: 0.065, b: 0.73, a: 1}
-  - {r: 1, g: 0.371, b: 0.638, a: 1}
-  - {r: 0.05, g: 0.238, b: 0.855, a: 1}
-  - {r: 1, g: 0.658, b: 0.058, a: 1}
-  - {r: 0.745, g: 0.03, b: 0.05, a: 1}
-  - {r: 1, g: 0.863, b: 0.896, a: 1}
-  - {r: 0.195, g: 0.06, b: 0.018, a: 1}
-  - {r: 0.258, g: 0.672, b: 0.042, a: 1}
-  - {r: 0.027, g: 0.019, b: 0.04, a: 1}
-  - {r: 0.991, g: 0.991, b: 1, a: 1}
---- !u!114 &1967278713
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5beb41acc59349a4ebb8ae0a942f4d10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeScore
-  pointsPerMerge: 10
-  comboWindow: 1.5
-  comboPercent: 50
-  popupTime: 1.2
---- !u!114 &1967278714
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3c2fe3c420e2e624387b77e9e44a349e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeEscape
-  watchTime: 1
-  checkInterval: 2
-  escapeSpeed: 1.2
-  maxDownAngle: 30
-  maxEscapeTime: 3
---- !u!114 &1967278715
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 562d5641fe5d62346b01190b1487694b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeGoal
-  useGoal: 0
-  maxDrops: 30
-  targetScore: 2137
-  autoTarget: 1
-  difficulty: 2
-  easyExtraMoves: 0.33
-  mediumExtraMoves: 0.165
-  hardExtraMoves: 0.05
-  comboShare: 0.2
-  settleTime: 2.5
-  celebrationTime: 3.5
---- !u!114 &1967278716
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 237ae4769dd1ec94db5aa9cdf82ac6aa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeWallHold
-  wallTop: 100
-  contactMargin: 0.08
-  maxAwaySpeed: 0
---- !u!114 &1967278717
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0779a4c323543e240b6d1107ab44b72e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeLevelSetup
-  campaign: {fileID: 11400000, guid: 42978dec770436b4a93270e8e3d96fc4, type: 2}
---- !u!114 &1967278718
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 88a2424f9ef75444aa1cf6b42f88a5e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpaceEndless
-  randomSeed: 1
---- !u!114 &1967278719
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ea7d3f1f07423c3459e31c9bd5699587, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlobLauncher
-  startCount: 3
-  maxRack: 3
-  box: {fileID: 1593634472}
-  rackDepth: 1.8
-  heightSpring: 25
-  heightDamping: 4
-  rowPull: 5
-  rowDamping: 1.8
-  arrivalSpeed: 1.9444445
-  arrivalDelay: 0.6
-  grabRange: 0.8
-  maxDrag: 5
-  maxSpeed: 16
-  minDrag: 0.3
-  arrowColor: {r: 1, g: 1, b: 1, a: 0.9}
---- !u!114 &1967278720
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fbcf03e784d74e04cb046d5feac9231c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeFoam
-  pressureFrequency: 8
-  pressureDamping: 0.7
-  inflate: 1.808
-  skipMerging: 1
-  growTime: 1.2
-  foldAngle: 60
-  unfoldSpeed: 1.388889
-  spinDamping: 3
---- !u!114 &1967278721
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ba9f690d1fe8fff4e9ce3ce37cd6c8ef, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeUntangle
-  escapeSpeed: 1.388889
-  maxTime: 1.5
-  checkInterval: 2
---- !u!114 &1967278722
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1967278709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 649eb41c922dd7546a388059f310fa73, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SlimeSoftMerge
-  calmTime: 0.8
-  calmSpeed: 1.388889
-  neighbourGap: 0.4
 --- !u!1 &2014553904
 GameObject:
   m_ObjectHideFlags: 0
@@ -1495,7 +1014,7 @@ MonoBehaviour:
   sides: 32
   diameter: 0.7
   debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
-  capsuleRadius: 0.25
+  capsuleRadius: 0.2
   capsuleSpacing: 0
   density: 0.5
   jointFrequency: 8
@@ -1507,6 +1026,8 @@ MonoBehaviour:
   friction: 0.01
   bounciness: 0
   fastCollisions: 1
+  selfCollision: 0
+  selfThickness: 0.1
 --- !u!4 &2014553906
 Transform:
   m_ObjectHideFlags: 0
@@ -1522,6 +1043,75 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &170653347091008540
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 15.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5954424909656132620, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6549103887785324153, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: template
+      value: 
+      objectReference: {fileID: 2014553905}
+    - target: {fileID: 6549103887785324153, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: reservoir
+      value: 
+      objectReference: {fileID: 1593634472}
+    - target: {fileID: 8528740519164943673, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: m_Name
+      value: Jeu
+      objectReference: {fileID: 0}
+    - target: {fileID: 8843586960875949895, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
+      propertyPath: box
+      value: 
+      objectReference: {fileID: 1593634472}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 7152284ff15bf3943a7f8f8533e690b4, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1530,7 +1120,7 @@ SceneRoots:
   - {fileID: 1427126413}
   - {fileID: 1593634473}
   - {fileID: 2014553906}
-  - {fileID: 1967278711}
+  - {fileID: 170653347091008540}
   - {fileID: 1700390680}
   - {fileID: 1688171911}
   - {fileID: 992879753}

@@ -7,6 +7,7 @@ using UnityEngine;
 // y = hauteur, sol plat) ; le dessin (GumoriSkin, design 'design') est posé sur la carte au point du chemin correspondant, face
 // à la caméra, avec son ombre au sol. Placeholder du futur avatar : le Roi.
 [DisallowMultipleComponent]
+[AddComponentMenu("Gumori/Carte/GumoriMapAvatar")]
 public class GumoriMapAvatar : MonoBehaviour, ILevelPhysics, ILevelTick
 {
     [Header("Liens")]
