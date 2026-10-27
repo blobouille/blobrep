@@ -5,7 +5,7 @@ using UnityEngine;
 // Fusion des gumori : deux gumori de même taille qui se touchent deviennent un seul gumori du niveau suivant (taille linéaire).
 // Mitose à l'envers : un seul anneau remplace les deux, posé en cacahuète sur eux et tenu dans cette forme par les angles de
 // repos de ses joints, ramenés vers le cercle en 'mergeTime' : le col s'ouvre, les bouts rentrent, les capsules s'épaississent.
-// Absorption (autre méthode) : l'anneau part de la forme RÉELLE des deux gumori (contour de leur union, col arrondi) et
+// Absorption (autre méthode) : l'anneau part de la forme RÉELLE des deux gumori (leurs deux contours recousus là où ils se touchent) et
 // garde le mouvement de chaque morceau, puis s'arrondit : pas de saut de forme, rien de neuf qui déborde sur les voisins.
 // Contacts entre gumori comptés par événements (sommes entières : indépendant de leur ordre), fusions dans l'ordre de création.
 public enum GrowthMode { [InspectorName("Arithmétique (+)")] Arithmetic, [InspectorName("Multiplication (×)")] Geometric }
@@ -71,8 +71,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Raideur en flexion au début de l'absorption, en fraction de celle du gumori (remonte à 1 avec l'avancement).\n" +
              "Bas = gelée très molle qui ondule et tremble en se fondant ; 1 = la forme suit exactement la courbe.")]
     [Range(0.01f, 1f)] public float absorbStiffness = 1f;
-    [Tooltip("Arrondi du creux entre les deux gumori au départ (en fraction de leur rayon). 0 = le creux reste pointu (forme\n" +
-             "exacte) ; plus grand = le pont de gelée entre eux est déjà plus large.")]
+    [Tooltip("Contour de secours seulement (anneaux emmêlés, contour recousu qui se recoupe) : arrondi du creux entre les deux\n" +
+             "gumori au départ (en fraction de leur rayon). 0 = le creux reste pointu ; plus grand = pont de gelée déjà plus large.")]
     [Range(0f, 1.5f)] public float absorbNeck = 0.5f;
     [Tooltip("Lissage de la forme visée par les joints au départ (passes de lissage de leurs angles ; les capsules partent quand\n" +
              "même de la forme réelle). La forme réelle a des coins vifs et des zigzags que la gelée molle replie : deux capsules\n" +
@@ -124,6 +124,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     (Vector2 x0, Vector2 x1) _parentVelocity;
     readonly float[] _oldSpin = new float[64], _rays = new float[LoopSamples], _blur = new float[LoopSamples],
         _limit = new float[LoopSamples];
+    readonly Vector2[] _path = new Vector2[64];
+    readonly float[] _pathArc = new float[65];
     int _eventsStep = -1;
 
     public int Merges { get; private set; }
@@ -171,6 +173,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         _eventsStep = LevelSimulation.Step;
         Merges = 0;
         TurnFixes = 0;
+        StitchFallbacks = 0;
     }
 
     void OnDisable()
@@ -310,7 +313,12 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         centerB /= n;
         velocity /= 2 * n;
 
-        bool absorb = style == FusionStyle.Absorb && BuildUnion(a, b, n, 0.5f * (centerA + centerB));
+        bool absorb = false;
+        if (style == FusionStyle.Absorb)
+        {
+            if (BuildStitch(n, a.CapsuleThickness)) absorb = true;
+            else if (BuildUnion(a, b, n, 0.5f * (centerA + centerB))) { absorb = true; StitchFallbacks++; }
+        }
         if (!absorb) BuildPeanut(centerA, centerB, a.RestRingRadius);
         const int count = LoopSamples;
         float length = _arc[count];
@@ -512,6 +520,102 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         for (int i = 1; i <= LoopSamples; i++) _arc[i] = _arc[i - 1] + Vector2.Distance(_loop[i - 1], _loop[i % LoopSamples]);
         return true;
     }
+
+    // Contour des deux gumori RECOUSU là où ils se touchent (décision du 2026-10-27) : chaque anneau (polygone de l'axe de ses
+    // capsules, sens trigonométrique, rangés dans _oldPosition) est ouvert à son côté le plus proche de l'autre, et les deux
+    // bouts sont reliés par deux ponts courts à travers le contact. Le contour suit donc toute la forme réelle, même repliée
+    // autour d'un voisin (un gumori pris entre les deux reste dehors, dans le creux) ; la gelée s'arrondit ensuite à partir du
+    // pont. Avant : rayons depuis le milieu des deux centres, coupés au premier voisin croisé ; un voisin entre les deux couvrait
+    // le milieu et l'anneau naissait minuscule dedans. Faux si le contour recousu se recoupe (anneaux emmêlés) : rayons alors.
+    bool BuildStitch(int n, float thickness)
+    {
+        int ia = 0, ib = 0;
+        float best = float.MaxValue;
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+            {
+                float d = (_oldPosition[i] - _oldPosition[n + j]).sqrMagnitude;
+                if (d < best) { best = d; ia = i; ib = j; }
+            }
+        // Toute la zone de contact est retirée des deux contours (capsules à moins de 'reach' de l'autre anneau) : recousus
+        // en un seul point, deux gumori plaqués l'un contre l'autre sur toute une face gardaient entre eux une fente profonde
+        // dont les deux bords se croisaient en s'arrondissant. Face à face, les deux anneaux tournent en sens contraires : le
+        // bout « avant » de la zone de A est en face du bout « arrière » de celle de B.
+        float reach = ContactReach * thickness;
+        int backA = Zone(0, n, n, ia, -1, reach), aheadA = Zone(0, n, n, ia, 1, reach);
+        int backB = Zone(n, 0, n, ib, -1, reach), aheadB = Zone(n, 0, n, ib, 1, reach);
+        int keptA = n - (backA + aheadA + 1), keptB = n - (backB + aheadB + 1);
+        if (keptA < 3 || keptB < 3) return false;
+        int count = 0;
+        for (int k = 0; k < keptA; k++) _path[count++] = _oldPosition[(ia + aheadA + 1 + k) % n];
+        for (int k = 0; k < keptB; k++) _path[count++] = _oldPosition[n + (ib + aheadB + 1 + k) % n];
+
+        float area = 0f;
+        for (int k = 0; k < count; k++) { Vector2 p = _path[k], q = _path[(k + 1) % count]; area += p.x * q.y - p.y * q.x; }
+        if (area <= 0f || SelfCrossing(_path, count)) return false;
+
+        _pathArc[0] = 0f;
+        for (int k = 1; k <= count; k++) _pathArc[k] = _pathArc[k - 1] + Vector2.Distance(_path[k - 1], _path[k % count]);
+        float length = _pathArc[count];
+        int seg = 0;
+        for (int s = 0; s < LoopSamples; s++)
+        {
+            float at = s * length / LoopSamples;
+            while (seg < count - 1 && _pathArc[seg + 1] < at) seg++;
+            float span = _pathArc[seg + 1] - _pathArc[seg];
+            _loop[s] = Vector2.Lerp(_path[seg], _path[(seg + 1) % count], span > 0f ? (at - _pathArc[seg]) / span : 0f);
+        }
+        _arc[0] = 0f;
+        for (int i = 1; i <= LoopSamples; i++) _arc[i] = _arc[i - 1] + Vector2.Distance(_loop[i - 1], _loop[i % LoopSamples]);
+        return true;
+    }
+
+    // Zone de contact : rayon (en épaisseurs de capsule) jusqu'où une capsule touche l'autre anneau (axes de deux capsules
+    // collées : 2 épaisseurs).
+    const float ContactReach = 2.1f;
+
+    // Nombre de capsules consécutives après 'start' (dans le sens 'dir') de l'anneau rangé à 'self' qui sont à moins de
+    // 'reach' de l'anneau rangé à 'other'.
+    int Zone(int self, int other, int n, int start, int dir, float reach)
+    {
+        int run = 0;
+        while (run < n - 1)
+        {
+            Vector2 p = _oldPosition[self + ((start + dir * (run + 1)) % n + n) % n];
+            bool near = false;
+            for (int k = 0; k < n && !near; k++)
+            {
+                Vector2 a = _oldPosition[other + k], e = _oldPosition[other + (k + 1) % n] - a;
+                float t = Mathf.Clamp01(Vector2.Dot(p - a, e) / Mathf.Max(1e-12f, e.sqrMagnitude));
+                near = (a + e * t - p).sqrMagnitude < reach * reach;
+            }
+            if (!near) break;
+            run++;
+        }
+        return run;
+    }
+
+
+    // Fusions en absorption dont le contour recousu se recoupait (contour par rayons à la place), depuis le départ (contrôle).
+    public int StitchFallbacks { get; private set; }
+
+    static bool SelfCrossing(Vector2[] p, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 a = p[i], b = p[(i + 1) % count];
+            for (int j = i + 2; j < count; j++)
+            {
+                if (i == 0 && j == count - 1) continue;
+                Vector2 c = p[j], e = p[(j + 1) % count];
+                float d1 = Cross(b - a, c - a), d2 = Cross(b - a, e - a), d3 = Cross(e - c, a - c), d4 = Cross(e - c, b - c);
+                if (d1 * d2 < 0f && d3 * d4 < 0f) return true;
+            }
+        }
+        return false;
+    }
+
+    static float Cross(Vector2 u, Vector2 v) => u.x * v.y - u.y * v.x;
 
     // Vitesse moyenne de chacun des deux anciens gumori.
     void ParentVelocities(int n)

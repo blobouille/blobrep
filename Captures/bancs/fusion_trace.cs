@@ -8,8 +8,9 @@ var f = d.GetComponent<GumoriFusion>();
 var l = d.GetComponent<GumoriLauncher>();
 var goal = d.GetComponent<GumoriGoal>();
 if (goal != null) goal.useGoal = false;
-d.seed = 2;
-f.style = FusionStyle.Absorb;
+d.seed = System.IO.File.Exists("Captures/bancs/fusion_trace.txt") ? int.Parse(System.IO.File.ReadAllText("Captures/bancs/fusion_trace.txt").Trim()) : 2;
+f.style = FusionStyle.Absorb; f.inheritMotion = 1f; f.absorbStiffness = 1f; f.absorbSmoothing = 4; f.absorbNeck = 0.5f; f.absorbTime = 0.9f;
+var foam0 = d.GetComponent<GumoriFoam>(); if (foam0 != null) { foam0.foldAngle = 60f; foam0.pressureFrequency = 8f; }
 var one = new System.Collections.Generic.List<uint> { 0u };
 var born = new System.Collections.Generic.Dictionary<Gumori, (int step, Vector2[] ring)>();
 var history = new System.Collections.Generic.Dictionary<Gumori, System.Collections.Generic.List<Vector2[]>>();

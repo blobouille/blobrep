@@ -213,6 +213,28 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    ouverture morphologique du contour (poussait les voisins), retourner les coudes à ± 2π (jamais arrivé), pression Space.
    Coût d'un pas de fusion : 1,0 ms en absorption, 2,7 ms en cacahuète (sa marche de rayons). Bancs : `fusion_variants.sh`
    (réglages essayés sans toucher la scène, ex. "1 seed=5 stiff=0.6"), `fusion_trace.cs` (SVG des anneaux), `fusion_trace2.cs`
+   Absorption RECOUSUE (2026-10-27, signalé par l'utilisateur : bleu – violet – bleu dans la réserve, le bleu de droite lancé
+   à 100 % vers la gauche, les deux bleus se touchent au-dessus du violet → le jaune renaissait minuscule DANS le violet).
+   Cause : contour tracé en rayons depuis le milieu des deux centres, coupés au premier voisin croisé ; le milieu tombait
+   dans le violet, tous les rayons butaient dessus (plancher 0,1 × rayon). Une forme en rayons depuis un point ne peut pas
+   contourner un voisin. Maintenant (`GumoriFusion.BuildStitch`) : les deux contours réels (axes des capsules) sont OUVERTS
+   à leur zone de contact (capsules à moins de 2,1 épaisseurs de l'autre anneau, `ContactReach`) et RECOUSUS par deux ponts
+   courts : la gelée part de la forme exacte des deux, le voisin reste dehors dans le creux, puis l'anneau s'arrondit à
+   partir du pont et pousse le voisin. Contour par rayons gardé en secours (contour recousu qui se recoupe : jamais vu).
+   Zone de contact : recousus en un seul point, deux gumori plaqués sur toute une face gardaient une fente dont les bords
+   se croisaient (pas à anneau croisé, 4 parties : 52) ; zone large (3 épaisseurs), le pont coupe le creux à côté du
+   contact, là où se trouve justement un voisin (chevauchement à la naissance jusqu'à 17 cm) ; 2,1 : 8 pas croisés (un
+   gumori écrasé dans un coin, pas dû au pont), chevauchement 1–8 cm. Ancienne absorption, mêmes parties (graines 2, 5, 7) :
+   chevauchement moyen 11 / 3,2 / 3,7 cm, pire 27 cm. Cas signalé : né à 2,8–2,9 m² (deux bleus) au lieu de 0,02–0,07,
+   violet jamais dedans, à 5 inclinaisons de tir. Niveau à bocaux (bot) : gagné en 15 tirs, identique au bit près
+   (2 essais). Bancs : `fusion_bvb.cs` (cas signalé, "attente pas_suivis inclinaison"), `fusion_bvb_shot.sh` (images →
+   `Captures/fusion/bvb_*.png`), `fusion_compare.cs` (chevauchement par naissance, pas croisés). Les anciennes parties ne
+   se rejouent plus pareil (sans importance, voir Déterminisme)
+   Habillage d'une forme en U (`GumoriSkin`) : l'éventail depuis un seul centre se repliait sur lui-même dans le creux
+   (gelée en papier plié). Si l'éventail se replie (triangles retournés > 2 % de l'aire), le centre est gardé dans la
+   gelée (à 0,15 rayon du bord) et relié à tous les points du contour qu'il VOIT (visage normal) ; les poches cachées
+   (bouts des bras) sont découpées en oreilles (petites facettes visibles dans le motif, le temps du U). Forme normale :
+   éventail inchangé
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
    ×3,8, sans tendance, contre 0,72 → 0,92 sans ajustement), > 1 plus durs, < 1 plus mous, 0 = aucun ajustement. Amortissement
@@ -597,6 +619,10 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
   entrées fixes + hash par pas des bits de tous les corps triés, temps d'un redémarrage. `Temp/` est vidé par Unity au
   redémarrage : garder les bancs dans le scratchpad.
 - Signaler tout risque de non-déterminisme plutôt que de l'ignorer
+- Anciennes parties (décision du 2026-10-27) : AUCUNE importance de pouvoir rejouer les parties enregistrées avant un
+  changement de comportement (fusion, physique, réglages…) ; on change librement ce qui fait diverger les anciennes
+  parties. Seule règle : le jeu tel qu'il est reste déterministe (même code + mêmes entrées = même partie au bit près).
+  (« Ne jamais changer la simulation pour gagner du temps » reste vrai pour les OPTIMISATIONS : elles ne doivent rien changer.)
 - Recommencer = `LevelRestart.Restart()` (R, la mort plus tard) : détruit toute la physique, `PhysicsWorld.Reset()`
   sur le monde vide (sinon l'historique interne de Box2D fait diverger les essais), puis recrée dans l'ordre de la hiérarchie.
   Le départ du niveau passe aussi par là (au chargement de la scène) : chaque essai est identique au bit près (~1 ms)

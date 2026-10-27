@@ -24,15 +24,18 @@ foreach (var o in opts)
     float v = float.Parse(kv[1], System.Globalization.CultureInfo.InvariantCulture);
     if (kv[0] == "inherit") f.inheritMotion = v; else if (kv[0] == "stiff") f.absorbStiffness = v; else if (kv[0] == "smooth") f.absorbSmoothing = (int)v;
     else if (kv[0] == "neck") f.absorbNeck = v; else if (kv[0] == "time") f.absorbTime = v; else if (kv[0] == "seed") d.seed = (int)v;
+
     else if (kv[0] == "fold") d.GetComponent<GumoriFoam>().foldAngle = v; else if (kv[0] == "press") d.GetComponent<GumoriFoam>().pressureFrequency = v;
 }
 uint SP = 1u << (int)GameKey.Space, RI = 1u << (int)GameKey.RightArrow, LE = 1u << (int)GameKey.LeftArrow;
 var one = new System.Collections.Generic.List<uint> { 0u };
+string birthLog = "";
+var bornAt = new System.Collections.Generic.Dictionary<Gumori, int>();
 int births = 0, overlapped = 0, enclosed = 0, crossedBirths = 0;
 float worst = 0f, sum = 0f;
 System.Action<Gumori, int, Vector2> onMerged = (m, lv, p) =>
 {
-    births++;
+    births++; bornAt[m] = LevelSimulation.Step;
     if (Crossed(m)) crossedBirths++;
     float deepest = 0f;
     foreach (var g in d.InPlay)
@@ -50,13 +53,13 @@ System.Action<Gumori, int, Vector2> onMerged = (m, lv, p) =>
         }
     }
     if (deepest > 0.05f) overlapped++;
-    sum += deepest;
+    sum += deepest; birthLog += $" {100f * deepest:0}";
     if (deepest > worst) worst = deepest;
 };
 f.Merged += onMerged;
 // Anneau croisé : polygone des capsules d'un gumori en train de fusionner qui se recoupe (boucle, pli : l'habillage se chevauche),
 // compté à chaque pas pour chaque gumori en fusion.
-int crossedSteps = 0;
+int crossedSteps = 0; string crossLog = "";
 bool Crossed(Gumori g)
 {
     int n = g.CapsuleCount;
@@ -104,7 +107,7 @@ while (LevelSimulation.Step < total)
     else if (anyMerging) fusingTicks += dtk; else restTicks += dtk;
     anyMerging = false; foreach (var g in d.InPlay) if (f.IsMerging(g)) { anyMerging = true; break; }
     if (anyMerging) fusingSteps++;
-    foreach (var g in d.InPlay) if (f.IsMerging(g) && Crossed(g)) crossedSteps++;
+    foreach (var g in d.InPlay) if (f.IsMerging(g) && Crossed(g)) { crossedSteps++; crossLog += $" {LevelSimulation.Step}(né {(bornAt.TryGetValue(g, out int bs) ? LevelSimulation.Step - bs : -1)} pas, niv{f.LevelOf(g)})"; }
 }
 f.Merged -= onMerged;
 double ms = sw.Elapsed.TotalMilliseconds / total;
@@ -117,4 +120,4 @@ foreach (var b in d.InPlay)
         Mix(c.position.x); Mix(c.position.y); Mix(c.linearVelocity.x); Mix(c.linearVelocity.y); Mix(c.angularVelocity);
     }
 return $"{f.style} merges={f.Merges} score={sc.Score} escapes={(es != null ? es.Escapes : -1)} untangles={(un != null ? un.Untangled : -1)} " +
-       $"chevauchement à la naissance : moyen {100f * sum / Mathf.Max(1, births):F1} cm, pire {100f * worst:F1} cm, > 5 cm {overlapped}/{births}, voisins enfermés à la naissance {enclosed}, pas à anneau croisé {crossedSteps} (dès la naissance {crossedBirths}), coudes retournés {f.TurnFixes} hash={h:X16} ({ms:F3} ms/pas ; pas de fusion {1000.0 * mergeTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, mergeSteps):F2} ms, pire {1000.0 * maxMergeTicks / System.Diagnostics.Stopwatch.Frequency:F2} ; pendant {1000.0 * fusingTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, fusingSteps):F3} ms ; repos {1000.0 * restTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, total - mergeSteps - fusingSteps):F3} ms)";
+       $"chevauchement à la naissance : moyen {100f * sum / Mathf.Max(1, births):F1} cm, pire {100f * worst:F1} cm, > 5 cm {overlapped}/{births}, voisins enfermés à la naissance {enclosed}, pas à anneau croisé {crossedSteps} (dès la naissance {crossedBirths}), coudes retournés {f.TurnFixes}, contours de secours {f.StitchFallbacks} hash={h:X16} croisés :{crossLog} naissances (cm) :{birthLog} ({ms:F3} ms/pas ; pas de fusion {1000.0 * mergeTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, mergeSteps):F2} ms, pire {1000.0 * maxMergeTicks / System.Diagnostics.Stopwatch.Frequency:F2} ; pendant {1000.0 * fusingTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, fusingSteps):F3} ms ; repos {1000.0 * restTicks / System.Diagnostics.Stopwatch.Frequency / System.Math.Max(1, total - mergeSteps - fusingSteps):F3} ms)";

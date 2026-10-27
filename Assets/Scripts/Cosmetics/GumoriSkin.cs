@@ -859,10 +859,13 @@ public class GumoriSkin : MonoBehaviour
             _dd[k] = new Vector2(rd.x * u.x - rd.y * u.y, rd.y * u.x + rd.x * u.y);
             _dl[k] = new Vector2(rl.x * u.x - rl.y * u.y, rl.y * u.x + rl.x * u.y);
         }
+        bool folds = FanFolds(c, n);
+        if (folds) c = KeepInside(c, n, FaceDepth * radius);
         int center = AddVertex(c, new Vector4(0f, 0f, 0f, 0f), new Vector4(0f, 0f, _flash, surface), body);
         for (int k = 0; k < n; k++)
             AddVertex(_sp[k], new Vector4(_dd[k].x, _dd[k].y, 0f, 0f), new Vector4(_dl[k].x, _dl[k].y, _flash, surface), body);
-        for (int k = 0; k < n; k++) Tri(center, center + 1 + k, center + 1 + (k + 1) % n);
+        if (!folds || !Triangulate(center, c, n))
+            for (int k = 0; k < n; k++) Tri(center, center + 1 + k, center + 1 + (k + 1) % n);
 
         float w = outlineWidth, ew = _k5.w;
         int r0 = _vertexCount;
@@ -883,6 +886,139 @@ public class GumoriSkin : MonoBehaviour
 
         if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
     }
+
+    // L'éventail depuis c se replie-t-il (triangles retournés : forme en U, gumori né d'une fusion autour d'un voisin) ?
+    bool FanFolds(Vector2 c, int n)
+    {
+        float total = 0f, folded = 0f;
+        for (int k = 0; k < n; k++)
+        {
+            float a = Cross(_sp[k] - c, _sp[(k + 1) % n] - c);
+            total += a;
+            if (a < 0f) folded -= a;
+        }
+        return folded > FoldTolerance * Mathf.Abs(total);
+    }
+
+    const float FoldTolerance = 0.02f, FaceDepth = 0.15f;
+
+    // Point gardé dans la gelée, à au moins 'depth' de son bord (sinon ramené à cette profondeur depuis le point du bord le
+    // plus proche) : sur une forme en U, le centre de l'éventail peut tomber dans le creux et le visage disparaîtrait.
+    Vector2 KeepInside(Vector2 c, int n, float depth)
+    {
+        bool inside = false;
+        float best = float.MaxValue;
+        Vector2 near = c, inward = Vector2.zero;
+        for (int k = 0; k < n; k++)
+        {
+            Vector2 a = _sp[k], b = _sp[(k + 1) % n], e = b - a;
+            if ((a.y > c.y) != (b.y > c.y) && c.x < a.x + (c.y - a.y) / (b.y - a.y) * e.x) inside = !inside;
+            float len2 = e.sqrMagnitude;
+            if (len2 < 1e-12f) continue;
+            Vector2 q = a + e * Mathf.Clamp01(Vector2.Dot(c - a, e) / len2);
+            float d = (c - q).sqrMagnitude;
+            if (d < best) { best = d; near = q; inward = new Vector2(-e.y, e.x) / Mathf.Sqrt(len2); }
+        }
+        if (inside && best >= depth * depth) return c;
+        return near + inward * depth;
+    }
+    bool[] _visible = new bool[0];
+    int[] _piece = new int[0], _earPrev = new int[0], _earNext = new int[0];
+    Vector2[] _piecePos = new Vector2[0];
+
+    // Gelée d'une forme que l'éventail ne sait pas couvrir sans se replier (U, gumori né d'une fusion autour d'un voisin) :
+    // c (dans la gelée) relié à chaque point du contour qu'il VOIT (éventail normal autour du visage, repère 0 en c), et
+    // chaque poche cachée entre deux de ces rayons (le bout d'un bras du U) découpée en oreilles. Les rayons sont des
+    // diagonales intérieures qui ne se croisent pas : les morceaux ne se chevauchent pas. Faux si un morceau ne se découpe
+    // pas (contour qui se recoupe) : l'éventail sert alors.
+    bool Triangulate(int center, Vector2 c, int n)
+    {
+        if (_visible.Length < n + 1)
+        {
+            _visible = new bool[n + 1]; _piece = new int[n + 2]; _earPrev = new int[n + 2]; _earNext = new int[n + 2];
+            _piecePos = new Vector2[n + 2];
+        }
+        int first = -1;
+        for (int k = 0; k < n; k++)
+        {
+            _visible[k] = Sees(c, k, n);
+            if (_visible[k] && first < 0) first = k;
+        }
+        if (first < 0) return false;
+        int start = _indexCount, from = first;
+        do
+        {
+            int to = (from + 1) % n;
+            while (!_visible[to]) to = (to + 1) % n;
+            if (to == (from + 1) % n) Tri(center, center + 1 + from, center + 1 + to);
+            else
+            {
+                int count = 0;
+                _piece[count] = center; _piecePos[count++] = c;
+                for (int k = from; ; k = (k + 1) % n)
+                {
+                    _piece[count] = center + 1 + k; _piecePos[count++] = _sp[k];
+                    if (k == to) break;
+                }
+                if (!EarClip(count)) { _indexCount = start; return false; }
+            }
+            from = to;
+        } while (from != first);
+        return true;
+    }
+
+    // Le segment c → point k du contour ne traverse aucun côté.
+    bool Sees(Vector2 c, int k, int n)
+    {
+        Vector2 p = _sp[k], d = p - c;
+        for (int j = 0; j < n; j++)
+        {
+            int j1 = (j + 1) % n;
+            if (j == k || j1 == k) continue;
+            Vector2 a = _sp[j], b = _sp[j1], e = b - a;
+            float d1 = Cross(d, a - c), d2 = Cross(d, b - c), d3 = Cross(e, c - a), d4 = Cross(e, p - a);
+            if (d1 * d2 < 0f && d3 * d4 < 0f) return false;
+        }
+        return true;
+    }
+
+    // Découpe en oreilles d'un polygone simple dans le sens trigonométrique (_piecePos, sommets du maillage _piece).
+    bool EarClip(int count)
+    {
+        for (int k = 0; k < count; k++) { _earPrev[k] = (k + count - 1) % count; _earNext[k] = (k + 1) % count; }
+        int left = count, i = 0, miss = 0;
+        while (left > 3)
+        {
+            int p = _earPrev[i], q = _earNext[i];
+            if (IsEar(p, i, q))
+            {
+                Tri(_piece[p], _piece[i], _piece[q]);
+                _earNext[p] = q; _earPrev[q] = p;
+                left--; miss = 0; i = q;
+            }
+            else
+            {
+                i = q;
+                if (++miss > left) return false;
+            }
+        }
+        Tri(_piece[_earPrev[i]], _piece[i], _piece[_earNext[i]]);
+        return true;
+    }
+
+    bool IsEar(int p, int i, int q)
+    {
+        Vector2 a = _piecePos[p], b = _piecePos[i], e = _piecePos[q];
+        if (Cross(b - a, e - b) <= 0f) return false;
+        for (int k = _earNext[q]; k != p; k = _earNext[k])
+        {
+            Vector2 x = _piecePos[k];
+            if (Cross(b - a, x - a) > 0f && Cross(e - b, x - b) > 0f && Cross(a - e, x - e) > 0f) return false;
+        }
+        return true;
+    }
+
+    static float Cross(Vector2 u, Vector2 v) => u.x * v.y - u.y * v.x;
 
     // Centre de l'éventail de la gelée (le visage est dessiné autour de lui), sur le polygone des capsules (pas le contour
     // lissé : ses bosses entre capsules le feraient bouger sans cesse). Le centre moyen 'c' tant que tout le contour s'y voit,
