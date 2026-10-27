@@ -1085,6 +1085,9 @@ MonoBehaviour:
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
+  fanSmoothing: 0.1
+  fanTolerance: 0
+  fanStiffness: 10
   rimWidth: 0.074
   rimOpacity: 0.538
   rimLighten: 0.35
@@ -1639,13 +1642,15 @@ MonoBehaviour:
   sides: 32
   diameter: 0.7
   debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
-  capsuleRadius: 0.1
+  capsuleRadius: 0.25
   capsuleSpacing: 0
   density: 0.5
   jointFrequency: 8
   jointDamping: 0.5
   jointLinearFrequency: 8
   jointLinearDamping: 0.5
+  limitStretch: 1
+  stretchLimit: 1
   friction: 0.01
   bounciness: 0
   fastCollisions: 1

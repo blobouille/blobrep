@@ -289,7 +289,17 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      éclair et accessoires qui poussent à l'éclat de la fusion. Yeux agrandis (2026-10-22). Vitrine des designs dans la
      Scene view. Rebord translucide (2026-10-23, façon Slime Rancher) : pourtour de gelée plus claire de la couleur du slime,
      où l'on devine le fond, épaisseur en fraction du rayon (`rimWidth` 0,074, `rimOpacity` 0,538, `rimLighten` 0,35,
-     réglés par l'utilisateur, mêmes valeurs dans toutes les scènes ; `_Rim` du shader, `rimWidth` 0 = sans)
+     réglés par l'utilisateur, mêmes valeurs dans toutes les scènes ; `_Rim` du shader, `rimWidth` 0 = sans).
+     Gelée = éventail de triangles depuis un centre (le visage est dessiné autour de lui). Peau tendue dans le creux d'un
+     gumori plié en V autour du moulin (signalé par l'utilisateur, 2026-10-26) : le centre moyen des capsules tombait HORS
+     du corps. `GumoriSkin.FanCenter` : centre moyen tant que tout le contour (polygone des capsules) s'y voit, sinon
+     minimum lisse de |x − c|² + côtés vus de dos au carré × leur longueur (`fanStiffness` 10, `fanTolerance` 0), puis
+     lissé dans le temps (`fanSmoothing` 0,1 s). Premier essai (point le plus proche d'où tout se voit, sur le contour
+     lissé) jugé raté par l'utilisateur : motif et visage TREMBLAIENT (saut du centre jusqu'à 18 cm d'une image à l'autre :
+     les bosses entre capsules et les coins de la zone visible changeaient sans cesse). Bancs `Captures/bancs/fan_center.cs`
+     (formes fixes) : V 37 % de l'aire en peau hors du corps → 1,8 %, banane 1,1 → 0,2, U 46 → 12 %, ovale inchangé ;
+     `fan_jitter_synth.cs` (pli en V puis dépli, 4 s, capsules qui glissent, bruit 3 mm) : saut moyen 37 → 4,5 mm par
+     image, max 182 → 14 mm, peau hors du corps 3 → 0,4 %. À valider à l'œil par l'utilisateur
    - `GumoriFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
@@ -469,7 +479,12 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
 - `Scripts/Level/` : courbes `CurvePath2D` + `CurveCollider2D` (chaînes Box2D : parois du réservoir, boîte Space)
 - `Scripts/Gumori/` : le jeu.
   - `Gumori` : corps d'un gumori, anneau de capsules reliées par des joints fixes (précontraints : ils visent un angle relatif
-    nul, seules les différences d'angle comptent). `SetShape` (forme imposée), `SetCollisionGroup`, et ce que tous les
+    nul, seules les différences d'angle comptent). Limite d'étirement (`limitStretch`, 2026-10-26, coupée par défaut, À
+    TESTER par l'utilisateur) : joint de distance sans ressort entre les bouts de deux capsules voisines, butée à
+    `stretchLimit` × 2 × rayon des capsules (1 = cercles des bouts tangents, aucun trou). Mesuré (`Captures/bancs/stretch_one.cs`,
+    bot du niveau à bocaux, ressort linéaire × 0,15) : paires ouvertes au-delà de 1,02 : 13,6 % → 0,16 %, pire 11,6 → 1,6 ;
+    elle cède encore quand un gros gumori force en coin entre deux capsules d'un petit (butée résolue avec la fermeté des
+    CONTACTS du monde, le `tuningFrequency` des joints n'y change rien) ; ≈ +50 % de coût par pas. `SetShape` (forme imposée), `SetCollisionGroup`, et ce que tous les
     scripts partagent : `Center`, `Velocity`, `AddVelocity` (même vitesse à tout l'anneau), `Contains` (point dans le
     polygone des capsules), `Index` (rang dans la liste). Les capsules portent leur `Gumori` en `userData.objectValue`
     (`Gumori.FromShape`)

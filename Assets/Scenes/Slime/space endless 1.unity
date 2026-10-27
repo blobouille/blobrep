@@ -326,7 +326,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::monde_settings
   gameSpeed: 1
-  gravite: {x: 0, y: -4}
+  gravity: {x: 0, y: -4}
   simulationSubSteps: 4
   simulationWorkers: 1
   continuousAllowed: 1
@@ -970,6 +970,9 @@ MonoBehaviour:
   outlineSamples: 72
   pixelsPerSample: 6
   outlineWidth: 0.05
+  fanSmoothing: 0.1
+  fanTolerance: 0
+  fanStiffness: 10
   rimWidth: 0.074
   rimOpacity: 0.538
   rimLighten: 0.35
@@ -983,6 +986,31 @@ MonoBehaviour:
   happyTime: 1.6
   mergeFlash: 0.45
   curiosity: 2
+  fadeDesign: 1
+  fadeCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   drawPreviews: 0
   gallery: 1
   galleryInPlay: 0
@@ -1037,6 +1065,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlimeFinale
   goal: {fileID: 0}
+  spaceLevel: {fileID: 0}
   skin: {fileID: 0}
   fx: {fileID: 0}
   sound: {fileID: 0}
@@ -1192,6 +1221,7 @@ MonoBehaviour:
   maxSides: 16
   maxLevel: 10
   sizeStiffness: 1
+  style: 1
   mergeTime: 0.35
   mergeCurve:
     serializedVersion: 2
@@ -1219,6 +1249,35 @@ MonoBehaviour:
     m_RotationOrder: 4
   startStiffness: 0.156
   waist: 0.708
+  absorbTime: 0.5
+  absorbCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  absorbStiffness: 0.5
+  absorbNeck: 0.5
+  absorbSmoothing: 1
+  inheritMotion: 1
   levelColors:
   - {r: 0.352, g: 0.065, b: 0.73, a: 1}
   - {r: 1, g: 0.371, b: 0.638, a: 1}
@@ -1261,7 +1320,7 @@ MonoBehaviour:
   watchTime: 1
   checkInterval: 2
   escapeSpeed: 1.2
-  upBias: 1
+  maxDownAngle: 30
   maxEscapeTime: 3
 --- !u!114 &1967278715
 MonoBehaviour:
@@ -1436,21 +1495,18 @@ MonoBehaviour:
   sides: 32
   diameter: 0.7
   debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
-  capsuleRadius: 0.4
+  capsuleRadius: 0.25
   capsuleSpacing: 0
-  density: 1
+  density: 0.5
   jointFrequency: 8
   jointDamping: 0.5
   jointLinearFrequency: 8
   jointLinearDamping: 0.5
+  limitStretch: 1
+  stretchLimit: 1
   friction: 0.01
   bounciness: 0
   fastCollisions: 1
-  heavyKey: 3
-  heavyGravity: 3
-  heavyRampTime: 0.1
-  heavyReleaseTime: 0.05
-  heavyMaxFallSpeed: 0
 --- !u!4 &2014553906
 Transform:
   m_ObjectHideFlags: 0

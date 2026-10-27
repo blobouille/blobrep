@@ -39,7 +39,14 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     [Min(0f)] public float jointLinearFrequency = 48f;
     [Tooltip("Amortissement linéaire des joints (ratio, 1 = critique). Plus haut = moins d'oscillations en étirement.")]
     [Min(0f)] public float jointLinearDamping = 1f;
-    [Tooltip("Friction des capsules (0 = glisse parfaitement).")]
+    [Tooltip("Limite d'étirement : deux capsules voisines ne peuvent pas s'écarter au point d'ouvrir un trou dans la\n" +
+             "membrane (une capsule voisine passerait dedans). Butée dure (joint de distance sans ressort entre leurs bouts),\n" +
+             "le ressort linéaire agit normalement en dessous. Coupé = simulation inchangée.")]
+    public bool limitStretch = false;
+    [Tooltip("Écart maximal entre les bouts de deux capsules voisines, RELATIF au diamètre des capsules (2 × rayon actuel).\n" +
+             "1 = cercles des bouts tout juste tangents (aucun trou) ; < 1 = ils se chevauchent toujours (plus serré) ;\n" +
+             "> 1 = un trou peut s'ouvrir.")]
+    [Min(0.05f)] public float stretchLimit = 1f;    [Tooltip("Friction des capsules (0 = glisse parfaitement).")]
     [Min(0f)] public float friction = 0.03f;
     [Tooltip("Rebond des capsules : 0 = aucun rebond, 1 = rebond parfait.")]
     [Min(0)] public float bounciness = 0.5f;
@@ -59,6 +66,8 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     NativeList<PhysicsBody> _bodies;
     // _joints[i] relie la capsule i-1 à la capsule i.
     NativeList<PhysicsJoint> _joints;
+    // _limits[i] : butée d'étirement entre le bout de la capsule i-1 et celui de la capsule i (limitStretch).
+    NativeList<PhysicsJoint> _limits;
     PhysicsShape[] _shapes;
     float[] _stretch;      // allongement de chaque capsule (SetShape)
     float[] _shapeStretch; // allongement de sa forme (suit par pas)
@@ -146,6 +155,7 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     public void SetShape(float[] stretch, float[] bend)
     {
         int n = _bodies.Length;
+        bool reshaped = false;
         for (int i = 0; i < n; i++)
         {
             float extra = Mathf.Max(-0.5f * CapsuleLength, stretch[i]);
@@ -155,8 +165,10 @@ public class Gumori : MonoBehaviour, ILevelPhysics
             {
                 _shapeStretch[i] = extra;
                 shape.capsuleGeometry = CapsuleGeometryOf(extra, _capsuleRadius);
+                reshaped = true;
             }
         }
+        if (reshaped) UpdateStretchLimits();
         for (int j = 0; j < n; j++)
         {
             var joint = _joints[j];
@@ -205,7 +217,27 @@ public class Gumori : MonoBehaviour, ILevelPhysics
             var shape = _shapes[i];
             if (shape.isValid) shape.capsuleGeometry = CapsuleGeometryOf(_shapeStretch[i], radius);
         }
+        UpdateStretchLimits();
     }
+
+    // Butées posées sur les bouts réels des capsules (allongement de leur forme) ; écart max selon leur rayon actuel.
+    void UpdateStretchLimits()
+    {
+        if (!_limits.IsCreated) return;
+        int n = _limits.Length;
+        float max = MaxEndGap;
+        for (int j = 0; j < n; j++)
+        {
+            PhysicsDistanceJoint limit = _limits[j];
+            if (!limit.isValid) continue;
+            int prev = j == 0 ? n - 1 : j - 1;
+            limit.localAnchorA = new Vector2(0f, 0.5f * (CapsuleLength + _shapeStretch[prev]));
+            limit.localAnchorB = new Vector2(0f, -0.5f * (CapsuleLength + _shapeStretch[j]));
+            limit.maxDistanceLimit = max;
+        }
+    }
+
+    float MaxEndGap => stretchLimit * 2f * _capsuleRadius;
 
     CapsuleGeometry CapsuleGeometryOf(float stretch, float radius) => new CapsuleGeometry
     {
@@ -240,6 +272,7 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     void Despawn()
     {
         if (_joints.IsCreated) _joints.Dispose();
+        if (_limits.IsCreated) _limits.Dispose();
         if (!_bodies.IsCreated) return;
         PhysicsBody.DestroyBatch(_bodies.AsArray());
         _bodies.Dispose();
@@ -311,6 +344,26 @@ public class Gumori : MonoBehaviour, ILevelPhysics
             jointDef.bodyA = prev;
             jointDef.bodyB = _bodies[i];
             _joints.Add(world.CreateJoint(jointDef));
+            prev = _bodies[i];
+        }
+
+        if (!limitStretch) return;
+        // Ressort à 0 Hz = aucune force sous la limite ; seule la butée haute agit (enableSpring = false la rendrait rigide).
+        var limitDef = PhysicsDistanceJointDefinition.defaultDefinition;
+        limitDef.enableSpring = true;
+        limitDef.springFrequency = 0f;
+        limitDef.enableLimit = true;
+        limitDef.minDistanceLimit = 0f;
+        limitDef.maxDistanceLimit = MaxEndGap;
+        limitDef.distance = MaxEndGap;        limitDef.localAnchorA = new Vector2(0f, 0.5f * CapsuleLength);
+        limitDef.localAnchorB = new Vector2(0f, -0.5f * CapsuleLength);
+        _limits = new NativeList<PhysicsJoint>(sides, Allocator.Persistent);
+        prev = _bodies[_bodies.Length - 1];
+        for (int i = 0; i < sides; ++i)
+        {
+            limitDef.bodyA = prev;
+            limitDef.bodyB = _bodies[i];
+            _limits.Add(world.CreateJoint(limitDef));
             prev = _bodies[i];
         }
     }

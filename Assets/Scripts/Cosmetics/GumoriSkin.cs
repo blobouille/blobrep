@@ -30,6 +30,15 @@ public class GumoriSkin : MonoBehaviour
     [Range(2f, 20f)] public float pixelsPerSample = 6f;
     [Tooltip("Épaisseur du liseré sombre du contour, en m (absolu, même épaisseur pour tous).")]
     [Min(0f)] public float outlineWidth = 0.05f;
+    [Tooltip("Gumori plié (V autour d'un obstacle) : le centre de la gelée (et le visage) revient dans le corps. Temps de\n" +
+             "lissage de ce déplacement, en s : plus haut = motif et visage glissent plus doucement, mais rattrapent plus tard.")]
+    [Min(0f)] public float fanSmoothing = 0.1f;
+    [Tooltip("Pli toléré avant de déplacer le centre de la gelée, en fraction du rayon du gumori : plus haut = le centre (et\n" +
+             "le visage) bouge moins souvent, mais un peu de peau peut dépasser dans le creux d'un pli. 0 = au moindre creux.")]
+    [Range(0f, 1f)] public float fanTolerance = 0f;
+    [Tooltip("Force avec laquelle les côtés vus de dos repoussent le centre de la gelée dans le corps (sans unité) : plus\n" +
+             "haut = moins de peau dans le creux d'un pli, mais un centre plus nerveux. 0 = jamais déplacé (comme avant).")]
+    [Min(0f)] public float fanStiffness = 10f;
     [Tooltip("Rebord translucide de la gelée (sa couleur, plus claire, on voit un peu le fond à travers) : épaisseur en fraction\n" +
              "du rayon, donc proportionnelle à la taille du gumori. 0 = aucun.")]
     [Range(0f, 0.4f)] public float rimWidth = 0.074f;
@@ -150,6 +159,8 @@ public class GumoriSkin : MonoBehaviour
         public Vector4 shape;
         public float wobble, wobbleRaw, stretch, stepTime;
         public Vector2 center, velocity, look, attention;
+        public Vector2 fanOffset; // centre de la gelée − centre moyen, lissé (FanCenter)
+        public bool hasFan;
         public float age, blinkIn, blinkT, happy, wow, squish, flash, pop = 1f, impactCooldown, attentionTime;
         public bool waitPop; // accessoires cachés jusqu'à l'éclat de la fusion
         public int morphFrom = -1; // fondu de design : niveau des parents, et avancement (0 → 1, sur la durée de la fusion)
@@ -501,8 +512,14 @@ public class GumoriSkin : MonoBehaviour
                 _sp[i * k + j] = CatmullRom(p0, p1, p2, p3, u);
             }
         }
-        if (look.morphFrom >= 0) EmitMorph(look, c, count, rot, blob.diameter);
-        else EmitSlime(Resolve(look), look, c, count, rot, blob.diameter);
+        float radius = 0.5f * blob.diameter;
+        Vector2 fan = FanCenter(_surf, m, c, -fanTolerance * radius, fanStiffness / radius) - c;
+        if (!look.hasFan || fanSmoothing <= 0f) look.fanOffset = fan;
+        else look.fanOffset = Vector2.Lerp(fan, look.fanOffset, Mathf.Exp(-dt / fanSmoothing));
+        look.hasFan = true;
+        Vector2 fc = c + look.fanOffset;
+        if (look.morphFrom >= 0) EmitMorph(look, fc, count, rot, blob.diameter);
+        else EmitSlime(Resolve(look), look, fc, count, rot, blob.diameter);
     }
 
     // Fondu enchaîné de design pendant une fusion : nouveau design dessous, design des parents par-dessus qui s'efface ;
@@ -865,6 +882,53 @@ public class GumoriSkin : MonoBehaviour
         }
 
         if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
+    }
+
+    // Centre de l'éventail de la gelée (le visage est dessiné autour de lui), sur le polygone des capsules (pas le contour
+    // lissé : ses bosses entre capsules le feraient bouger sans cesse). Le centre moyen 'c' tant que tout le contour s'y voit,
+    // sinon le minimum de |x − c|² + 'stiffness' / rayon × Σ longueur du côté × (côté vu « de dos »)² : chaque côté vu de dos
+    // repousse le centre vers l'intérieur, proportionnellement à sa longueur. Fonction lisse et strictement convexe : son
+    // minimum varie en continu avec la forme (le point exact le plus proche sautait d'un coin à l'autre quand les capsules
+    // glissaient). Sans ça, un gumori plié en V autour d'un obstacle a son centre HORS du corps et l'éventail tend une peau
+    // dans le creux. 'margin' < 0 tolère des côtés vus de dos jusqu'à cette distance (petits triangles retournés dans un
+    // creux léger, invisibles) : le centre ne bouge que pour un vrai pli.
+    const int FanIterations = 8;
+
+    static Vector2 FanCenter(Vector2[] p, int n, Vector2 c, float margin, float weight)
+    {
+        Vector2 x = c;
+        for (int it = 0; it < FanIterations; it++)
+        {
+            // Gauss-Newton sur la somme de carrés : H = I + w Σ L n nᵀ, g = (x − c) − w Σ L (margin − d) n.
+            float hxx = 1f, hxy = 0f, hyy = 1f;
+            Vector2 g = x - c;
+            bool any = false;
+            Vector2 a = p[n - 1];
+            for (int k = 0; k < n; k++)
+            {
+                Vector2 b = p[k], e = b - a;
+                float len = e.magnitude;
+                if (len > 1e-6f)
+                {
+                    Vector2 nor = new Vector2(-e.y, e.x) / len;
+                    float d = Vector2.Dot(nor, x - a);
+                    if (d < margin)
+                    {
+                        float wl = weight * len;
+                        hxx += wl * nor.x * nor.x; hxy += wl * nor.x * nor.y; hyy += wl * nor.y * nor.y;
+                        g -= nor * (wl * (margin - d));
+                        any = true;
+                    }
+                }
+                a = b;
+            }
+            if (!any) break;
+            float det = hxx * hyy - hxy * hxy;
+            Vector2 step = new Vector2(hyy * g.x - hxy * g.y, hxx * g.y - hxy * g.x) / det;
+            x -= step;
+            if (step.sqrMagnitude < 1e-8f) break;
+        }
+        return x;
     }
 
     static int Pack6(Color linear)
