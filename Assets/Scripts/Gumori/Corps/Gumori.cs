@@ -196,6 +196,8 @@ public class Gumori : MonoBehaviour, ILevelPhysics
     // Groupe de collision (négatif : ses capsules ne se touchent pas entre elles). Donner à un gumori le groupe d'un autre = ils
     // se traversent ; OwnGroup = le sien.
     public int OwnGroup => _group;
+    // Groupe actuel de ses capsules (≠ OwnGroup pendant un démêlage / une sortie : il traverse un autre gumori).
+    public int CurrentGroup => _shapes != null && _shapes.Length > 0 && _shapes[0].isValid ? _shapes[0].contactFilter.groupIndex : _group;
 
     public void SetCollisionGroup(int group)
     {

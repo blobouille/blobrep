@@ -117,6 +117,33 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
         _ceiling = top - 0.5f * box.thickness;
     }
 
+    // Ligne de la réserve et points d'arrivée (bords gauche / droit, pour un gumori lâché de chaque taille possible).
+    void OnDrawGizmos()
+    {
+        var dropper = _dropper != null ? _dropper : GumoriDropper.Find<GumoriDropper>(this);
+        if (dropper == null || dropper.template == null) return;
+        var fusion = _fusion != null ? _fusion : GumoriDropper.Find<GumoriFusion>(this);
+        if (!Application.isPlaying)
+        {
+            _dropper = dropper;
+            _fusion = fusion;
+            MeasureBox();
+            _inner = dropper.MeasureWalls();
+        }
+        float x = transform.position.x;
+        Gizmos.color = new Color(1f, 1f, 1f, 0.5f);
+        Gizmos.DrawLine(new Vector3(x - _inner, RackY), new Vector3(x + _inner, RackY));
+        int max = fusion != null ? Mathf.Min(dropper.maxDropLevel, fusion.MaxLevel) : 0;
+        for (int level = 0; level <= max; level++)
+        {
+            float r = LevelRadius(level);
+            float y = Mathf.Min(RackY, _ceiling - r - 0.05f);
+            Gizmos.color = fusion != null ? fusion.LevelColor(level) : Color.white;
+            for (int side = -1; side <= 1; side += 2)
+                Gizmos.DrawWireSphere(new Vector3(x + side * (_inner - r - 0.05f), y), r);
+        }
+    }
+
     float LevelRadius(int level) => 0.5f * (_fusion != null ? _fusion.LevelDiameter(level) : _dropper.template.diameter);
 
     // Fusion (pendant le pas de GumoriFusion) qui mange un gumori de la réserve : le nouveau gumori y reste et UN gumori arrive.

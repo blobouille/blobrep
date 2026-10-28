@@ -76,6 +76,9 @@ public class GumoriUntangle : MonoBehaviour, ILevelPhysics, ILevelTick
                 if (_fusion != null && (_fusion.IsMerging(blobs[i]) || _fusion.IsMerging(blobs[j]))) continue;
                 int inJ = Inside(i, j), inI = Inside(j, i);
                 if (inJ == 0 && inI == 0) continue;
+                // Deux pareils emmêlés (pointe passée par un trou entre deux capsules, sans aucun contact) : ils fusionnent au
+                // lieu d'être séparés (sinon : collés l'un dans l'autre, puis écartés sans fusionner).
+                if (_fusion != null && _fusion.RequestMerge(blobs[i], blobs[j])) continue;
                 // Le moins enfoncé (relativement à sa taille) traverse l'autre.
                 bool aIsI = inJ * _count[j] <= inI * _count[i];
                 int ia = aIsI ? i : j, ib = aIsI ? j : i;

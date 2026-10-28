@@ -30,7 +30,7 @@ public class JarShape2D : MonoBehaviour
     [Min(0f)] public float lipFlare = 0.1f;
 
     [Header("Paroi")]
-    [Tooltip("Épaisseur de la paroi de verre (m), solide des deux côtés. Écrite dans la courbe (CurvePath2D.thickness).")]
+    [Tooltip("Épaisseur de la paroi de verre (m), pleine (CurveCollider2D.solidWall). Écrite dans la courbe (CurvePath2D.thickness).")]
     [Min(0.02f)] public float wallThickness = 0.12f;
     [Tooltip("Coché : la courbe est recalculée depuis ces réglages. Décoché : la courbe garde ses points (édition à la main).")]
     public bool drive = true;
@@ -86,6 +86,8 @@ public class JarShape2D : MonoBehaviour
         path.thickness = wallThickness;
         path.collisionMode = CollisionMode.Outline;
         path.flipSide = false;
+        // Paroi pleine : une chaîne (une seule face) se laisse traverser par un gumori tiré à travers le goulot.
+        if (TryGetComponent(out CurveCollider2D collider)) collider.solidWall = true;
         path.RecomputeHandles();
         path.Rebuild();
     }

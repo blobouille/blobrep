@@ -143,19 +143,20 @@ public class GumoriBackdrop : MonoBehaviour
         for (int i = 0; i < center.Count; i++) _line.Add(tr.TransformPoint(center[i]));
         if (reservoir.closed) _line.Add(_line[0]); // boîte fermée (Space Endless) : dernier côté
         int n = _line.Count;
-        float half = 0.5f * reservoir.thickness;
 
+        // Bords de la courbe (calculés par CurvePath2D avec onglet aux coins) : même épaisseur partout. Une normale moyenne
+        // sans onglet amincissait la paroi aux coins d'une boîte, et tout le long d'un côté qui n'a que ses deux coins.
         Clear();
         float along = 0f;
+        var left = reservoir.left;
+        var right = reservoir.right;
         for (int i = 0; i < n; i++)
         {
-            Vector2 t = _line[Mathf.Min(n - 1, i + 1)] - _line[Mathf.Max(0, i - 1)];
-            if (reservoir.closed && (i == 0 || i == n - 1)) t = _line[1] - _line[n - 2];
-            Vector2 nor = new Vector2(-t.y, t.x).normalized;
+            int k = i % center.Count;
             if (i > 0) along += (_line[i] - _line[i - 1]).magnitude;
             Vector4 col = new Vector4(glass.r, glass.g, glass.b, glass.a);
-            Add(_line[i] + nor * half, new Vector4(along, 1f, 5f, 0f), col);
-            Add(_line[i] - nor * half, new Vector4(along, -1f, 5f, 0f), col);
+            Add(tr.TransformPoint(left[k]), new Vector4(along, 1f, 5f, 0f), col);
+            Add(tr.TransformPoint(right[k]), new Vector4(along, -1f, 5f, 0f), col);
             if (i > 0)
             {
                 int v = _verts.Count - 4;

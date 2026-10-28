@@ -71,6 +71,8 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
 
     readonly List<Gumori> _blobs = new List<Gumori>();
     GumoriFusion _fusion;
+    // Mode Space : les gumori arrivent par la réserve (GumoriLauncher), pas par le lâcher : ni aperçu, ni « Suivant », ni gizmo.
+    bool _launches;
     uint _rng;
     int _current, _next; // niveaux du prochain gumori lâché et du suivant
 
@@ -110,6 +112,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnEnable()
     {
         _fusion = Part<GumoriFusion>();
+        _launches = Part<GumoriLauncher>() != null;
         _wallHalf = MeasureWalls();
         _rng = StartRng();
         _current = RollLevel();
@@ -218,7 +221,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     public float WallHalfWidth => reservoir != null ? _wallHalf : halfWidth;
     float _wallHalf;
 
-    float MeasureWalls()
+    public float MeasureWalls()
     {
         if (reservoir == null) return halfWidth;
         if (reservoir.center.Count == 0) reservoir.Rebuild();
@@ -305,7 +308,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
         if (!Application.isPlaying || template == null) return;
         var world = PhysicsWorld.defaultWorld;
         if (showHitboxes) DrawHitboxes(world);
-        if (!debugDraw || DropsLeft == 0) return;
+        if (!debugDraw || _launches || DropsLeft == 0) return;
         DrawSlime(world, DropPoint, _current);
         DrawSlime(world, NextPreviewPoint, _next, NextPreviewRadius);
         float limit = HalfWidth(_current);
@@ -354,7 +357,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         if (!Application.isPlaying) return;
         var cam = Camera.main;
-        if (cam != null && DropsLeft > 1)
+        if (cam != null && !_launches && DropsLeft > 1)
         {
             Vector2 p = NextPreviewPoint - new Vector2(0f, NextPreviewRadius + 0.2f);
             Vector3 s = cam.WorldToScreenPoint(p);
@@ -373,6 +376,7 @@ public class GumoriDropper : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnDrawGizmos()
     {
         if (template == null) return;
+        if (Part<GumoriLauncher>() != null) return;
         if (_fusion == null) _fusion = Part<GumoriFusion>();
         Gizmos.color = previewColor;
         Vector3 p = transform.position;

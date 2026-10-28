@@ -97,6 +97,8 @@ public class GumoriSkin : MonoBehaviour
     // Dessin de gumori sans physique (fin de niveau…) : appelé pendant la construction du maillage, temps écoulé en argument ;
     // y appeler DrawVirtual.
     public event System.Action<float> DrawExtras;
+    // Pareil hors Play (aperçus dans la Scene view et la Game view, pour placer un élément sans lancer le jeu).
+    public event System.Action<float> DrawEditorExtras;
 
     // Gumori sans physique, rond, dessiné par DrawVirtual (mêmes design, visage et accessoires que les vrais).
     public class VirtualSlime
@@ -1564,6 +1566,7 @@ public class GumoriSkin : MonoBehaviour
             UpdatePixel();
             Begin();
             if (gallery && _fusion != null) DrawGallery(0.02f);
+            DrawEditorExtras?.Invoke(0.02f);
             End();
         }
         if (_indexCount == 0) return;

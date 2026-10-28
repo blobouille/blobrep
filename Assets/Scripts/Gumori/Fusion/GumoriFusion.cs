@@ -116,6 +116,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     readonly Dictionary<(Gumori, Gumori), int> _touching = new Dictionary<(Gumori, Gumori), int>();
     readonly List<(Gumori, Gumori)> _keys = new List<(Gumori, Gumori)>();
     readonly List<Candidate> _candidates = new List<Candidate>();
+    // Paires emmêlées sans contact signalées par GumoriUntangle (fusionnées au pas suivant).
+    readonly List<(Gumori, Gumori)> _requested = new List<(Gumori, Gumori)>();
     readonly List<Fusing> _fusing = new List<Fusing>();
     readonly Vector2[] _loop = new Vector2[LoopSamples];
     readonly float[] _arc = new float[LoopSamples + 1];
@@ -129,6 +131,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     int _eventsStep = -1;
 
     public int Merges { get; private set; }
+    // Fusions demandées par GumoriUntangle (pareils emmêlés sans contact), depuis le départ.
+    public int TangleMerges { get; private set; }
     // Fusion faite (pendant le pas) : gumori créé, son niveau (1 = première fusion), point de rencontre des deux gumori.
     public event System.Action<Gumori, int, Vector2> Merged;
 
@@ -168,10 +172,12 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnEnable()
     {
         _dropper = GumoriDropper.Find<GumoriDropper>(this);
+        _requested.Clear();
         _touching.Clear();
         _fusing.Clear();
         _eventsStep = LevelSimulation.Step;
         Merges = 0;
+        TangleMerges = 0;
         TurnFixes = 0;
         StitchFallbacks = 0;
     }
@@ -179,6 +185,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnDisable()
     {
         _touching.Clear();
+        _requested.Clear();
         _fusing.Clear();
     }
 
@@ -189,6 +196,48 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         Animate();
         MergeTouching();
     }
+
+#if UNITY_EDITOR
+    // Debug (éditeur, F9 en Play) : état de chaque paire de pareils proches dans Captures/fusion_probe.txt + capture d'écran,
+    // pour attraper sur le fait une fusion qui ne se fait pas. Lecture seule : aucun effet sur la simulation.
+    void Update()
+    {
+        if (!Application.isPlaying || _dropper == null) return;
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb == null || !kb.f9Key.wasPressedThisFrame) return;
+        var s = new System.Text.StringBuilder($"pas {LevelSimulation.Step}, {_dropper.InPlay.Count} gumori, {_fusing.Count} en fusion, {_touching.Count} paires comptées\n");
+        var list = _dropper.InPlay;
+        var launcher = GumoriDropper.Find<GumoriLauncher>(this);
+        for (int i = 0; i < list.Count; i++)
+            for (int j = i + 1; j < list.Count; j++)
+            {
+                Gumori a = list[i], b = list[j];
+                if (a.diameter != b.diameter || a.sides != b.sides) continue;
+                float gap = float.MaxValue;
+                for (int p = 0; p < a.CapsuleCount; p++)
+                    for (int q = 0; q < b.CapsuleCount; q++)
+                        gap = Mathf.Min(gap, Vector2.Distance(a.Capsule(p).position, b.Capsule(q).position) - a.CapsuleRadius - b.CapsuleRadius);
+                if (gap > 0.3f) continue;
+                int contacts = 0;
+                for (int p = 0; p < a.CapsuleCount; p++)
+                {
+                    var cs = a.Capsule(p).GetContacts(Unity.Collections.Allocator.Temp);
+                    foreach (var c in cs)
+                        if (c.manifold.pointCount > 0 && (Gumori.FromShape(c.shapeA) == b || Gumori.FromShape(c.shapeB) == b)) contacts++;
+                    cs.Dispose();
+                }
+                string Fus(Gumori g) { for (int k = 0; k < _fusing.Count; k++) if (_fusing[k].blob == g) return $"en fusion {_fusing[k].time:0.00}s"; return "libre"; }
+                bool Rack(Gumori g) { if (launcher == null) return false; foreach (var r in launcher.Rack) if (r == g) return true; return false; }
+                _touching.TryGetValue(Key(a, b), out int counted);
+                s.AppendLine($"{a.name} + {b.name} (niveau {Level(a)}) : écart {gap * 100f:0.0} cm, contacts Box2D {contacts}, comptés {counted}, " +
+                    $"{Fus(a)} / {Fus(b)}, groupes {a.CurrentGroup}/{a.OwnGroup} {b.CurrentGroup}/{b.OwnGroup}, réserve {Rack(a)}/{Rack(b)}, " +
+                    $"niveau max {(maxLevel > 0 && Level(a) >= maxLevel)}");
+            }
+        System.IO.File.WriteAllText("Captures/fusion_probe.txt", s.ToString());
+        ScreenCapture.CaptureScreenshot("Captures/fusion_probe.png");
+        Debug.Log("Sonde de fusion écrite : Captures/fusion_probe.txt (+ .png)\n" + s);
+    }
+#endif
 
     void ReadContacts()
     {
@@ -254,10 +303,34 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         return false;
     }
 
+    static (Gumori, Gumori) Key(Gumori a, Gumori b) => a.GetHashCode() < b.GetHashCode() ? (a, b) : (b, a);
+
+    bool Mergeable(Gumori a, Gumori b) =>
+        a != b && a.diameter == b.diameter && a.sides == b.sides && !(maxLevel > 0 && Level(a) >= maxLevel);
+
+    void AddCandidate(Gumori a, Gumori b, int ia, int ib)
+    {
+        if (!Mergeable(a, b)) return;
+        if (IsFusing(a) || IsFusing(b)) return;
+        _candidates.Add(ia < ib
+            ? new Candidate { a = a, b = b, first = ia, second = ib }
+            : new Candidate { a = b, b = a, first = ib, second = ia });
+    }
+
+    // Deux pareils emmêlés sans contact (GumoriUntangle) : fusionnés au pas suivant. Faux s'ils ne peuvent pas fusionner
+    // (niveaux différents, niveau max, l'un encore en fusion) : à démêler.
+    public bool RequestMerge(Gumori a, Gumori b)
+    {
+        if (!Mergeable(a, b) || IsFusing(a) || IsFusing(b)) return false;
+        var key = Key(a, b);
+        if (!_requested.Contains(key)) { _requested.Add(key); TangleMerges++; }
+        return true;
+    }
+
     // Paires prêtes rangées par ordre de création des gumori, puis fusionnées une à une (un gumori ne fusionne qu'une fois par pas).
     void MergeTouching()
     {
-        if (_touching.Count == 0) return;
+        if (_touching.Count == 0 && _requested.Count == 0) return;
         _candidates.Clear();
         _keys.Clear();
         foreach (var pair in _touching)
@@ -265,12 +338,15 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
             var (a, b) = pair.Key;
             int ia = GumoriDropper.IsInPlay(a) ? a.Index : -1, ib = GumoriDropper.IsInPlay(b) ? b.Index : -1;
             if (ia < 0 || ib < 0) { _keys.Add(pair.Key); continue; } // gumori fusionné ou retiré
-            if (maxLevel > 0 && Level(a) >= maxLevel) continue;
-            if (IsFusing(a) || IsFusing(b)) continue;
-            _candidates.Add(ia < ib
-                ? new Candidate { a = a, b = b, first = ia, second = ib }
-                : new Candidate { a = b, b = a, first = ib, second = ia });
+            AddCandidate(a, b, ia, ib);
         }
+        for (int p = 0; p < _requested.Count; p++)
+        {
+            var (a, b) = _requested[p];
+            if (!GumoriDropper.IsInPlay(a) || !GumoriDropper.IsInPlay(b) || _touching.ContainsKey(Key(a, b))) continue;
+            AddCandidate(a, b, a.Index, b.Index);
+        }
+        _requested.Clear();
         for (int k = 0; k < _keys.Count; k++) _touching.Remove(_keys[k]);
         if (_candidates.Count == 0) return;
         _candidates.Sort((x, y) => x.first != y.first ? x.first.CompareTo(y.first) : x.second.CompareTo(y.second));

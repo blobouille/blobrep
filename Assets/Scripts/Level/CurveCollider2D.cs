@@ -12,6 +12,12 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
     [Tooltip("Rebond de la surface : 0 = aucun rebond, 1 = rebond parfait.")]
     [Min(0)] public float bounciness = 0f;
 
+    [Header("Paroi")]
+    [Tooltip("Coché : paroi PLEINE sur toute son épaisseur (capsules le long de la courbe, rayon = ½ épaisseur), au lieu de\n" +
+             "chaînes. Une chaîne ne retient que de sa face : une capsule passée derrière traverse librement, et une paroi mince\n" +
+             "se laisse traverser par un gumori tiré de l'autre côté (fusion à travers un goulot). Ignore le mode de collision.")]
+    public bool solidWall;
+
     PhysicsBody _body;
     const float MinGap = 0.01f;
 
@@ -20,7 +26,29 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
         if (!Application.isPlaying) return;
         var path = GetComponent<CurvePath2D>();
         path.Rebuild();
-        Build(path.BuildCollisionChains());
+        if (solidWall) BuildSolid(path);
+        else Build(path.BuildCollisionChains());
+    }
+
+    // Capsules sur la ligne médiane (points à moins de 'MinGap' sautés), bouts arrondis qui se recouvrent : surface lisse.
+    void BuildSolid(CurvePath2D path)
+    {
+        Matrix4x4 toBody = CreateBody();
+        var shapeDef = PhysicsShapeDefinition.defaultDefinition;
+        var material = shapeDef.surfaceMaterial;
+        material.friction = friction;
+        material.bounciness = bounciness;
+        shapeDef.surfaceMaterial = material;
+        float radius = 0.5f * path.thickness * Mathf.Abs(transform.lossyScale.x);
+        var points = new List<Vector2>(path.center.Count + 1);
+        foreach (var p in path.center)
+        {
+            Vector2 w = toBody.MultiplyPoint3x4(transform.TransformPoint(p));
+            if (points.Count == 0 || (w - points[points.Count - 1]).sqrMagnitude >= MinGap * MinGap) points.Add(w);
+        }
+        if (path.closed && points.Count > 2) points.Add(points[0]);
+        for (int i = 1; i < points.Count; i++)
+            _body.CreateShape(new CapsuleGeometry { center1 = points[i - 1], center2 = points[i], radius = radius }, shapeDef);
     }
 
     void OnDisable() => Cleanup();
@@ -41,7 +69,9 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
         if (rotate) _body.angularVelocity = Mathf.DeltaAngle(_body.rotation.degrees, next.angle) / dt;
     }
 
-    void Build(List<CollisionChain> chains)
+    // Corps statique à l'origine (points en coordonnées monde) ou kinematic posé sur le Transform (trajectoire) ; rend la
+    // matrice monde → corps.
+    Matrix4x4 CreateBody()
     {
         var bodyDef = PhysicsBodyDefinition.defaultDefinition;
         bool onPath = OnPath;
@@ -56,7 +86,13 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
         }
         _body = PhysicsWorld.defaultWorld.CreateBody(bodyDef);
         if (onPath) _body.sleepingAllowed = false;
+        return toBody;
+    }
 
+    void Build(List<CollisionChain> chains)
+    {
+        bool onPath = OnPath;
+        Matrix4x4 toBody = CreateBody();
         var chainDef = PhysicsChainDefinition.defaultDefinition;
         var material = chainDef.surfaceMaterial;
         material.friction = friction;

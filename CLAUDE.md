@@ -197,6 +197,16 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    l'union de leurs polygones de capsules, rayons depuis le milieu, bord le plus éloigné), jamais au-delà du premier voisin
    croisé, col arrondi (`absorbNeck`) dans la place libre seulement ; chaque capsule garde la vitesse de la capsule d'origine
    la plus proche (`inheritMotion`) ; s'arrondit en `absorbTime` selon `absorbCurve`, molle au départ (`absorbStiffness`).
+   Pareils qui ne fusionnent pas (2026-10-28, signalé par l'utilisateur, « parfois, sans raison », pas reproduit) :
+   contacts réels de Box2D comparés à chaque pas aux paires comptées par les événements (`Captures/bancs/touch_audit.cs`,
+   bot Space, 4 parties) : jamais plus d'un pas de retard. Les seuls contacts finis sans fusion (≈ 1 sur 8) ont lieu
+   pendant que l'un des deux finit sa fusion (attente voulue par l'utilisateur : fusion immédiate essayée puis REFUSÉE,
+   « trop rapide ») ; tous refusionnent plus tard dans le bot. Attraction des deux pendant l'attente essayée : aucun
+   effet mesurable, retirée. Trou corrigé par logique (jamais vu dans le bot) : deux pareils EMMÊLÉS sans contact (pointe
+   passée entre deux capsules) étaient séparés par `GumoriUntangle` ; ils fusionnent maintenant (`RequestMerge`). Sonde :
+   F9 en Play (éditeur) → `Captures/fusion_probe.txt` + `.png` (chaque paire de pareils à moins de 30 cm : écart, contacts
+   Box2D, comptés, en fusion, groupes, réserve). Piège des bancs : `SpaceEndless` tire une graine au hasard à chaque Play,
+   comparer deux versions du code dans la MÊME session de Play (ou fixer la graine).
    Réglages propres (durée effective lue par Escape / Goal / Fx via `MergeDuration`). Mesuré (`Captures/bancs/fusion_run.sh`,
    même partie scriptée) : chevauchement des voisins à la naissance, terrestre 17,3 → 3,0 cm en moyenne (> 5 cm : 28/32 →
    2/31), Space 7,1 → 1,5 cm (25/32 → 0/28), Space : sorties forcées 5 → 0, démêlages 30 → 10 ; même coût ; identique au bit
@@ -338,7 +348,21 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      fondu enchaîné du design de ses parents au sien sur `MergeDuration` (`fadeCurve`) : nouveau design dessous, ancien
      par-dessus qui s'efface (opacité = alpha des sommets, multiplié dans `Slime/Body`), accessoires qui se fondent aussi
      (pas de pousse à l'éclat). Banc : `Captures/bancs/fade_shot.sh` (ralenti, `Captures/fusion/fondu_*.png`)
-   - `GumoriBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir ; `GumoriSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
+   - Bandeau des stades (`GumoriLevelStrip`, 2026-10-28, demandé par l'utilisateur, scènes Space du jeu libre) : tous les
+     niveaux côte à côte à leurs tailles relatives, designs en jeu (plus tard : ceux choisis par le joueur) ; sous la boîte
+     (ou au-dessus, `above`) si l'écran a la place, sinon en bas de l'écran ; largeur bornée par la boîte. Réglages à
+     juger à l'œil (2026-10-28) : `sizeContrast` (1 vraies tailles, 0 toutes pareilles, ≈ 0,3 légère différence),
+     `align` (Centre / Sol / Plafond), `gap` ; aperçu HORS Play (`showInEditor`, Scene et Game view, via
+     `GumoriSkin.DrawEditorExtras`). Banc : `Captures/bancs/strip_preview.cs` (portrait, réglages dans `strip_preview.txt`).
+     Liens `GumoriDropper.reservoir` et `GumoriLauncher.box` perdus à la réparation des scènes, reliés à « Réservoir »
+     (`Captures/bancs/relink_box.cs`). Mode Space
+     (`GumoriLauncher` présent) : `GumoriDropper` ne dessine plus son point de lâcher (gizmo, aperçu, « Suivant ») ;
+     le gizmo du Launcher montre la ligne de la réserve et les points d'arrivée réels (bords, par taille).
+     PROBLÈME repéré : caméra à taille fixe (orthographique 9) : en portrait de téléphone (1080 × 2340), la boîte de 9 m
+     déborde des deux côtés et il ne reste pas de place pour le bandeau sous la boîte (`Captures/bancs/shot_portrait.cs`)
+   - `GumoriBackdrop` : fond dégradé à bulles floues, bocal de verre sur la courbe du réservoir (paroi tracée sur les bords
+     `left` / `right` de la courbe, avec onglet : même épaisseur partout ; avant, normale moyenne sans onglet, coins et côtés
+     sans point intermédiaire amincis à ≈ 60 %) ; `GumoriSound` : voir Son (refait le 2026-10-24 : DA grave et apaisante, mouvement discret lu à l'écran)
    - Mesuré (PC) : habillage 0,53 ms par image pour 15 slimes + aperçus (contour adaptatif : ≈ 6 px par côté, 72 points max ;
      1,6 ms avant optimisation). Partie réelle avec tous les effets (ralenti compris) puis rejeu de ses entrées : identiques au
      bit près (5 875 pas, 17 fusions, même score)
@@ -511,7 +535,11 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
   sinon, inchangé). Piège : Box2D refuse SANS PRÉVENIR toute une chaîne dont deux points sont à moins de ≈ 5 mm (le bocal
   en avait à 0,3 mm à l'épaule : les gumori le traversaient) ; `CurveCollider2D` retire les points à moins de 1 cm (aucun
   dans les scènes existantes : inchangées). Contour (Outline) d'une courbe ouverte : tracée dans le sens anti-horaire,
-  `flipSide` décoché. Bocal à remplir (petits gumori qui passent le goulot, fusionnent et épousent le verre, bris) : À FAIRE
+  `flipSide` décoché. Paroi PLEINE (`CurveCollider2D.solidWall`, cochée par `JarShape2D`, 2026-10-27, signalé par
+  l'utilisateur : deux pareils qui se touchent par le goulot, le né s'arrondissait À TRAVERS le verre et restait à cheval) :
+  capsules le long de la ligne médiane au lieu de chaînes (une chaîne ne retient que de sa face, une capsule passée derrière
+  traverse). Mesuré (`Captures/bancs/jar_neck.cs`, un gumori au fond, son pareil poussé dans le goulot, 5 inclinaisons) :
+  niveau 2, pas où l'anneau croise le verre 240/240 → 0/240 ; niveau 1 : 0 dans les deux cas. Bocal à remplir (petits gumori qui passent le goulot, fusionnent et épousent le verre, bris) : À FAIRE
 - `Scripts/Gumori/` : le jeu.
   - `Gumori` : corps d'un gumori, anneau de capsules reliées par des joints fixes (précontraints : ils visent un angle relatif
     nul, seules les différences d'angle comptent). Limite d'étirement (`limitStretch`, 2026-10-26, coupée par défaut, À
