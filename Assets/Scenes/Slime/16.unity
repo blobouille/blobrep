@@ -179,9 +179,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbcf03e784d74e04cb046d5feac9231c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlimeFoam
-  pressureFrequency: 8
-  pressureDamping: 0.7
-  inflate: 1.808
+  pressureFrequency: 9
+  pressureDamping: 0.2
+  inflate: 1.2
   skipMerging: 0
   spinDamping: 0
 --- !u!1 &789686669
@@ -1094,7 +1094,6 @@ MonoBehaviour:
   rimLighten: 0.35
   faceSize: 1.15
   faceShrink: 0.3
-  uprightTime: 0
   blinkInterval: 3.5
   watchDrop: 0
   impactSpeed: 2.5
@@ -1397,20 +1396,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d959d9bbdd123f4383e516f3374a45b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BLOB
-  sides: 32
-  diameter: 0.5
+  sides: 16
+  diameter: 0.7
   debugColor: {r: 0.36, g: 0.7, b: 1, a: 1}
   capsuleRadius: 0.2
   capsuleSpacing: 0
   density: 0.5
-  jointFrequency: 20
+  jointFrequency: 5
   jointDamping: 0.5
-  jointLinearFrequency: 20
+  jointLinearFrequency: 5
   jointLinearDamping: 0.5
   limitStretch: 1
   stretchLimit: 1
   friction: 0.01
-  bounciness: 1
+  bounciness: 0
   fastCollisions: 1
   selfCollision: 0
   selfThickness: 0.1

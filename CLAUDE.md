@@ -241,6 +241,16 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    (2 essais). Bancs : `fusion_bvb.cs` (cas signalé, "attente pas_suivis inclinaison"), `fusion_bvb_shot.sh` (images →
    `Captures/fusion/bvb_*.png`), `fusion_compare.cs` (chevauchement par naissance, pas croisés). Les anciennes parties ne
    se rejouent plus pareil (sans importance, voir Déterminisme)
+   Né à cheval sur le verre (2026-10-28, signalé par l'utilisateur, scène `16` : un rose coincé dans le goulot, son pareil
+   couché sur le bord, le bleu né restait à cheval sur la paroi pour de bon). Cause : le contour recousu fait le tour du
+   bout du verre ; ré-échantillonné aux m capsules du né (deux fois moins serrées que les deux parents), la corde entre deux
+   capsules coupait le bout de la paroi. Maintenant : aucune corde ni aucun pont ne coupe une paroi FIXE
+   (`CurveCollider2D.Fixed`, ligne médiane en coordonnées monde) : pas raccourci au dernier point visible devant la paroi,
+   le reste réparti à égalité (`GumoriFusion.PlaceAlong`), zone de contact rétrécie si un pont coupe le verre ; impossible
+   = fusion remise au pas suivant (`WallWaits`). Sans paroi en travers : mêmes positions qu'avant au bit près. Mesuré
+   (`Captures/bancs/jar_merge.cs`, A enfoncé dans le goulot, B lâché dessus, décalages −0,7 à 0,7 m) : niveau 3, né à
+   cheval sur le verre (capsules) 241/241 pas dans 4 cas sur 6 → 0 ; niveau 4 : 0 → 0. Reste : le polygone des CENTRES des
+   capsules (habillage) peut couper le bout du verre 1 à 25 pas après la naissance, les capsules non
    Habillage d'une forme en U : voir « Gelée élastique » (étape 4, `GumoriSkin`)
    Tenue selon la taille (`sizeStiffness`) : affaissement relatif ≈ g / (fréquence² × taille), donc à joints égaux un gros
    blob est plus dur ; 1 = fréquences × taille^−½ (même comportement : rapport hauteur / largeur au repos 0,717–0,726 de ×1 à
@@ -475,6 +485,12 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Mesuré (bot `Captures/bancs/level_bot.cs`, vise un pareil près d'un bocal ; captures `level_shots.sh` →
      `Captures/niveau/`) : gagné en 10 et 12 tirs, raté (2 / 3) à un autre rythme ; moulin jamais calé ; 0,3–0,45 ms par
      pas (PC) ; identique au bit près (2 essais). Réservoir terrestre : hash inchangé. Pas encore relié à la carte.
+     Objectif de POINTS en Space (2026-10-28, demandé par l'utilisateur, scène `16 1`) : `GumoriGoal` compte les TIRS de la
+     réserve quand un `GumoriLauncher` est là (`maxDrops` = tirs, `GumoriLauncher.shotLimit`, « tirs restants »), même
+     fin qu'en terrestre. `SpaceEndless` et `SpaceLevel` le coupent au lancement : pour un niveau à points, désactiver
+     `SpaceEndless` (graine fixe du lâcher ; piège : Unity appelle `Awake` même composant décoché, `SpaceEndless` et
+     `SpaceLevel` ne font rien quand ils sont décochés depuis le 2026-10-28). `autoTarget` part de la suite des lâchers : approximatif en Space (réserve de
+     départ en plus), objectif à la main conseillé. Banc : `Captures/bancs/goal_space.cs` (raté en 5 tirs, réussi en 6)
      Pistes suivantes (une par niveau, lisibles sur téléphone) : bascule, trappe qui s'ouvre au bout de N fusions,
      ingrédient à faire descendre jusqu'à une sortie, Ternes (gris, ne fusionnent pas, recolorés par une fusion voisine),
      boîte qui tourne

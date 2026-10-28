@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Niveau à objectif : un nombre de coups (lâchers) et un score à atteindre, qui vont ensemble. Score atteint = plus de lâcher,
+// Niveau à objectif : un nombre de coups (lâchers, ou TIRS de la réserve en Space : GumoriLauncher présent) et un score à atteindre, qui vont ensemble. Score atteint = plus de lâcher,
 // la chaîne en cours se finit, puis niveau réussi (les gumori sont retirés : GumoriFinale les fait se diviser et s'envoler). Coups épuisés sans l'atteindre : on
 // attend que la pile se calme (plus de fusion pendant 'settleTime'), puis raté. Tout est compté pendant le pas (lâchers et
 // fusions arrivent dans LevelTick) : même partie = même résultat. Désactivé = partie libre, sans limite.
@@ -14,7 +14,7 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     [Tooltip("Coché : nombre de coups limité et score à atteindre. Décoché : partie libre (lâchers sans limite).\n" +
              "Changer en Play s'applique au prochain redémarrage (R).")]
     public bool useGoal = true;
-    [Tooltip("Nombre de gumori qu'on peut lâcher dans le niveau.")]
+    [Tooltip("Nombre de gumori qu'on peut lâcher dans le niveau (en Space : nombre de tirs depuis la réserve).")]
     [Min(1)] public int maxDrops = 30;
     [Tooltip("Points à atteindre pour réussir le niveau. Calculé (et réécrit) quand 'autoTarget' est coché.")]
     [Min(1)] public int targetScore = 3000;
@@ -46,6 +46,7 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     GumoriDropper _dropper;
     GumoriScore _score;
     GumoriFusion _fusion;
+    GumoriLauncher _launcher;
     bool _active;
     int _lastEventStep, _lastMergeStep, _leftAtWin;
     float _reachedTime = -10f, _endTime;
@@ -137,10 +138,13 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
         _dropper = GumoriDropper.Find<GumoriDropper>(this);
         _score = GumoriDropper.Find<GumoriScore>(this);
         _fusion = GumoriDropper.Find<GumoriFusion>(this);
+        _launcher = GumoriDropper.Find<GumoriLauncher>(this);
         _active = useGoal;
         _target = autoTarget ? ComputeTarget() : targetScore;
-        _dropper.dropLimit = _active ? maxDrops : 0;
+        if (_launcher == null) _dropper.dropLimit = _active ? maxDrops : 0;
+        else if (_active) _launcher.shotLimit = maxDrops;
         _dropper.Dropped += OnDropped;
+        if (_launcher != null) _launcher.Launched += OnLaunched;
         if (_fusion != null) _fusion.Merged += OnMerged;
         Result = State.Playing;
         Reached = false;
@@ -151,10 +155,23 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
     void OnDisable()
     {
         if (_dropper != null) { _dropper.Dropped -= OnDropped; _dropper.dropLimit = 0; }
+        if (_launcher != null) { _launcher.Launched -= OnLaunched; if (_active) _launcher.shotLimit = 0; }
         if (_fusion != null) _fusion.Merged -= OnMerged;
     }
 
     void OnDropped(Gumori blob, int level) => _lastEventStep = LevelSimulation.Step;
+    void OnLaunched(Gumori blob, Vector2 velocity) => _lastEventStep = LevelSimulation.Step;
+
+    // Coups restants / joués : lâchers, ou tirs de la réserve en Space.
+    int Left => _launcher != null ? _launcher.ShotsLeft : _dropper.DropsLeft;
+    int Used => _launcher != null ? _launcher.Shots.Count : _dropper.Drops;
+
+    // Plus aucun coup après celui-ci (objectif atteint).
+    void StopAt(int used)
+    {
+        if (_launcher != null) _launcher.shotLimit = Mathf.Max(1, used);
+        else _dropper.dropLimit = Mathf.Max(1, used);
+    }
     void OnMerged(Gumori blob, int level, Vector2 position) => _lastEventStep = _lastMergeStep = LevelSimulation.Step;
 
     public void LevelTick()
@@ -164,8 +181,8 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
         {
             Reached = true;
             _reachedTime = Time.time;
-            _leftAtWin = _dropper.DropsLeft;
-            _dropper.dropLimit = Mathf.Max(1, _dropper.Drops);
+            _leftAtWin = Left;
+            StopAt(Used);
         }
         if (Reached)
         {
@@ -178,7 +195,7 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
             _dropper.RemoveAll();
             return;
         }
-        if (_dropper.DropsLeft > 0) return;
+        if (Left > 0) return;
         if (LevelSimulation.Step - _lastEventStep < Mathf.RoundToInt(settleTime / Time.fixedDeltaTime)) return;
         Result = State.Lost;
         _endTime = Time.time;
@@ -193,10 +210,10 @@ public class GumoriGoal : MonoBehaviour, ILevelPhysics, ILevelTick
         _title ??= new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
 
         float cx = Screen.width * 0.5f;
-        int left = Result == State.Won ? _leftAtWin : _dropper.DropsLeft;
+        int left = Result == State.Won ? _leftAtWin : Left;
         Color movesColor = left <= 3 && Result == State.Playing ? Color.Lerp(Color.white, new Color(1f, 0.35f, 0.3f), 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 8f)) : Color.white;
         GumoriUi.Outlined(new Rect(cx - 150f, 6f, 300f, 36f), left.ToString(), _big, movesColor, 1f);
-        GumoriUi.Outlined(new Rect(cx - 150f, 38f, 300f, 20f), left > 1 ? "coups restants" : "coup restant", _small, new Color(1f, 1f, 1f, 0.8f), 1f);
+        GumoriUi.Outlined(new Rect(cx - 150f, 38f, 300f, 20f), _launcher != null ? (left > 1 ? "tirs restants" : "tir restant") : left > 1 ? "coups restants" : "coup restant", _small, new Color(1f, 1f, 1f, 0.8f), 1f);
 
         // Barre de progression vers l'objectif.
         float progress = Mathf.Clamp01((float)_score.Score / Mathf.Max(1, _target));

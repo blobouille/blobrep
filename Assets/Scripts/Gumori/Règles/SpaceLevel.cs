@@ -47,6 +47,7 @@ public class SpaceLevel : MonoBehaviour, ILevelPhysics, ILevelTick
 
     void Awake()
     {
+        if (!enabled) return;
         var goal = GumoriDropper.Find<GumoriGoal>(this);
         if (goal != null) goal.useGoal = false;
         var setup = GumoriDropper.Find<GumoriLevelSetup>(this);

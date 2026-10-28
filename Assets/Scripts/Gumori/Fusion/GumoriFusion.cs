@@ -128,6 +128,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         _limit = new float[LoopSamples];
     readonly Vector2[] _path = new Vector2[64];
     readonly float[] _pathArc = new float[65];
+    readonly float[] _along = new float[33];
     int _eventsStep = -1;
 
     public int Merges { get; private set; }
@@ -180,6 +181,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         TangleMerges = 0;
         TurnFixes = 0;
         StitchFallbacks = 0;
+        WallWaits = 0;
     }
 
     void OnDisable()
@@ -401,6 +403,8 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
 
         float radius0 = a.CapsuleThickness;
         int level = Level(a) + 1;
+        // Aucune place sans couper une paroi : fusion remise au pas suivant (la paire reste en contact).
+        if (absorb && !PlaceAlong(LevelSides(level))) { WallWaits++; return; }
         _dropper.Remove(a);
         _dropper.Remove(b);
 
@@ -418,7 +422,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
                 // Capsule posée sur la corde entre deux points du contour, à sa longueur : ses bouts tombent exactement sur ceux
                 // de ses voisines (posées au milieu de l'arc, sur un contour irrégulier, les joints naissaient faussés et se
                 // refermaient d'un coup : anneau plié).
-                Vector2 from = PointAt(k * step, count), to = PointAt((k + 1) * step, count), chord = to - from;
+                Vector2 from = PointAt(_along[k], count), to = PointAt(k + 1 < m ? _along[k + 1] : length, count), chord = to - from;
                 _angles[k] = Mathf.Atan2(chord.y, chord.x) - 0.5f * Mathf.PI;
                 body.transform = new PhysicsTransform(0.5f * (from + to), PhysicsRotate.FromRadians(_angles[k]));
                 chords[k] = chord.magnitude - restSegment;
@@ -621,6 +625,17 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
         float reach = ContactReach * thickness;
         int backA = Zone(0, n, n, ia, -1, reach), aheadA = Zone(0, n, n, ia, 1, reach);
         int backB = Zone(n, 0, n, ib, -1, reach), aheadB = Zone(n, 0, n, ib, 1, reach);
+        // Ponts jamais à travers une paroi fixe (2026-10-28, signalé par l'utilisateur : un gumori couché sur le bord d'un
+        // goulot, son pareil dedans ; la zone de contact passait par-dessus le bord, le pont coupait le verre et le né restait
+        // à cheval dessus). Zone rétrécie par le bout du pont fautif jusqu'à ce qu'il passe du même côté.
+        while (true)
+        {
+            bool first = CrossesWall(_oldPosition[Wrap(ia - backA - 1, n)], _oldPosition[n + Wrap(ib + aheadB + 1, n)]);
+            bool second = CrossesWall(_oldPosition[n + Wrap(ib - backB - 1, n)], _oldPosition[Wrap(ia + aheadA + 1, n)]);
+            if (!first && !second) break;
+            if (first) { if (backA + aheadB == 0) return false; if (backA >= aheadB) backA--; else aheadB--; }
+            if (second) { if (backB + aheadA == 0) return false; if (backB >= aheadA) backB--; else aheadA--; }
+        }
         int keptA = n - (backA + aheadA + 1), keptB = n - (backB + aheadB + 1);
         if (keptA < 3 || keptB < 3) return false;
         int count = 0;
@@ -676,6 +691,9 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     // Fusions en absorption dont le contour recousu se recoupait (contour par rayons à la place), depuis le départ (contrôle).
     public int StitchFallbacks { get; private set; }
 
+    // Fusions remises à plus tard parce que la seule forme de naissance possible coupait une paroi fixe (contrôle).
+    public int WallWaits { get; private set; }
+
     static bool SelfCrossing(Vector2[] p, int count)
     {
         for (int i = 0; i < count; i++)
@@ -693,6 +711,58 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     }
 
     static float Cross(Vector2 u, Vector2 v) => u.x * v.y - u.y * v.x;
+
+    static int Wrap(int i, int n) => (i % n + n) % n;
+
+    // Le segment a-b coupe-t-il la ligne médiane d'une paroi fixe (bocal, boîte) ?
+    static bool CrossesWall(Vector2 a, Vector2 b)
+    {
+        Vector2 lo = Vector2.Min(a, b), hi = Vector2.Max(a, b);
+        foreach (var wall in CurveCollider2D.Fixed)
+        {
+            var line = wall.WorldLine;
+            for (int i = 1; i < line.Length; i++)
+            {
+                Vector2 c = line[i - 1], e = line[i];
+                if (Mathf.Max(c.x, e.x) < lo.x || Mathf.Min(c.x, e.x) > hi.x || Mathf.Max(c.y, e.y) < lo.y || Mathf.Min(c.y, e.y) > hi.y) continue;
+                float d1 = Cross(b - a, c - a), d2 = Cross(b - a, e - a), d3 = Cross(e - c, a - c), d4 = Cross(e - c, b - c);
+                if (d1 * d2 < 0f && d3 * d4 < 0f) return true;
+            }
+        }
+        return false;
+    }
+
+    // Abscisses (_along) des m capsules du né le long du contour (_loop) : régulières, mais aucune corde entre deux voisines ne
+    // coupe une paroi fixe (2026-10-28, signalé par l'utilisateur : un parent couché sur le bord d'un goulot en fait le tour ;
+    // ré-échantillonné à m points, deux fois moins serrés que les deux parents, la corde coupait le bout du verre et le né
+    // naissait à cheval dessus). Pas raccourci au dernier sommet visible devant la paroi, le reste réparti à égalité.
+    // Faux si impossible (la fusion attend).
+    bool PlaceAlong(int m)
+    {
+        const int count = LoopSamples;
+        float length = _arc[count];
+        _along[0] = 0f;
+        int i = 1;
+        bool shortened = false;
+        for (int k = 1; k <= m; k++)
+        {
+            float from = _along[k - 1], target = k == m ? length : shortened ? from + (length - from) / (m - k + 1) : k * (length / m);
+            Vector2 p = PointAt(from, count);
+            if (!CrossesWall(p, PointAt(target, count))) { if (k < m) _along[k] = target; continue; }
+            if (k == m) return false;
+            while (i < count && _arc[i] <= from) i++;
+            float s = from;
+            for (; i < count && _arc[i] < target; i++)
+            {
+                if (CrossesWall(p, _loop[i])) break;
+                s = _arc[i];
+            }
+            if (s <= from) return false;
+            _along[k] = s;
+            shortened = true;
+        }
+        return true;
+    }
 
     // Vitesse moyenne de chacun des deux anciens gumori.
     void ParentVelocities(int n)

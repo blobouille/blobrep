@@ -21,6 +21,11 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
     PhysicsBody _body;
     const float MinGap = 0.01f;
 
+    // Parois FIXES en jeu et leur ligne médiane en coordonnées monde (une fusion ne fait pas naître un gumori à travers :
+    // GumoriFusion). Ordre de la liste sans importance (seulement des tests oui / non).
+    public static readonly List<CurveCollider2D> Fixed = new List<CurveCollider2D>();
+    public Vector2[] WorldLine { get; private set; }
+
     void OnEnable()
     {
         if (!Application.isPlaying) return;
@@ -28,6 +33,14 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
         path.Rebuild();
         if (solidWall) BuildSolid(path);
         else Build(path.BuildCollisionChains());
+        if (!OnPath)
+        {
+            var line = new List<Vector2>(path.center.Count + 1);
+            foreach (var p in path.center) line.Add(transform.TransformPoint(p));
+            if (path.closed && line.Count > 2) line.Add(line[0]);
+            WorldLine = line.ToArray();
+            Fixed.Add(this);
+        }
     }
 
     // Capsules sur la ligne médiane (points à moins de 'MinGap' sautés), bouts arrondis qui se recouvrent : surface lisse.
@@ -51,7 +64,11 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
             _body.CreateShape(new CapsuleGeometry { center1 = points[i - 1], center2 = points[i], radius = radius }, shapeDef);
     }
 
-    void OnDisable() => Cleanup();
+    void OnDisable()
+    {
+        Fixed.Remove(this);
+        Cleanup();
+    }
 
     public PhysicsBody Body => _body;
 

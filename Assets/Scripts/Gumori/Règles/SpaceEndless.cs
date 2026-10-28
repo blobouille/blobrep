@@ -20,11 +20,13 @@ public class SpaceEndless : MonoBehaviour
     void Awake()
     {
         _dropper = GumoriDropper.Find<GumoriDropper>(this);
+        _best = PlayerPrefs.GetInt(BestKey, 0);
+        // Unity appelle Awake même composant décoché : décoché = pas de mode Sans fin (objectif et graine de la scène).
+        if (!enabled) return;
         var goal = GumoriDropper.Find<GumoriGoal>(this);
         if (goal != null) goal.useGoal = false;
         var setup = GumoriDropper.Find<GumoriLevelSetup>(this);
         if (setup != null) setup.enabled = false;
-        _best = PlayerPrefs.GetInt(BestKey, 0);
         NewSeed();
     }
 
