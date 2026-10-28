@@ -313,7 +313,8 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
    - `GumoriSkin` : un design par niveau (11 ; depuis le 2026-10-24, découpés en cases combinables et dans l'ordre des
      familles de couleur : voir « Création et design des gumori » ; mêmes couleurs dans `GumoriFusion.levelColors`).
      La gelée suit l'anneau physique (contour lissé entre les capsules) ; motif et visage
-     dans un repère qui se déforme avec elle ; visage remis à l'endroit après avoir roulé (`uprightTime`). Vivant : clignements,
+     dans un repère qui se déforme avec elle et TOURNE avec l'anneau (2026-10-28, demandé par l'utilisateur ; avant :
+     visage remis à l'endroit en glissant sur le corps, `uprightTime` retiré). Vivant : clignements,
      regard vers le slime à lâcher ou une fusion voisine, bouche ouverte en chute, grimace au choc, sourire après fusion,
      éclair et accessoires qui poussent à l'éclat de la fusion. Yeux agrandis (2026-10-22). Vitrine des designs dans la
      Scene view. Rebord translucide (2026-10-23, façon Slime Rancher) : pourtour de gelée plus claire de la couleur du slime,
@@ -338,6 +339,20 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      (essais : feuille pour tous 1,5 ms ; test « dans la peau » à chaque passe 3,4 ms). Remplace `FanCenter` (centre poussé
      dans le corps, réglages `fan*` retirés ; bancs `fan_center.cs` / `fan_jitter*.cs` ne compilent plus) et le découpage en
      oreilles du U (facettes, visage écrasé)
+     GELÉE UNIQUE (2026-10-28, remplace l'éventail ET la gelée à seuil ci-dessus ; signalé par l'utilisateur : choc contre
+     une paroi, scène `space endless 2`, visage coupé, sur le côté, disparu, morceau de texture en retard ; « un seul
+     système, simple, robuste, sans retard ») : TOUS les gumori, à chaque image, même maillage (centre + 3 anneaux à la
+     résolution des capsules + contour) collé à l'anneau (point k du contour = capsule k). Intérieur par ARAP local / global :
+     rotation (et échelle, `JellyFreedom` 0,5 = moyenne géométrique avec celle du gumori) de chaque triangle, puis système
+     linéaire de l'intérieur (Cholesky en bande factorisé une fois par nombre de capsules) ; départ = image d'avant déplacée
+     comme le contour (translation, rotation, échelle), jusqu'à 5 itérations (20 la première fois), arrêt quand plus rien ne
+     bouge de 0,25 px ; gumori au repos : sauté. Gumori virtuels : même disque, rond. Mesuré (`Captures/bancs/jelly_watch.sh`,
+     1 500 images, un tir à pleine vitesse toutes les 0,5 s, `Assets/Temp/JellyWatch.cs` ; film d'un tir contre la paroi :
+     `jelly_shot.cs` + `Assets/Temp/JellyRec.cs` → `Captures/gelee/planche_*.png`) : visage toujours là (écrasé contre la
+     paroi, plié avec la banane) ; triangles retournés : pire 5–11 % de l'aire, seulement dans des gumori écrasés en
+     lamelle ou des naissances en haltère (ancienne gelée : 37 %) ; gelée 0,07–0,10 ms par image en moyenne, p95 0,5 ;
+     habillage complet 0,72 ms contre 0,56 avant (PC). Essayé : liberté 1 (conformal) : moins de plis mais le visage glisse
+     dans le creux d'un gumori en C ; 0,75 : entre les deux. Marqueurs Profiler `GumoriSkin.Build` / `GumoriSkin.Jelly`
    - `GumoriFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
