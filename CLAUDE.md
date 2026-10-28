@@ -494,6 +494,21 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      Pistes suivantes (une par niveau, lisibles sur téléphone) : bascule, trappe qui s'ouvre au bout de N fusions,
      ingrédient à faire descendre jusqu'à une sortie, Ternes (gris, ne fusionnent pas, recolorés par une fusion voisine),
      boîte qui tourne
+     Direction des niveaux (décision du 2026-10-28) : CHILL façon Block Blast (« pas d'intellect, l'illusion de
+     réfléchir »), le geste reste COMBINER, très peu de mécaniques. Écartées (jugées prise de tête) : plaques à pression,
+     leviers / bascules, ventilateurs, brèches posées à la main. La variété vient surtout de la forme de la boîte, du départ
+     (gumori posés, réserve choisie) et d'UN objectif lisible ; boîte ronde qui tourne : à essayer plus tard.
+     BOMBES (2026-10-28, idée de l'utilisateur, prototype scène `Slime/bombes (essai)`, copie de `16 1`, À TESTER) :
+     bombe = boule rigide de la COULEUR d'un niveau avec un compte à rebours en TIRS (gros chiffre). Posées sur le terrain
+     et / ou arrivant dans la réserve à un rang donné (on la lance comme un gumori ; son compte ne tourne qu'une fois
+     lancée). À 0, explosion 1,5 s après le tir : un gumori de SA couleur qui la touche l'absorbe (points en plus), sinon
+     l'onde pousse les gumori (plus fort au centre) et fêle la paroi : TOUTE la boîte peut casser (morceaux d'≈ 1 m, 2
+     fêlures), un morceau cédé = trou, un gros gumori peut le boucher ; un gumori sorti de la boîte coûte ses points.
+     Objectif = points en N tirs (`GumoriGoal`). Petite bombe : compte court, onde faible ; grosse : compte long, onde large
+     et forte, plus de fêlures. Aucun rayon affiché en jeu (incertitude voulue : on apprend) ; aperçu du rayon hors Play
+     seulement. Répartition des bombes = futur algorithme de difficulté. Banc : `Captures/bancs/bomb_run.cs` (partie
+     scriptée : explosions, morceaux cédés, sorties, hash ; identique au bit près sur 2 essais), captures
+     `Captures/bombes/`. Dessin des fêlures provisoire (traits)
 6. Avatar à créer : le blob du joueur sur la carte, mélange de tous les accessoires et shaders possibles des slimes
    (en attendant : le Roi)
 
@@ -607,7 +622,10 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
     (parois qui retiennent au lieu de relancer)
   - Space : `GumoriLauncher` (réserve et tir), `GumoriFoam` (pression), `GumoriUntangle`, `SpaceEndless`
   - Mécaniques de niveau (Space) : `GumoriJars` (bocaux), `GumoriMill` (moulin), `SpaceLevel` (objectif : bocaux en N tirs) ;
-    dessinées par `Cosmetics/GumoriLevelArt`
+    dessinées par `Cosmetics/GumoriLevelArt` ; `GumoriBombs` (bombes, fuites hors de la boîte ; réserve :
+    `GumoriLauncher` lui demande si une arrivée est une bombe), dessinées par `Cosmetics/GumoriBombArt` (`GumoriFx.Blast`).
+    Bombe = un `Gumori` (`isBomb` : jamais de fusion, pas d'habillage). Paroi cassable : `CurveCollider2D.breakable`
+    (morceaux = corps séparés, `Damage`, trous dessinés par `GumoriBackdrop`) ; points hors fusion : `GumoriScore.AddPoints`
   - Parties : `GumoriCampaign` (niveaux de l'Aventure), `GumoriSession` (partie choisie, progression dans PlayerPrefs,
     gardée en mémoire, graines tirées au hasard), `GumoriLevelSetup` (applique la partie choisie au réservoir, boutons de
     fin ; Play direct dans l'éditeur = réglages de la scène, rien ne change), `GumoriUi` (boutons et textes OnGUI communs,

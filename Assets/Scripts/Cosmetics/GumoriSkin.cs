@@ -373,7 +373,7 @@ public class GumoriSkin : MonoBehaviour
             for (int b = 0; b < blobs.Count; b++)
             {
                 var blob = blobs[b];
-                if (blob == null || blob.CapsuleCount < 3) continue;
+                if (blob == null || blob.CapsuleCount < 3 || blob.isBomb) continue;
                 var look = GetLook(blob);
                 look.seen = _frame;
                 UpdateBlob(blob, look, dt, step);

@@ -308,7 +308,7 @@ public class GumoriFusion : MonoBehaviour, ILevelPhysics, ILevelTick
     static (Gumori, Gumori) Key(Gumori a, Gumori b) => a.GetHashCode() < b.GetHashCode() ? (a, b) : (b, a);
 
     bool Mergeable(Gumori a, Gumori b) =>
-        a != b && a.diameter == b.diameter && a.sides == b.sides && !(maxLevel > 0 && Level(a) >= maxLevel);
+        a != b && !a.isBomb && !b.isBomb && a.diameter == b.diameter && a.sides == b.sides && !(maxLevel > 0 && Level(a) >= maxLevel);
 
     void AddCandidate(Gumori a, Gumori b, int ia, int ib)
     {

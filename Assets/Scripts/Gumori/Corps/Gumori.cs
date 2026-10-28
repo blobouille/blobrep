@@ -91,6 +91,8 @@ public class Gumori : MonoBehaviour, ILevelPhysics
 
     // Rang dans la liste des gumori en jeu (GumoriDropper.Active), -1 hors de la liste.
     public int Index { get; internal set; } = -1;
+    // Bombe (GumoriBombs) : boule rigide qui ne fusionne jamais, dessinée par GumoriBombArt et pas par GumoriSkin.
+    [System.NonSerialized] public bool isBomb;
 
     public int CapsuleCount => _bodies.IsCreated ? _bodies.Length : 0;
     public PhysicsBody Capsule(int i) => _bodies[i];

@@ -150,7 +150,12 @@ public class GumoriBackdrop : MonoBehaviour
         float along = 0f;
         var left = reservoir.left;
         var right = reservoir.right;
-        for (int i = 0; i < n; i++)
+        var breakable = Application.isPlaying && reservoir.TryGetComponent(out CurveCollider2D wall) && wall.BrokenCount > 0 ? wall : null;
+        if (breakable != null)
+        {
+            BuildBrokenWalls(breakable, tr, n);
+        }
+        else for (int i = 0; i < n; i++)
         {
             int k = i % center.Count;
             if (i > 0) along += (_line[i] - _line[i - 1]).magnitude;
@@ -178,6 +183,50 @@ public class GumoriBackdrop : MonoBehaviour
             _tris.Add(0); _tris.Add(1 + i); _tris.Add(1 + (i + 1) % n);
         }
         Upload(_panel);
+    }
+
+    // Paroi cassable avec des morceaux cédés : chaque côté découpé aux bords des morceaux, les bouts cédés ne sont pas
+    // dessinés (trou dans le verre).
+    void BuildBrokenWalls(CurveCollider2D wall, Transform tr, int n)
+    {
+        var center = reservoir.center;
+        var left = reservoir.left;
+        var right = reservoir.right;
+        var pieces = wall.Pieces;
+        Vector4 col = new Vector4(glass.r, glass.g, glass.b, glass.a);
+        float along = 0f;
+        for (int i = 1; i < n; i++)
+        {
+            float len = (_line[i] - _line[i - 1]).magnitude;
+            float a0 = along, a1 = along + len;
+            along = a1;
+            if (len <= 0f) continue;
+            Vector2 l0 = tr.TransformPoint(left[(i - 1) % center.Count]), l1 = tr.TransformPoint(left[i % center.Count]);
+            Vector2 r0 = tr.TransformPoint(right[(i - 1) % center.Count]), r1 = tr.TransformPoint(right[i % center.Count]);
+            float t0 = 0f;
+            while (t0 < 1f)
+            {
+                float cut = a1;
+                for (int p = 0; p < pieces.Count; p++)
+                {
+                    if (pieces[p].from > a0 + t0 * len + 1e-4f) cut = Mathf.Min(cut, pieces[p].from);
+                    if (pieces[p].to > a0 + t0 * len + 1e-4f) cut = Mathf.Min(cut, pieces[p].to);
+                }
+                float t1 = Mathf.Clamp01((cut - a0) / len);
+                if (t1 <= t0) t1 = 1f;
+                if (!wall.BrokenAt(a0 + 0.5f * (t0 + t1) * len))
+                {
+                    int v = _verts.Count;
+                    Add(Vector2.Lerp(l0, l1, t0), new Vector4(a0 + t0 * len, 1f, 5f, 0f), col);
+                    Add(Vector2.Lerp(r0, r1, t0), new Vector4(a0 + t0 * len, -1f, 5f, 0f), col);
+                    Add(Vector2.Lerp(l0, l1, t1), new Vector4(a0 + t1 * len, 1f, 5f, 0f), col);
+                    Add(Vector2.Lerp(r0, r1, t1), new Vector4(a0 + t1 * len, -1f, 5f, 0f), col);
+                    _tris.Add(v); _tris.Add(v + 1); _tris.Add(v + 3);
+                    _tris.Add(v); _tris.Add(v + 3); _tris.Add(v + 2);
+                }
+                t0 = t1;
+            }
+        }
     }
 
     void Clear()

@@ -292,6 +292,27 @@ public class GumoriFx : MonoBehaviour
         if (backdrop != null) backdrop.Pulse(body, 0.12f + 0.03f * level);
     }
 
+    // Explosion d'une bombe (GumoriBombs) : boule de lumière, onde jusqu'au rayon de l'explosion, étincelles, éclair et fort
+    // tremblement.
+    public void Blast(Vector2 p, float radius, Color color)
+    {
+        Color hot = Color.Lerp(color, new Color(1f, 0.85f, 0.5f), 0.5f);
+        Emit(4, p, Vector2.zero, 0.3f * radius, 0.8f * radius, 0.35f, Hdr(hot, 2.5f), 1f);
+        Emit(2, p, Vector2.zero, 0.2f * radius, radius, 0.45f, Hdr(Color.Lerp(color, Color.white, 0.6f), 2f), 1f, param: 0.06f);
+        for (int i = 0; i < 18; i++)
+        {
+            float a = Rand(0f, Mathf.PI * 2f);
+            Vector2 dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+            Emit(1, p + dir * 0.2f * radius, dir * Rand(4f, 9f), Rand(0.15f, 0.3f), 0f, Rand(0.3f, 0.6f), Hdr(Color.Lerp(hot, Color.white, Rand(0f, 0.5f)), Rand(2f, 3.5f)), 1f,
+                gravity: 4f, drag: 3f, spin: Rand(-8f, 8f));
+            Emit(0, p + dir * 0.3f * radius, dir * Rand(2f, 6f), Rand(0.05f, 0.12f), 0f, Rand(0.4f, 0.8f), new Vector4(0.2f, 0.18f, 0.22f, 1f), 0f, gravity: 6f, drag: 1f);
+        }
+        _trauma = Mathf.Min(1f, _trauma + 0.45f);
+        _flash = Mathf.Max(_flash, 0.25f);
+        _flashColor = hot;
+        if (backdrop != null) backdrop.Pulse(hot, 0.5f);
+    }
+
     // Niveau réussi : pluie de confettis et éclair doré.
     public void Celebrate()
     {

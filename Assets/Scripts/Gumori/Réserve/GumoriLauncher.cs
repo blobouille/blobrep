@@ -67,6 +67,7 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
 
     GumoriDropper _dropper;
     GumoriFusion _fusion;
+    GumoriBombs _bombs;
     readonly List<int> _sequence = new List<int>();
     readonly List<Gumori> _rack = new List<Gumori>();
     readonly List<Request> _pending = new List<Request>();
@@ -85,6 +86,7 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         _dropper = GumoriDropper.Find<GumoriDropper>(this);
         _fusion = GumoriDropper.Find<GumoriFusion>(this);
+        _bombs = FindAnyObjectByType<GumoriBombs>();
         _rack.Clear();
         _pending.Clear();
         Shots.Clear();
@@ -201,7 +203,8 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
     {
         if (_dropper.template == null) return false;
         int level = _sequence[_drawn % _sequence.Count];
-        float r = LevelRadius(level);
+        int bomb = _bombs != null && _bombs.isActiveAndEnabled ? _bombs.RackBombLevel(_drawn) : -1;
+        float r = bomb >= 0 ? _bombs.BombRadius(bomb) : LevelRadius(level);
         float y = Mathf.Min(RackY, _ceiling - r - 0.05f);
         // Bord gauche puis droit à tour de rôle ; l'autre bord si celui-ci est occupé.
         float side = _drawn % 2 == 0 ? -1f : 1f;
@@ -212,8 +215,8 @@ public class GumoriLauncher : MonoBehaviour, ILevelPhysics, ILevelTick
             at.x = transform.position.x + side * (_inner - r - 0.05f);
             if (!Free(at, r)) return false;
         }
-        _drawn++;
-        var blob = _dropper.SpawnLevel(at, level);
+        int arrival = _drawn++;
+        var blob = bomb >= 0 ? _bombs.SpawnRackBomb(arrival, at) : _dropper.SpawnLevel(at, level);
         var v = new Vector2(-side * arrivalSpeed, 0f);
         for (int k = 0; k < blob.CapsuleCount; k++)
         {

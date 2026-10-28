@@ -18,6 +18,15 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
              "se laisse traverser par un gumori tiré de l'autre côté (fusion à travers un goulot). Ignore le mode de collision.")]
     public bool solidWall;
 
+    [Header("Casse")]
+    [Tooltip("Coché : paroi PLEINE découpée en morceaux qui se fêlent puis cèdent sous les explosions (GumoriBombs) ; un\n" +
+             "morceau cédé laisse un trou par où les gumori s'échappent. Paroi fixe seulement (pas sur une trajectoire).")]
+    public bool breakable;
+    [Tooltip("Longueur visée d'un morceau (m), le long de la courbe (arrondie pour un nombre entier de morceaux).")]
+    [Min(0.2f)] public float pieceLength = 1f;
+    [Tooltip("Explosions (dégâts) pour faire céder un morceau.")]
+    [Range(1, 6)] public int pieceHits = 2;
+
     PhysicsBody _body;
     const float MinGap = 0.01f;
 
@@ -26,13 +35,33 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
     public static readonly List<CurveCollider2D> Fixed = new List<CurveCollider2D>();
     public Vector2[] WorldLine { get; private set; }
 
+    public struct Piece
+    {
+        public float from, to;   // le long de WorldLine (m)
+        public int first, count; // points de son tracé dans PiecePoints
+        public int hitsLeft;
+        public bool broken;
+    }
+
+    // Parois cassables en jeu (ordre de création des parois : les explosions les parcourent dans cet ordre).
+    public static readonly List<CurveCollider2D> Breakables = new List<CurveCollider2D>();
+    readonly List<Piece> _pieces = new List<Piece>();
+    readonly List<Vector2> _piecePoints = new List<Vector2>();
+    readonly List<PhysicsBody> _pieceBodies = new List<PhysicsBody>();
+    public IReadOnlyList<Piece> Pieces => _pieces;
+    public IReadOnlyList<Vector2> PiecePoints => _piecePoints;
+    public int BrokenCount { get; private set; }
+    // Morceau fêlé (indice, coups restants ; 0 = cédé), pendant le pas, aussi pendant le rejeu accéléré.
+    public event System.Action<int, int> PieceHit;
+
     void OnEnable()
     {
         if (!Application.isPlaying) return;
         var path = GetComponent<CurvePath2D>();
         path.Rebuild();
-        if (solidWall) BuildSolid(path);
-        else Build(path.BuildCollisionChains());
+        bool pieces = breakable && !OnPath;
+        if (!pieces && solidWall) BuildSolid(path);
+        else if (!pieces) Build(path.BuildCollisionChains());
         if (!OnPath)
         {
             var line = new List<Vector2>(path.center.Count + 1);
@@ -41,6 +70,7 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
             WorldLine = line.ToArray();
             Fixed.Add(this);
         }
+        if (pieces) BuildPieces(path);
     }
 
     // Capsules sur la ligne médiane (points à moins de 'MinGap' sautés), bouts arrondis qui se recouvrent : surface lisse.
@@ -64,9 +94,119 @@ public class CurveCollider2D : MonoBehaviour, ILevelPhysics, IPathRider
             _body.CreateShape(new CapsuleGeometry { center1 = points[i - 1], center2 = points[i], radius = radius }, shapeDef);
     }
 
+    // Paroi cassable : WorldLine découpée en morceaux de longueur égale, chacun son corps statique de capsules (comme une
+    // paroi pleine) : un morceau qui cède est détruit seul.
+    void BuildPieces(CurvePath2D path)
+    {
+        var line = WorldLine;
+        float total = 0f;
+        for (int i = 1; i < line.Length; i++) total += (line[i] - line[i - 1]).magnitude;
+        if (total <= 0f) return;
+        int count = Mathf.Max(1, Mathf.RoundToInt(total / pieceLength));
+        float step = total / count;
+        var bodyDef = PhysicsBodyDefinition.defaultDefinition;
+        bodyDef.type = PhysicsBody.BodyType.Static;
+        var shapeDef = PhysicsShapeDefinition.defaultDefinition;
+        var material = shapeDef.surfaceMaterial;
+        material.friction = friction;
+        material.bounciness = bounciness;
+        shapeDef.surfaceMaterial = material;
+        float radius = 0.5f * path.thickness * Mathf.Abs(transform.lossyScale.x);
+        int seg = 1;
+        float segStart = 0f;
+        for (int k = 0; k < count; k++)
+        {
+            float from = k * step, to = k == count - 1 ? total : (k + 1) * step;
+            var piece = new Piece { from = from, to = to, first = _piecePoints.Count, hitsLeft = pieceHits };
+            _piecePoints.Add(PointAt(from));
+            while (seg < line.Length)
+            {
+                float segEnd = segStart + (line[seg] - line[seg - 1]).magnitude;
+                if (segEnd >= to) break;
+                if ((line[seg] - _piecePoints[_piecePoints.Count - 1]).sqrMagnitude >= MinGap * MinGap) _piecePoints.Add(line[seg]);
+                segStart = segEnd;
+                seg++;
+            }
+            Vector2 end = PointAt(to);
+            if ((end - _piecePoints[_piecePoints.Count - 1]).sqrMagnitude >= MinGap * MinGap || _piecePoints.Count - piece.first < 2) _piecePoints.Add(end);
+            piece.count = _piecePoints.Count - piece.first;
+            var body = PhysicsWorld.defaultWorld.CreateBody(bodyDef);
+            for (int i = 1; i < piece.count; i++)
+                body.CreateShape(new CapsuleGeometry { center1 = _piecePoints[piece.first + i - 1], center2 = _piecePoints[piece.first + i], radius = radius }, shapeDef);
+            _pieces.Add(piece);
+            _pieceBodies.Add(body);
+        }
+        BrokenCount = 0;
+        Breakables.Add(this);
+    }
+
+    // Point de WorldLine à la distance 'along' (m) de son début.
+    public Vector2 PointAt(float along)
+    {
+        var line = WorldLine;
+        for (int i = 1; i < line.Length; i++)
+        {
+            float len = (line[i] - line[i - 1]).magnitude;
+            if (along <= len || i == line.Length - 1) return Vector2.Lerp(line[i - 1], line[i], len > 0f ? Mathf.Clamp01(along / len) : 0f);
+            along -= len;
+        }
+        return line.Length > 0 ? line[0] : (Vector2)transform.position;
+    }
+
+    // Morceau cédé à cet endroit de WorldLine (dessin du verre).
+    public bool BrokenAt(float along)
+    {
+        for (int i = 0; i < _pieces.Count; i++)
+            if (_pieces[i].broken && along >= _pieces[i].from && along <= _pieces[i].to) return true;
+        return false;
+    }
+
+    // Distance (m) du point au tracé du morceau (ligne médiane).
+    public float PieceDistance(int index, Vector2 p)
+    {
+        var piece = _pieces[index];
+        float best = float.MaxValue;
+        for (int i = 1; i < piece.count; i++)
+        {
+            Vector2 a = _piecePoints[piece.first + i - 1], ab = _piecePoints[piece.first + i] - a;
+            float t = ab.sqrMagnitude > 0f ? Mathf.Clamp01(Vector2.Dot(p - a, ab) / ab.sqrMagnitude) : 0f;
+            best = Mathf.Min(best, (p - a - ab * t).magnitude);
+        }
+        return best;
+    }
+
+    // Explosion (pendant le pas) : chaque morceau entier à moins de 'radius' du point perd 'damage' coups ; à 0 il cède
+    // (corps détruit). Rend le nombre de morceaux touchés.
+    public int Damage(Vector2 at, float radius, int damage)
+    {
+        int hit = 0;
+        for (int i = 0; i < _pieces.Count; i++)
+        {
+            var piece = _pieces[i];
+            if (piece.broken || PieceDistance(i, at) > radius) continue;
+            piece.hitsLeft = Mathf.Max(0, piece.hitsLeft - damage);
+            if (piece.hitsLeft == 0)
+            {
+                piece.broken = true;
+                BrokenCount++;
+                if (_pieceBodies[i].isValid) _pieceBodies[i].Destroy();
+            }
+            _pieces[i] = piece;
+            hit++;
+            PieceHit?.Invoke(i, piece.hitsLeft);
+        }
+        return hit;
+    }
+
     void OnDisable()
     {
         Fixed.Remove(this);
+        Breakables.Remove(this);
+        for (int i = 0; i < _pieceBodies.Count; i++)
+            if (_pieceBodies[i].isValid) _pieceBodies[i].Destroy();
+        _pieceBodies.Clear();
+        _pieces.Clear();
+        _piecePoints.Clear();
         Cleanup();
     }
 

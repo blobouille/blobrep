@@ -95,6 +95,19 @@ public class GumoriScore : MonoBehaviour, ILevelPhysics
         });
     }
 
+    // Points donnés ou retirés hors fusion (bombe absorbée, gumori sorti de la boîte), pendant le pas ; jamais sous 0.
+    public void AddPoints(int points, Vector2 position, Color color)
+    {
+        Score = Mathf.Max(0, Score + points);
+        if (Score > Best) Best = Score;
+        if (LevelSimulation.FastForwarding) return;
+        _popups.Add(new Popup
+        {
+            position = position, text = points >= 0 ? $"+{points}" : $"−{-points}",
+            color = points >= 0 ? color : new Color(1f, 0.35f, 0.35f), born = Time.time, size = 26f
+        });
+    }
+
     void OnGUI()
     {
         if (!Application.isPlaying) return;
