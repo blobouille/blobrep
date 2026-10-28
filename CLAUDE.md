@@ -340,19 +340,27 @@ noms de designs (Goutte, Pousse…) ni parler de « Suika » pour les désigner.
      dans le corps, réglages `fan*` retirés ; bancs `fan_center.cs` / `fan_jitter*.cs` ne compilent plus) et le découpage en
      oreilles du U (facettes, visage écrasé)
      GELÉE UNIQUE (2026-10-28, remplace l'éventail ET la gelée à seuil ci-dessus ; signalé par l'utilisateur : choc contre
-     une paroi, scène `space endless 2`, visage coupé, sur le côté, disparu, morceau de texture en retard ; « un seul
-     système, simple, robuste, sans retard ») : TOUS les gumori, à chaque image, même maillage (centre + 3 anneaux à la
-     résolution des capsules + contour) collé à l'anneau (point k du contour = capsule k). Intérieur par ARAP local / global :
-     rotation (et échelle, `JellyFreedom` 0,5 = moyenne géométrique avec celle du gumori) de chaque triangle, puis système
-     linéaire de l'intérieur (Cholesky en bande factorisé une fois par nombre de capsules) ; départ = image d'avant déplacée
-     comme le contour (translation, rotation, échelle), jusqu'à 5 itérations (20 la première fois), arrêt quand plus rien ne
-     bouge de 0,25 px ; gumori au repos : sauté. Gumori virtuels : même disque, rond. Mesuré (`Captures/bancs/jelly_watch.sh`,
-     1 500 images, un tir à pleine vitesse toutes les 0,5 s, `Assets/Temp/JellyWatch.cs` ; film d'un tir contre la paroi :
-     `jelly_shot.cs` + `Assets/Temp/JellyRec.cs` → `Captures/gelee/planche_*.png`) : visage toujours là (écrasé contre la
-     paroi, plié avec la banane) ; triangles retournés : pire 5–11 % de l'aire, seulement dans des gumori écrasés en
-     lamelle ou des naissances en haltère (ancienne gelée : 37 %) ; gelée 0,07–0,10 ms par image en moyenne, p95 0,5 ;
-     habillage complet 0,72 ms contre 0,56 avant (PC). Essayé : liberté 1 (conformal) : moins de plis mais le visage glisse
-     dans le creux d'un gumori en C ; 0,75 : entre les deux. Marqueurs Profiler `GumoriSkin.Build` / `GumoriSkin.Jelly`
+     une paroi, visage coupé, sur le côté, disparu, texture en retard, puis texture superposée le long d'une ligne sur un
+     gumori à peine déformé ; « un seul système, simple, robuste, optimisé, sans artefact, s'étirer et se compresser ») :
+     TOUS les gumori, à chaque image, même maillage (centre + 3 anneaux à la résolution des capsules + contour) collé à
+     l'anneau (point k du contour = capsule k), SANS mémoire d'une image à l'autre. Anneaux = contour rétréci par un flot de
+     courbure qui ne fait que RENTRER (Dziuk semi-implicite, tridiagonal cyclique ; un creux ne bouge pas), jusqu'à
+     l'aire de l'anneau au repos (rayon²) ; chaque point suit sa trajectoire depuis sa capsule ; centre = là où la courbe
+     s'éteint (au plus profond du corps). Chaque anneau est dans le précédent : rien ne se croise. Gumori immobile : sauté.
+     Gumori virtuels : même disque, rond. Bac à sable (scène `Slime/space bac à sable`, copie de `space endless 1`, réserve
+     coupée, `Scripts/Dev/GumoriJellyLab` : un gumori niveau 6 et un DOIGT Box2D, souris ou scénario en boucle :
+     écrasement, piqûre, étirement (capsules attrapées), coin, gifle ; non déterministe, outil de test et premier essai du
+     futur « écraser son gumori avec les doigts »). Bancs : `Captures/bancs/lab_watch.sh` (un tour du scénario après
+     redémarrage, relevé `Assets/Temp/JellyWatch.cs` : triangles retournés, coût, pires cas en image + SVG du maillage),
+     `lab_film.sh` (planche `Captures/gelee/planche_<nom>.png`), `jelly_watch.sh` (partie Space, un tir à pleine vitesse
+     toutes les 0,5 s), `jelly_shot.cs` (tir filmé contre la paroi). Mesuré, bac à sable (1 650 images) : triangles
+     retournés 0 ; partie `space endless 1` (1 500 images) : 3 images avec plus de 0,5 % de l'aire retournée (ARAP : ≈ 200),
+     pire 1,5 % (pointe d'un gumori en lentille, invisible ; ARAP 11 %, ancienne gelée 37 %), centre jamais hors du corps ;
+     gelée 0,07 ms par image en moyenne (p95 0,4), habillage complet ≈ 0,72 ms (0,56 avant, PC). Essayés le même jour et
+     écartés : ARAP partant de l'image d'avant (plis coincés), vrai flot de courbure (anneaux sortis par les creux d'un
+     gumori écrasé en U, même avec 25 pas), points réalignés sur les fractions de longueur des capsules (fine bande
+     repliée le long des creux). Reste visible : un gumori écrasé à plat a un visage très tassé (vraie compression), une
+     fine couture où les anneaux d'une lentille se rejoignent. Marqueurs Profiler `GumoriSkin.Build` / `GumoriSkin.Jelly`
    - `GumoriFx` : fusion en deux temps (l'explosion cachait la mitose, 2026-10-22) : pendant la fusion, seulement une lueur
      douce DERRIÈRE ; à `popAt` (80 % de `mergeTime`) l'éclat : halo et onde derrière les slimes (file 2990), gouttes et
      étincelles depuis sa surface, cloche et son de chaîne au même moment ; points affichés au-dessus du nouveau slime.
@@ -605,7 +613,7 @@ la gravité de tous les gumori), obstacles, casse, comptage de contacts par caps
   trouve les autres par `GumoriDropper.Find<T>(this)` (parent « Jeu » puis ses enfants) ou `dropper.Part<T>()`, jamais
   `GetComponent` (plus sur le même objet). L'ordre des sous-objets = ordre des `LevelTick` : refonte vérifiée identique au
   bit près (`Captures/bancs/ref_run.sh` : terrestre, space endless 1, niveau à bocaux)
-- `Scripts/Core/` : moteur ; `Scripts/Cosmetics/` : effets purement visuels (ils LISENT l'état, jamais d'écriture, jamais
+- `Scripts/Core/` : moteur ; `Scripts/Dev/` : outils de test en jeu (bac à sable de la gelée) ; `Scripts/Cosmetics/` : effets purement visuels (ils LISENT l'état, jamais d'écriture, jamais
   dans `LevelTick`, dans `LateUpdate`) ; `Editor/` : inspecteurs et poignées (pas inclus dans le jeu)
 - Déplacer / renommer un script uniquement via Unity (`AssetDatabase.MoveAsset`) : le `.meta` suit, les scènes gardent leurs références
 

@@ -867,239 +867,179 @@ public class GumoriSkin : MonoBehaviour
         if ((parts & Parts.Front) != 0) EmitAccessories(d, true, n, rot, frame, radius, accScale, aa);
     }
 
-    // ---- Gelée : maillage élastique ----
-    // Un seul système pour tous les gumori, à chaque image (décision du 2026-10-28) : un disque au repos (un centre = repère 0
-    // du motif et du visage, JellyRings anneaux intérieurs, le contour) COLLÉ à l'anneau des capsules : le point k du contour
-    // est la capsule k, motif, visage et accessoires tournent, s'étirent et se tassent avec elle, sans retard. Intérieur :
-    // « aussi rigide que possible » (ARAP) : chaque triangle garde sa forme au repos (tournée ; échelle = moyenne géométrique
-    // de la sienne et de celle du gumori : il peut se tasser dans un bras mince), en alternant la meilleure rotation de chaque
-    // triangle et un système linéaire pour tout l'intérieur, contour fixé (factorisé une fois par nombre de capsules). Départ =
-    // solution de l'image d'avant déplacée comme le contour, itérations jusqu'au repos.
-    // Avant : éventail depuis le centre (il se retournait dès que le centre sortait d'un gumori plié : visage coupé ou
-    // disparu), relayé au-delà d'un seuil par une gelée en fondu et en quelques passes par image (en retard), et visage
-    // remis à l'endroit en glissant sur le corps (signalé par l'utilisateur, choc contre une paroi).
-    const int JellyRings = 3, JellyIterations = 5, JellyFirstIterations = 20;
-    const float JellyTolerance = 1e-3f, JellyPixels = 0.25f; // repos : plus aucun sommet ne bouge de plus (rayon, pixels)
+    // ---- Gelée : anneaux emboîtés ----
+    // Un seul système pour tous les gumori, à chaque image, SANS mémoire (décision du 2026-10-28) : un disque au repos (un
+    // centre = repère 0 du motif et du visage, JellyRings anneaux, le contour) posé sur le gumori. Le contour EST l'anneau des
+    // capsules (point k = capsule k) : motif, visage et accessoires tournent, s'étirent et se tassent avec lui. Chaque anneau
+    // intérieur est le précédent RÉTRÉCI par un flot de courbure qui ne fait que RENTRER : chaque point avance vers
+    // l'intérieur selon la courbure (schéma semi-implicite de Dziuk, système tridiagonal cyclique, stable quel que soit le
+    // pas), sauf dans un creux, qui ne bouge pas (le vrai flot de courbure le pousserait dehors et l'anneau sortirait du
+    // corps). Jusqu'à l'aire de l'anneau au repos (rayon² × aire du contour). Chaque anneau reste donc dans le précédent,
+    // chaque point suit sa propre trajectoire depuis sa capsule (point k de chaque anneau sous la capsule k) : rien ne peut
+    // se croiser ni se replier, et le centre (là où la courbe s'éteint) est au plus profond du corps. Calcul refait à chaque
+    // image depuis le contour seul : aucun retard, aucun pli gardé d'une image à l'autre.
+    // Essayés le même jour (bac à sable `space bac à sable`, `Captures/bancs/lab_watch.sh`) : feuille élastique ARAP
+    // partant de l'image d'avant (plis coincés : texture superposée le long d'une ligne, œil caché, signalé par
+    // l'utilisateur) ; vrai flot de courbure (anneaux et centre sortis par les creux d'un gumori écrasé en U) ; points
+    // réalignés sur les fractions de longueur des capsules (fine bande repliée le long des creux). Avant encore : éventail
+    // depuis le centre + gelée à seuil (visage coupé, disparu, en retard).
+    const int JellyRings = 3, JellySubsteps = 5;
+    const float JellyTolerance = 1e-3f, JellyPixels = 0.25f; // contour immobile : aucun point n'a bougé de plus (rayon, pixels)
 
-    sealed class JellyRest
-    {
-        public int interior, vertices;
-        public int[] tris;
-        public Vector2[] rest; // positions au repos (rayon 1)
-        public Vector2[] offsets; // sommet au repos − centre de son triangle (3 par triangle)
-        public float[] inverseNorms; // 1 / Σ |offset|² de chaque triangle
-        public float[] chol, cholT; // facteur de Cholesky L (bas) du système de l'intérieur et sa transposée, interior × interior
-        public int band; // largeur de bande du système (ordre des sommets : centre, anneau 1, 2, 3)
-        public float area; // aire du polygone de contour au repos (rayon 1)
-    }
+    float[] _px = new float[0], _py = new float[0], _gx = new float[0], _gy = new float[0];
+    float[] _tw = new float[0], _td = new float[0], _tc = new float[0], _tz = new float[0];
+
+    float _orient = 1f; // sens du contour en cours (1 = anti-horaire)
+    Look _jelly; // gumori dont la gelée vient d'être calculée (UpdateBlob) ; sinon disque rond (gumori virtuels)
 
     // Mesures (Profiler, ProfilerRecorder) : habillage complet d'une image, et gelée seule.
     static readonly Unity.Profiling.ProfilerMarker BuildMarker = new Unity.Profiling.ProfilerMarker("GumoriSkin.Build"),
         JellyMarker = new Unity.Profiling.ProfilerMarker("GumoriSkin.Jelly");
 
-    readonly Dictionary<int, JellyRest> _jellyRest = new Dictionary<int, JellyRest>();
-    float[] _jx = new float[0], _jy = new float[0], _jbx = new float[0], _jby = new float[0], _jrx = new float[0], _jry = new float[0];
-    // Réglage de banc (non sérialisé) : part de l'échelle propre de chaque triangle (0 = celle du gumori, 1 = libre).
-    internal static float JellyFreedom = 0.5f;
-
-    Look _jelly; // gumori dont la gelée vient d'être calculée (UpdateBlob) ; sinon disque rond (gumori virtuels)
-
     static float RingRadius(int j) => (float)j / (JellyRings + 1);
 
-    JellyRest GetJellyRest(int m)
-    {
-        if (_jellyRest.TryGetValue(m, out var rest)) return rest;
-        var u = Units(m);
-        rest = new JellyRest { interior = 1 + JellyRings * m, vertices = 1 + (JellyRings + 1) * m, area = 0.5f * m * Mathf.Sin(TAU / m) };
-        rest.rest = new Vector2[rest.vertices];
-        for (int j = 1; j <= JellyRings + 1; j++)
-            for (int k = 0; k < m; k++) rest.rest[1 + (j - 1) * m + k] = u[k] * RingRadius(j);
-        var tris = new List<int>();
-        for (int k = 0; k < m; k++) tris.AddRange(new[] { 0, 1 + k, 1 + (k + 1) % m });
-        for (int j = 1; j <= JellyRings; j++)
-            for (int k = 0; k < m; k++)
-            {
-                int a = 1 + (j - 1) * m + k, b = 1 + (j - 1) * m + (k + 1) % m, c = a + m, d = b + m;
-                tris.AddRange(new[] { a, c, d, a, d, b });
-            }
-        rest.tris = tris.ToArray();
-        rest.offsets = new Vector2[rest.tris.Length];
-        rest.inverseNorms = new float[rest.tris.Length / 3];
-        int n = rest.interior;
-        // Énergie Σ |sommet − centre de son triangle − cible|² : matrice de l'intérieur (2/3 sur la diagonale, −1/3 entre deux
-        // sommets d'un même triangle, par triangle).
-        var a2 = new double[n * n];
-        for (int t = 0; t < rest.tris.Length; t += 3)
-        {
-            Vector2 g = (rest.rest[rest.tris[t]] + rest.rest[rest.tris[t + 1]] + rest.rest[rest.tris[t + 2]]) / 3f;
-            float norm = 0f;
-            for (int i = 0; i < 3; i++)
-            {
-                rest.offsets[t + i] = rest.rest[rest.tris[t + i]] - g;
-                norm += rest.offsets[t + i].sqrMagnitude;
-                int vi = rest.tris[t + i];
-                if (vi >= n) continue;
-                for (int j = 0; j < 3; j++)
-                {
-                    int vj = rest.tris[t + j];
-                    if (vj < n) a2[vi * n + vj] += i == j ? 2.0 / 3.0 : -1.0 / 3.0;
-                }
-            }
-            rest.inverseNorms[t / 3] = 1f / norm;
-        }
-        // Bande de largeur m + 1 (sommets rangés centre, anneau 1, 2, 3) : la factorisation reste dans la bande.
-        rest.band = m + 1;
-        var l = new double[n * n];
-        for (int i = 0; i < n; i++)
-            for (int j = Mathf.Max(0, i - rest.band); j <= i; j++)
-            {
-                double s = a2[i * n + j];
-                for (int k = Mathf.Max(0, i - rest.band); k < j; k++) s -= l[i * n + k] * l[j * n + k];
-                l[i * n + j] = i == j ? System.Math.Sqrt(s) : s / l[j * n + j];
-            }
-        rest.chol = new float[n * n];
-        rest.cholT = new float[n * n];
-        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) { rest.chol[i * n + j] = (float)l[i * n + j]; rest.cholT[j * n + i] = (float)l[i * n + j]; }
-        _jellyRest.Add(m, rest);
-        return rest;
-    }
-
-    // Sommets de la gelée de ce gumori (contour = _surf, les m points de l'anneau des capsules).
+    // Sommets de la gelée de ce gumori : centre, anneaux 1..JellyRings, contour (= _surf, les m points de l'anneau des capsules).
     void SolveJelly(Look look, int m)
     {
-        var rest = GetJellyRest(m);
-        int n = rest.interior, last = JellyRings * m;
+        int count = 1 + (JellyRings + 1) * m, edge = 1 + JellyRings * m;
         var q = look.jelly;
-        bool fresh = q == null || look.jellyM != m;
-        if (fresh)
+        if (q == null || q.Length < count || look.jellyM != m)
         {
-            if (q == null || q.Length < rest.vertices) look.jelly = q = new Vector2[rest.vertices];
+            look.jelly = q = new Vector2[count];
             look.jellyM = m;
             look.jellySettled = false;
         }
-
-        // Déplacement d'ensemble du contour depuis l'image d'avant (ou depuis le disque au repos) : translation, rotation et
-        // échelle au mieux. L'intérieur part de là : un gumori qui file ou qui tourne n'a rien à rattraper.
-        Vector2 cOld = Vector2.zero, cNew = Vector2.zero;
+        if (_px.Length < m)
+        {
+            _px = new float[m]; _py = new float[m]; _gx = new float[m]; _gy = new float[m];
+            _tw = new float[m]; _td = new float[m]; _tc = new float[m]; _tz = new float[m];
+        }
+        float area0 = 0f, drift = 0f;
         for (int k = 0; k < m; k++)
         {
-            cOld += fresh ? rest.rest[1 + last + k] : q[n + k];
-            cNew += _surf[k];
+            Vector2 a = _surf[k], b = _surf[(k + 1) % m];
+            area0 += a.x * b.y - a.y * b.x;
+            drift = Mathf.Max(drift, (a - q[edge + k]).sqrMagnitude);
         }
-        cOld /= m; cNew /= m;
-        float dot = 0f, cross = 0f, norm = 0f, drift = 0f, area = 0f;
+        _orient = area0 >= 0f ? 1f : -1f;
+        area0 = 0.5f * Mathf.Abs(area0);
+        float radius = Mathf.Sqrt(area0 / Mathf.PI), still = Mathf.Max(JellyTolerance * radius, JellyPixels * _pixel);
+        // Contour immobile (gumori posé dans la pile) : gelée inchangée.
+        if (look.jellySettled && drift < still * still) return;
         for (int k = 0; k < m; k++)
         {
-            Vector2 o = (fresh ? rest.rest[1 + last + k] : q[n + k]) - cOld, p = _surf[k] - cNew;
-            dot += o.x * p.x + o.y * p.y;
-            cross += o.x * p.y - o.y * p.x;
-            norm += o.sqrMagnitude;
-            if (!fresh) drift = Mathf.Max(drift, (_surf[k] - q[n + k]).sqrMagnitude);
-            Vector2 b = _surf[(k + 1) % m];
-            area += _surf[k].x * b.y - _surf[k].y * b.x;
+            q[edge + k] = _surf[k];
+            _px[k] = _surf[k].x; _py[k] = _surf[k].y;
         }
-        float scale = Mathf.Sqrt(Mathf.Max(1e-8f, 0.5f * Mathf.Abs(area)) / rest.area);
-        float still = Mathf.Max(JellyTolerance * scale, JellyPixels * _pixel), tolerance = still * still;
-        // Contour immobile et gelée au repos (gumori posé dans la pile) : rien à refaire.
-        if (!fresh && look.jellySettled && drift < tolerance) return;
-        float cs = norm > 1e-12f ? dot / norm : 1f, sn = norm > 1e-12f ? cross / norm : 0f;
-        for (int i = 0; i < n; i++)
-        {
-            Vector2 o = (fresh ? rest.rest[i] : q[i]) - cOld;
-            q[i] = cNew + new Vector2(cs * o.x - sn * o.y, sn * o.x + cs * o.y);
-        }
-        for (int k = 0; k < m; k++) q[n + k] = _surf[k];
 
-        int count = rest.vertices;
-        if (_jx.Length < count)
+        float area = area0, minEdge = 1e-4f * Mathf.Max(radius, 1e-3f);
+        for (int j = JellyRings; j >= 1; j--)
         {
-            _jx = new float[count]; _jy = new float[count];
-            _jbx = new float[count]; _jby = new float[count]; _jrx = new float[count]; _jry = new float[count];
+            float r = RingRadius(j), target = area0 * r * r;
+            for (int s = 0; s < 4 * JellySubsteps && area > 1.001f * target; s++)
+            {
+                // Le flot de courbure fait perdre au plus 2π d'aire par unité de temps (moins : les creux ne bougent pas) : pas
+                // réglé pour arriver à l'aire visée, repris tant qu'elle n'est pas atteinte.
+                float tau = (area - target) / (TAU * Mathf.Max(1, JellySubsteps - s));
+                FlowStep(m, tau, minEdge);
+                area = PolygonArea(m);
+            }
+            int ring = 1 + (j - 1) * m;
+            for (int k = 0; k < m; k++) q[ring + k] = new Vector2(_px[k], _py[k]);
         }
-        float[] qx = _jx, qy = _jy, bx = _jbx, by = _jby, rx = _jrx, ry = _jry;
-        for (int i = 0; i < count; i++) { qx[i] = q[i].x; qy[i] = q[i].y; }
-        var tris = rest.tris;
-        var off = rest.offsets;
-        var inverseNorms = rest.inverseNorms;
-        var L = rest.chol;
-        var LT = rest.cholT;
-        int band = rest.band;
-        // Part du contour (fixé) dans le second membre : 1/3 de chaque sommet du contour pour les sommets intérieurs du même
-        // triangle. Ne change pas d'une itération à l'autre.
-        System.Array.Clear(bx, 0, n);
-        System.Array.Clear(by, 0, n);
-        for (int t = 0; t < tris.Length; t += 3)
+        // Centre : encore un pas (aire ÷ 4), puis le centre de gravité de la petite courbe ronde qui reste.
+        FlowStep(m, 0.75f * area / TAU, minEdge);
+        float cx = 0f, cy = 0f, twice = 0f, mx = 0f, my = 0f;
+        for (int k = 0; k < m; k++)
         {
-            float sx = 0f, sy = 0f;
-            int inner = 0;
-            for (int v = 0; v < 3; v++)
-            {
-                int iv = tris[t + v];
-                if (iv >= n) { sx += qx[iv]; sy += qy[iv]; } else inner++;
-            }
-            if (inner == 3) continue;
-            sx *= 1f / 3f; sy *= 1f / 3f;
-            for (int v = 0; v < 3; v++)
-            {
-                int iv = tris[t + v];
-                if (iv < n) { bx[iv] += sx; by[iv] += sy; }
-            }
+            int k1 = (k + 1) % m;
+            float c = _px[k] * _py[k1] - _px[k1] * _py[k];
+            twice += c;
+            cx += (_px[k] + _px[k1]) * c; cy += (_py[k] + _py[k1]) * c;
+            mx += _px[k]; my += _py[k];
         }
-        float freedom = JellyFreedom;
-        int iterations = fresh ? JellyFirstIterations : JellyIterations;
-        look.jellySettled = false;
-        for (int it = 0; it < iterations; it++)
+        q[0] = Mathf.Abs(twice) > 1e-12f ? new Vector2(cx / (3f * twice), cy / (3f * twice)) : new Vector2(mx / m, my / m);
+        look.jellySettled = true;
+    }
+
+    float PolygonArea(int m)
+    {
+        float area = 0f;
+        for (int k = 0; k < m; k++)
         {
-            // Étape locale : rotation (et échelle) de chaque triangle vers sa forme au repos ; second membre du système.
-            System.Array.Copy(bx, rx, n);
-            System.Array.Copy(by, ry, n);
-            for (int t = 0; t < tris.Length; t += 3)
-            {
-                int ia = tris[t], ib = tris[t + 1], ic = tris[t + 2];
-                float gx = (qx[ia] + qx[ib] + qx[ic]) * (1f / 3f), gy = (qy[ia] + qy[ib] + qy[ic]) * (1f / 3f);
-                float ax = qx[ia] - gx, ay = qy[ia] - gy, bbx = qx[ib] - gx, bby = qy[ib] - gy, ccx = qx[ic] - gx, ccy = qy[ic] - gy;
-                Vector2 oa = off[t], ob = off[t + 1], oc = off[t + 2];
-                float dx = oa.x * ax + oa.y * ay + ob.x * bbx + ob.y * bby + oc.x * ccx + oc.y * ccy;
-                float cr = oa.x * ay - oa.y * ax + ob.x * bby - ob.y * bbx + oc.x * ccy - oc.y * ccx;
-                float len = Mathf.Sqrt(dx * dx + cr * cr);
-                float tc = scale, ts = 0f;
-                if (len > 1e-12f)
-                {
-                    // Échelle du triangle : la sienne^freedom × celle du gumori^(1 − freedom).
-                    float fit = len * inverseNorms[t / 3];
-                    float s = (freedom == 0.5f ? Mathf.Sqrt(fit * scale) : Mathf.Pow(fit, freedom) * Mathf.Pow(scale, 1f - freedom)) / len;
-                    tc = s * dx; ts = s * cr;
-                }
-                if (ia < n) { rx[ia] += tc * oa.x - ts * oa.y; ry[ia] += ts * oa.x + tc * oa.y; }
-                if (ib < n) { rx[ib] += tc * ob.x - ts * ob.y; ry[ib] += ts * ob.x + tc * ob.y; }
-                if (ic < n) { rx[ic] += tc * oc.x - ts * oc.y; ry[ic] += ts * oc.x + tc * oc.y; }
-            }
-            // Étape globale : L Lᵀ x = second membre (descente puis remontée, dans la bande).
-            for (int i = 0; i < n; i++)
-            {
-                float x = rx[i], y = ry[i];
-                int row = i * n;
-                for (int k = i > band ? i - band : 0; k < i; k++) { float v = L[row + k]; x -= v * rx[k]; y -= v * ry[k]; }
-                float inv = 1f / L[row + i];
-                rx[i] = x * inv; ry[i] = y * inv;
-            }
-            float moved = 0f;
-            for (int i = n - 1; i >= 0; i--)
-            {
-                float x = rx[i], y = ry[i];
-                int row = i * n, hi = i + band < n - 1 ? i + band : n - 1;
-                for (int k = i + 1; k <= hi; k++) { float v = LT[row + k]; x -= v * rx[k]; y -= v * ry[k]; }
-                float inv = 1f / LT[row + i];
-                x *= inv; y *= inv;
-                rx[i] = x; ry[i] = y;
-                float ex = x - qx[i], ey = y - qy[i], d = ex * ex + ey * ey;
-                if (d > moved) moved = d;
-            }
-            System.Array.Copy(rx, qx, n);
-            System.Array.Copy(ry, qy, n);
-            if (moved < tolerance) { look.jellySettled = true; break; }
+            int k1 = (k + 1) % m;
+            area += _px[k] * _py[k1] - _px[k1] * _py[k];
         }
-        for (int i = 0; i < n; i++) q[i] = new Vector2(qx[i], qy[i]);
+        return 0.5f * Mathf.Abs(area);
+    }
+
+    // Un pas du flot de courbure sur le polygone (_px, _py), semi-implicite (Dziuk) : masse (l₋ + l₊) / 2, raideur 1 / l par
+    // côté ; (masse / τ + raideur) y = masse / τ x, tridiagonal cyclique (Sherman-Morrison). Puis seulement vers l'intérieur.
+    void FlowStep(int m, float tau, float minEdge)
+    {
+        float[] w = _tw, d = _td, cp = _tc, z = _tz;
+        for (int i = 0; i < m; i++)
+        {
+            int i1 = (i + 1) % m;
+            float dx = _px[i1] - _px[i], dy = _py[i1] - _py[i];
+            w[i] = 1f / Mathf.Max(minEdge, Mathf.Sqrt(dx * dx + dy * dy));
+        }
+        float invTau = 1f / tau;
+        for (int i = 0; i < m; i++)
+        {
+            int ip = (i + m - 1) % m;
+            float mass = 0.5f * (1f / w[ip] + 1f / w[i]);
+            d[i] = mass * invTau + w[ip] + w[i];
+            _gx[i] = mass * invTau * _px[i];
+            _gy[i] = mass * invTau * _py[i];
+        }
+        // Coins de la matrice : −w[m − 1] (entre le dernier et le premier). Sherman-Morrison : T = A − u vᵀ, u = (γ, 0…, α).
+        float corner = -w[m - 1], gamma = -d[0];
+        d[0] -= gamma;
+        d[m - 1] -= corner * corner / gamma;
+        for (int i = 0; i < m; i++) z[i] = 0f;
+        z[0] = gamma; z[m - 1] = corner;
+        // Thomas sur trois seconds membres (x, y, u) ; sous-diagonale i ↔ i − 1 : −w[i − 1], sur-diagonale i ↔ i + 1 : −w[i].
+        cp[0] = -w[0] / d[0];
+        float denom = d[0];
+        _gx[0] /= denom; _gy[0] /= denom; z[0] /= denom;
+        for (int i = 1; i < m; i++)
+        {
+            float sub = -w[i - 1];
+            denom = d[i] - sub * cp[i - 1];
+            cp[i] = i < m - 1 ? -w[i] / denom : 0f;
+            _gx[i] = (_gx[i] - sub * _gx[i - 1]) / denom;
+            _gy[i] = (_gy[i] - sub * _gy[i - 1]) / denom;
+            z[i] = (z[i] - sub * z[i - 1]) / denom;
+        }
+        for (int i = m - 2; i >= 0; i--)
+        {
+            _gx[i] -= cp[i] * _gx[i + 1];
+            _gy[i] -= cp[i] * _gy[i + 1];
+            z[i] -= cp[i] * z[i + 1];
+        }
+        float ratio = corner / gamma, den = 1f + z[0] + ratio * z[m - 1];
+        float fx = (_gx[0] + ratio * _gx[m - 1]) / den, fy = (_gy[0] + ratio * _gy[m - 1]) / den;
+        for (int i = 0; i < m; i++)
+        {
+            _gx[i] -= fx * z[i];
+            _gy[i] -= fy * z[i];
+        }
+        // Seulement vers l'intérieur : un creux du contour ne ressort jamais ; chaque anneau reste dans le précédent.
+        for (int i = 0; i < m; i++)
+        {
+            int ip = (i + m - 1) % m, inext = (i + 1) % m;
+            float tx = _px[inext] - _px[ip], ty = _py[inext] - _py[ip];
+            float len = Mathf.Sqrt(tx * tx + ty * ty);
+            float dx = _gx[i] - _px[i], dy = _gy[i] - _py[i];
+            if (len > 1e-12f)
+            {
+                float nx = -ty * _orient / len, ny = tx * _orient / len, dn = dx * nx + dy * ny;
+                if (dn < 0f) { dx -= dn * nx; dy -= dn * ny; }
+            }
+            _tz[i] = dx; _tc[i] = dy;
+        }
+        for (int i = 0; i < m; i++) { _px[i] += _tz[i]; _py[i] += _tc[i]; }
     }
 
     // Gelée dessinée : centre, anneaux intérieurs (n points chacun) et contour _sp. Repère du motif (uv0) et de la lumière
