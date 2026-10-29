@@ -1,0 +1,12 @@
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
+var f = d.GetComponent<GumoriFusion>();
+var sb = new System.Text.StringBuilder();
+sb.AppendLine("tmpl d=" + d.template.diameter + " sides=" + d.template.sides + " maxDrop=" + d.maxDropLevel + " bias=" + d.smallBias + " seed=" + d.seed);
+for (int i = 0; i <= 10; i++) sb.Append(i + ":" + f.LevelDiameter(i).ToString("0.00") + " ");
+sb.AppendLine();
+sb.AppendLine("style " + f.style + " maxLevel " + f.maxLevel + " growth " + f.growthMode);
+var w = UnityEngine.Object.FindAnyObjectByType<WorldSettings>();
+sb.AppendLine(UnityEngine.JsonUtility.ToJson(w));
+var cam = UnityEngine.Camera.main; sb.AppendLine("cam ortho " + cam.orthographic + " size " + cam.orthographicSize + " aspect " + cam.aspect);
+var l = d.GetComponent<GumoriLauncher>(); sb.AppendLine(UnityEngine.JsonUtility.ToJson(l));
+return sb.ToString();

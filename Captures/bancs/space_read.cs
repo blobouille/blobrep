@@ -1,0 +1,14 @@
+var sb = new System.Text.StringBuilder();
+sb.AppendLine("scene " + UnityEngine.SceneManagement.SceneManager.GetActiveScene().path);
+var m = UnityEngine.Object.FindAnyObjectByType<WorldSettings>();
+sb.AppendLine("monde " + UnityEngine.JsonUtility.ToJson(m));
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
+var t = d.template;
+sb.AppendLine("blob " + UnityEngine.JsonUtility.ToJson(t));
+sb.AppendLine("fusion " + UnityEngine.JsonUtility.ToJson(d.GetComponent<GumoriFusion>()));
+sb.AppendLine("goal useGoal " + d.GetComponent<GumoriGoal>().useGoal + " seed " + d.seed + " interval " + d.dropInterval);
+var bd = UnityEngine.Object.FindAnyObjectByType<GumoriBackdrop>();
+sb.AppendLine("backdrop " + UnityEngine.JsonUtility.ToJson(bd));
+var setup = d.GetComponent<GumoriLevelSetup>();
+sb.AppendLine("setup " + (setup != null));
+return sb.ToString();

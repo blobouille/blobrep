@@ -1,0 +1,102 @@
+    void LateUpdate() => UpdateMotion();
+
+    // ---- Mouvement (ce qu'on voit) ----
+
+    // Souffle : les gumori les plus rapides (les gros d'abord) prennent une voix de SlimeSynth, qu'ils gardent tant qu'ils
+    // restent parmi les choisis ; libérée, elle se tait avant d'en prendre un autre. Blops : à chaque rebond de forme.
+    void UpdateMotion()
+    {
+        if (_synth == null) return;
+        float now = Time.unscaledTime, dt = Time.unscaledDeltaTime;
+        _duckTime = Mathf.Max(0f, _duckTime - dt);
+        _synth.duck = 1f - duckDepth * Mathf.SmoothStep(0f, 1f, _duckTime / 0.35f);
+        _synth.padRoot = 130.81f * Mathf.Pow(2f, key / 12f);
+        _jiggleTokens = Mathf.Min(2f, _jiggleTokens + jigglesPerSecond * dt);
+
+        var motions = skin != null ? skin.Motions : null;
+        int count = motions != null ? motions.Count : 0;
+        float total = 0f;
+        _candidates.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            var m = motions[i];
+            float travel = Travel(m.speed);
+            total += travel + Mathf.Clamp01(m.wobble / Mathf.Max(0.01f, jiggleFull));
+            if (travel > 0f) _candidates.Add(new Candidate { index = i, score = travel * (0.6f + m.radius) });
+            Bounce(m, now);
+        }
+        if (Time.frameCount % 30 == 0) ForgetGone(now);
+        _candidates.Sort(ByScore);
+        int chosen = Mathf.Min(_candidates.Count, Mathf.Min(travelVoices, SlimeSynth.MaxVoices));
+
+        float sum = 0f;
+        for (int c = 0; c < chosen; c++) sum += Mathf.Pow(Travel(motions[_candidates[c].index].speed), 1.5f);
+        float norm = travelVolume * master * (sum > 1f ? 1f / Mathf.Sqrt(sum) : 1f);
+
+        System.Array.Clear(_kept, 0, _kept.Length);
+        for (int c = 0; c < chosen; c++)
+        {
+            var m = motions[_candidates[c].index];
+            int v = System.Array.IndexOf(_owner, m.id);
+            if (v < 0)
+            {
+                for (int k = 0; k < SlimeSynth.MaxVoices; k++)
+                    if (_owner[k] == 0 && now >= _freeAt[k]) { v = k; break; }
+                if (v < 0) continue;
+                _owner[v] = m.id;
+            }
+            _kept[v] = true;
+            float travel = Travel(m.speed), size = Mathf.Clamp01(m.radius / 2.4f);
+            _synth.air[v] = norm * Mathf.Pow(travel, 1.5f) * Mathf.Lerp(0.55f, 1.1f, size);
+            _synth.cutoff[v] = (150f + 650f * travel) * Mathf.Lerp(1.3f, 0.55f, size);
+            _synth.pan[v] = Pan(m.center.x);
+        }
+        for (int v = 0; v < SlimeSynth.MaxVoices; v++)
+        {
+            if (_kept[v]) continue;
+            if (_owner[v] != 0) { _owner[v] = 0; _freeAt[v] = now + 0.15f; }
+            _synth.air[v] = 0f;
+        }
+        _synth.pad = 0.3f * ambience * master * (0.75f + 0.25f * Mathf.Clamp01(total / 3f));
+    }
+
+    float Travel(float speed) => Mathf.Clamp01((speed - travelGate) / Mathf.Max(0.01f, travelFull - travelGate));
+
+    // Rebond de forme : l'étirement passe un maximum ou un minimum. Sonne si le plus fort tremblement depuis le rebond
+    // précédent dépasse le seuil ; une fois par demi-oscillation au plus, peu par seconde en tout.
+    void Bounce(SlimeSkin.Motion m, float now)
+    {
+        bool known = _jiggles.TryGetValue(m.id, out var j);
+        j.seen = now;
+        j.peak = Mathf.Max(j.peak, m.wobble);
+        if (!known) j.stretch = m.stretch;
+        float delta = m.stretch - j.stretch;
+        if (Mathf.Abs(delta) > 0.004f)
+        {
+            int dir = delta > 0f ? 1 : -1;
+            if (j.dir != 0 && dir != j.dir) Blop(m, ref j, now);
+            j.dir = dir;
+            j.stretch = m.stretch;
+        }
+        _jiggles[m.id] = j;
+    }
+
+    void Blop(SlimeSkin.Motion m, ref Jiggle j, float now)
+    {
+        float amount = (j.peak - jiggleGate) / Mathf.Max(0.01f, jiggleFull - jiggleGate);
+        j.peak = 0f;
+        if (amount <= 0f || now < j.quietUntil || _jiggleTokens < 1f || jiggleVolume <= 0f) return;
+        _jiggleTokens -= 1f;
+        j.quietUntil = now + 0.22f;
+        float size = Mathf.Clamp01(m.radius / 2.4f);
+        Play(_blops[_rand.Next(_blops.Length)], jiggleVolume * (0.3f + 0.7f * Mathf.Clamp01(amount)) * Mathf.Lerp(0.6f, 1f, size),
+            3f - m.level * semitonesPerLevel * 0.8f + Jitter() * 0.5f, m.center.x);
+    }
+
+    void ForgetGone(float now)
+    {
+        _gone.Clear();
+        foreach (var pair in _jiggles)
+            if (now - pair.Value.seen > 1f) _gone.Add(pair.Key);
+        for (int i = 0; i < _gone.Count; i++) _jiggles.Remove(_gone[i]);
+    }

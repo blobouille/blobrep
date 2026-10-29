@@ -1,0 +1,289 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9db669d6e7346ec439cbe42708e2513c, type: 3}
+  m_Name: Campagne
+  m_EditorClassIdentifier: Assembly-CSharp::SlimeCampaign
+  twoStarsMovesLeft: 0.1
+  threeStarsMovesLeft: 0.2
+  zones:
+  - name: Plaine
+    levels:
+    - seed: 101
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 102
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 103
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 104
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 105
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 106
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 107
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 108
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 109
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 110
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 2
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 111
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 112
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 113
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 114
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 115
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 116
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 117
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 118
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 119
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 120
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 2
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 121
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 0
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 122
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 123
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 124
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 125
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 126
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 127
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 128
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 129
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 1
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 
+    - seed: 130
+      maxDrops: 30
+      autoTarget: 1
+      difficulty: 2
+      targetScore: 3000
+      comboShare: 0
+      maxDropLevel: 3
+      smallBias: 0
+      note: 

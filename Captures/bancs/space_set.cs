@@ -1,0 +1,22 @@
+// Réglages « espace », appliqués à la scène space endless seulement (lus dans space_set.txt : gravité jf jlf jd jld friction).
+var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+if (!scene.path.Contains("space endless")) return "PAS la scène space endless : " + scene.path;
+var v = System.IO.File.ReadAllText("Captures/bancs/space_set.txt").Trim().Split(' ');
+float F(int i) => float.Parse(v[i], System.Globalization.CultureInfo.InvariantCulture);
+var m = UnityEngine.Object.FindAnyObjectByType<WorldSettings>();
+var d = UnityEngine.Object.FindAnyObjectByType<GumoriDropper>();
+var t = d.template;
+UnityEditor.Undo.RecordObjects(new UnityEngine.Object[] { m, t, d.gameObject }, "Space");
+m.gravity = new Vector2(0f, F(0));
+t.jointFrequency = F(1);
+t.jointLinearFrequency = F(2);
+t.jointDamping = F(3);
+t.jointLinearDamping = F(4);
+t.friction = F(5);
+if (d.GetComponent<SpaceEndless>() == null) UnityEditor.Undo.AddComponent<SpaceEndless>(d.gameObject);
+d.GetComponent<GumoriGoal>().useGoal = false;
+UnityEditor.EditorUtility.SetDirty(m);
+UnityEditor.EditorUtility.SetDirty(t);
+UnityEditor.EditorUtility.SetDirty(d.gameObject);
+UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+return "ok " + scene.path + " g " + m.gravity.y + " jf " + t.jointFrequency + " jlf " + t.jointLinearFrequency + " jd " + t.jointDamping + "/" + t.jointLinearDamping + " fr " + t.friction;

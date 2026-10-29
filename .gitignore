@@ -24,3 +24,6 @@
 sysinfo.txt
 *.slnx
 _Recovery/
+
+# Captures de test de Claude (dossier Assets/Temp/ déjà ignoré par [Tt]emp/, sauf son .meta)
+Assets/Temp.meta

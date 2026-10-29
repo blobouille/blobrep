@@ -1,0 +1,50 @@
+// Gros plans de la vitrine des gumori : une vignette par design (cadrée sur lui), assemblées en planche → Captures/gumori_zoom.png.
+var skin = UnityEngine.Object.FindAnyObjectByType<GumoriSkin>();
+var t = typeof(GumoriSkin);
+var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+t.GetField("_builtFrame", flags).SetValue(skin, -1);
+t.GetMethod("BuildGallery", flags).Invoke(skin, null);
+var list = (System.Collections.IList)t.GetField("_gallery", flags).GetValue(skin);
+var back = UnityEngine.Object.FindAnyObjectByType<GumoriBackdrop>();
+if (back != null) back.enabled = false;
+int n = list.Count, cols = 6, cell = 520;
+int rows = (n + cols - 1) / cols;
+var sheet = new Texture2D(cols * cell, rows * cell, TextureFormat.RGB24, false);
+var go = new GameObject("capture zoom") { hideFlags = HideFlags.HideAndDontSave };
+var cam = go.AddComponent<Camera>();
+cam.orthographic = true;
+cam.clearFlags = CameraClearFlags.SolidColor;
+cam.backgroundColor = new Color(0.03f, 0.03f, 0.07f);
+var rt = new RenderTexture(cell, cell, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+cam.targetTexture = rt;
+var tile = new Texture2D(cell, cell, TextureFormat.RGB24, false);
+var names = new System.Text.StringBuilder();
+for (int i = 0; i < n; i++)
+{
+    var e = list[i];
+    var et = e.GetType();
+    var center = (Vector2)et.GetField("center").GetValue(e);
+    float radius = (float)et.GetField("radius").GetValue(e);
+    var design = (GumoriDesign)et.GetField("design").GetValue(e);
+    cam.orthographicSize = radius * 1.55f;
+    cam.transform.position = new Vector3(center.x, center.y + radius * 0.18f, -10f);
+    t.GetField("_builtFrame", flags).SetValue(skin, -1);
+    cam.Render();
+    var prev = RenderTexture.active;
+    RenderTexture.active = rt;
+    tile.ReadPixels(new Rect(0, 0, cell, cell), 0, 0);
+    tile.Apply();
+    RenderTexture.active = prev;
+    int cx = i % cols, cy = rows - 1 - i / cols;
+    sheet.SetPixels(cx * cell, cy * cell, cell, cell, tile.GetPixels());
+    names.Append(i).Append(' ').Append(design.name).Append(" | ");
+}
+sheet.Apply();
+System.IO.File.WriteAllBytes("Captures/gumori_zoom.png", sheet.EncodeToPNG());
+cam.targetTexture = null;
+UnityEngine.Object.DestroyImmediate(go);
+UnityEngine.Object.DestroyImmediate(rt);
+UnityEngine.Object.DestroyImmediate(tile);
+UnityEngine.Object.DestroyImmediate(sheet);
+if (back != null) back.enabled = true;
+return names.ToString();

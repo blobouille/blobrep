@@ -1,0 +1,18 @@
+var name = System.IO.File.ReadAllText("Captures/bancs/shot.txt").Trim();
+var cam = Camera.main;
+var rt = new RenderTexture(540, 960, 24);
+cam.targetTexture = rt;
+cam.aspect = 540f / 960f;
+cam.Render();
+RenderTexture.active = rt;
+var tex = new Texture2D(540, 960, TextureFormat.RGB24, false);
+tex.ReadPixels(new Rect(0, 0, 540, 960), 0, 0);
+tex.Apply();
+RenderTexture.active = null;
+cam.targetTexture = null;
+cam.ResetAspect();
+System.IO.File.WriteAllBytes("Assets/Temp/" + name + ".png", tex.EncodeToPNG());
+UnityEngine.Object.DestroyImmediate(tex);
+rt.Release();
+float h = cam.orthographicSize, w = h * 540f / 960f;
+return "vue x " + (cam.transform.position.x - w) + ".." + (cam.transform.position.x + w) + " y " + (cam.transform.position.y - h) + ".." + (cam.transform.position.y + h);

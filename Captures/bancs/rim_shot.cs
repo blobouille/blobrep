@@ -1,0 +1,17 @@
+var cam = Camera.main;
+int W = 810, H = 1440;
+var rt = new RenderTexture(W, H, 24);
+cam.targetTexture = rt;
+cam.aspect = (float)W / H;
+cam.Render();
+RenderTexture.active = rt;
+var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+tex.Apply();
+RenderTexture.active = null;
+cam.targetTexture = null;
+cam.ResetAspect();
+System.IO.File.WriteAllBytes("Captures/rim_" + System.IO.File.ReadAllText("Captures/bancs/shot.txt").Trim() + ".png", tex.EncodeToPNG());
+UnityEngine.Object.DestroyImmediate(tex);
+rt.Release();
+return "ok";
